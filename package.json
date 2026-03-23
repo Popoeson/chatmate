@@ -10,6 +10,7 @@
     "body-parser": "^1.20.2",
     "resend": "^1.0.0", 
     "dotenv": "^16.3.1",
+    "validator": "^13.9.0",
     "cors": "^2.8.5"
   }
 }
