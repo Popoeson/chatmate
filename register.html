@@ -228,24 +228,39 @@ Already have an account? <a href="login.html">Login</a>
 </div>
 
 <script>
-
 const API = "https://chatmate-kbwz.onrender.com/api/auth";
 
+/* =========================
+   ELEMENT REFERENCES
+========================= */
 const emailInput = document.getElementById("email");
 const phoneInput = document.getElementById("phone");
 const passwordInput = document.getElementById("password");
+const otpInput = document.getElementById("otp");
 
-/* THEME */
+const verifyBtn = document.getElementById("verifyBtn");
+const verifyText = document.getElementById("verifyText");
+const verifyLoader = document.getElementById("verifyLoader");
+
+const resendBtn = document.getElementById("resendBtn");
+const resendText = document.getElementById("resendText");
+const resendLoader = document.getElementById("resendLoader");
+
 const toggle = document.getElementById("themeToggle");
 const icon = toggle.querySelector("i");
 
+/* =========================
+   THEME TOGGLE
+========================= */
 toggle.onclick = () => {
   document.body.classList.toggle("dark");
   icon.classList.toggle("fa-sun");
   icon.classList.toggle("fa-moon");
 };
 
-/* MODAL */
+/* =========================
+   MODAL FUNCTIONS
+========================= */
 function showModal(msg){
   document.getElementById("modalMessage").innerText = msg;
   document.getElementById("modal").style.display = "flex";
@@ -259,32 +274,57 @@ document.getElementById("modal").onclick = (e)=>{
   if(e.target.id === "modal") closeModal();
 };
 
-/* LOADING */
+/* =========================
+   LOADING HELPERS
+========================= */
 function setLoading(state){
   document.getElementById("btnText").classList.toggle("hidden", state);
   document.getElementById("loader").classList.toggle("hidden", !state);
   document.getElementById("signupBtn").disabled = state;
 }
 
-/* STATE */
+function setVerifyLoading(isLoading){
+  verifyText.classList.toggle("hidden", isLoading);
+  verifyLoader.classList.toggle("hidden", !isLoading);
+  verifyBtn.disabled = isLoading;
+}
+
+function setResendLoading(isLoading){
+  resendText.classList.toggle("hidden", isLoading);
+  resendLoader.classList.toggle("hidden", !isLoading);
+  resendBtn.disabled = isLoading;
+}
+
+/* =========================
+   STATE SWITCHING
+========================= */
 function showOTPState(){
   document.getElementById("formState").classList.add("hidden");
   document.getElementById("otpState").classList.remove("hidden");
-  localStorage.setItem("registerState","otp");
+  localStorage.setItem("registerState", "otp");
 }
 
-/* LOAD */
+function showFormState(){
+  document.getElementById("formState").classList.remove("hidden");
+  document.getElementById("otpState").classList.add("hidden");
+  localStorage.setItem("registerState", "form");
+}
+
+/* =========================
+   PAGE LOAD STATE
+========================= */
 window.onload = ()=>{
   if(localStorage.getItem("registerState")==="otp"){
     showOTPState();
   }
 };
 
-/* REGISTER */
+/* =========================
+   REGISTER FORM
+========================= */
 async function submitForm(){
-
-  const email = emailInput.value;
-  const phone = phoneInput.value;
+  const email = emailInput.value.trim();
+  const phone = phoneInput.value.trim();
   const password = passwordInput.value;
 
   if(!email || !phone || !password){
@@ -298,7 +338,7 @@ async function submitForm(){
     const res = await fetch(`${API}/register`,{
       method:"POST",
       headers:{ "Content-Type":"application/json" },
-      body: JSON.stringify({email,phone,password})
+      body: JSON.stringify({email, phone, password})
     });
 
     const data = await res.json();
@@ -310,7 +350,6 @@ async function submitForm(){
     }
 
     localStorage.setItem("userId", data.userId);
-
     showModal("OTP sent!");
 
     setTimeout(()=>{
@@ -319,146 +358,21 @@ async function submitForm(){
     },1500);
 
   }catch(err){
+    console.error(err);
     setLoading(false);
     showModal("Network error");
   }
-}
-
-/* VERIFY */
-async function verifyOTP(){
-
-  const otp = document.getElementById("otp").value;
-  const userId = localStorage.getItem("userId");
-
-  if(!otp){
-    showModal("Enter OTP");
-    return;
-  }
-
-  try{
-    const res = await fetch(`${API}/verify-otp`,{
-      method:"POST",
-      headers:{ "Content-Type":"application/json" },
-      body: JSON.stringify({userId, otp})
-    });
-
-    const data = await res.json();
-
-    if(!res.ok){
-      showModal(data.message);
-      return;
-    }
-
-    localStorage.clear();
-
-    showModal("Verified!");
-
-    setTimeout(()=>{
-      window.location.href="profile.html";
-    },1500);
-
-  }catch{
-    showModal("Network error");
-  }
-}
-
-/* RESEND */
-let cooldown=false;
-
-async function resendOTP(){
-
-  if(cooldown){
-    showModal("Wait before resending");
-    return;
-  }
-
-  cooldown=true;
-  setTimeout(()=>cooldown=false,60000);
-
-  const userId = localStorage.getItem("userId");
-
-  try{
-    const res = await fetch(`${API}/resend-otp`,{
-      method:"POST",
-      headers:{ "Content-Type":"application/json" },
-      body: JSON.stringify({userId})
-    });
-
-    const data = await res.json();
-
-    if(!res.ok){
-      showModal(data.message);
-      return;
-    }
-
-    showModal("OTP resent!");
-
-  }catch{
-    showModal("Network error");
-  }
-}
-
-/* =========================
-   LOADING HELPERS
-========================= */
-function setVerifyLoading(isLoading){
-  const btn = document.getElementById("verifyBtn");
-  const text = document.getElementById("verifyText");
-  const loader = document.getElementById("verifyLoader");
-
-  if(isLoading){
-    text.classList.add("hidden");
-    loader.classList.remove("hidden");
-    btn.disabled = true;
-  } else {
-    text.classList.remove("hidden");
-    loader.classList.add("hidden");
-    btn.disabled = false;
-  }
-}
-
-function setResendLoading(isLoading){
-  const btn = document.getElementById("resendBtn");
-  const text = document.getElementById("resendText");
-  const loader = document.getElementById("resendLoader");
-
-  if(isLoading){
-    text.classList.add("hidden");
-    loader.classList.remove("hidden");
-    btn.disabled = true;
-  } else {
-    text.classList.remove("hidden");
-    loader.classList.add("hidden");
-    btn.disabled = false;
-  }
-}
-
-/* =========================
-   UPDATE EMAIL FLOW
-========================= */
-function updateEmail(){
-  showFormState();
-  localStorage.removeItem("registerState");
-  localStorage.removeItem("userId");
 }
 
 /* =========================
    VERIFY OTP
 ========================= */
 async function verifyOTP(){
-  const otpInput = document.getElementById("otp");
   const otp = otpInput.value.trim();
   const userId = localStorage.getItem("userId");
 
-  // INPUT VALIDATION: 6 digits
-  if(!otp){
-    showModal("Enter OTP");
-    return;
-  }
-  if(!/^\d{6}$/.test(otp)){
-    showModal("OTP must be 6 digits");
-    return;
-  }
+  if(!otp) return showModal("Enter OTP");
+  if(!/^\d{6}$/.test(otp)) return showModal("OTP must be 6 digits");
 
   setVerifyLoading(true);
 
@@ -472,17 +386,12 @@ async function verifyOTP(){
     const data = await res.json();
     setVerifyLoading(false);
 
-    if(!res.ok){
-      showModal(data.message);
-      return;
-    }
+    if(!res.ok) return showModal(data.message);
 
     localStorage.clear();
     showModal("Verified successfully!");
 
-    setTimeout(()=>{
-      window.location.href="profile.html";
-    },1500);
+    setTimeout(()=> window.location.href="profile.html", 1500);
 
   }catch(err){
     console.error(err);
@@ -497,16 +406,10 @@ async function verifyOTP(){
 let resendCooldown = false;
 
 async function resendOTP(){
-  if(resendCooldown){
-    showModal("Wait before resending OTP");
-    return;
-  }
+  if(resendCooldown) return showModal("Wait before resending OTP");
 
   const userId = localStorage.getItem("userId");
-  if(!userId){
-    showModal("No user session found");
-    return;
-  }
+  if(!userId) return showModal("No user session found");
 
   resendCooldown = true;
   setResendLoading(true);
@@ -522,15 +425,12 @@ async function resendOTP(){
     setResendLoading(false);
 
     if(!res.ok){
-      showModal(data.message);
       resendCooldown = false;
-      return;
+      return showModal(data.message);
     }
 
     showModal("OTP resent successfully!");
-
-    // 60 sec cooldown
-    setTimeout(()=>resendCooldown=false,60000);
+    setTimeout(()=> resendCooldown=false, 60000);
 
   }catch(err){
     console.error(err);
@@ -540,33 +440,15 @@ async function resendOTP(){
   }
 }
 
-/* ===== UPDATE EMAIL ======= */
-
-function updateEmail(){
-  // Clear OTP input
-  document.getElementById("otp").value = "";
-  // Show registration form
-  showFormState();
-}
-
-
 /* =========================
-   STATE SWITCHING
+   UPDATE EMAIL FLOW
 ========================= */
-
-function showOTPState(){
-  document.getElementById("formState").classList.add("hidden");
-  document.getElementById("otpState").classList.remove("hidden");
-  localStorage.setItem("registerState", "otp");
+function updateEmail(){
+  otpInput.value = "";
+  showFormState();
+  localStorage.removeItem("userId");
+  localStorage.removeItem("registerState");
 }
-
-function showFormState(){
-  document.getElementById("formState").classList.remove("hidden");
-  document.getElementById("otpState").classList.add("hidden");
-  localStorage.setItem("registerState", "form");
-}
-
 </script>
-
 </body>
 </html>
