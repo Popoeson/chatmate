@@ -188,15 +188,30 @@ Already have an account? <a href="login.html">Login</a>
 
 </div>
 
-<!-- OTP -->
+<!-- OTP STATE -->
 <div id="otpState" class="hidden">
 
-<h3>Verify Email</h3>
+  <h3>Verify Email</h3>
 
-<input id="otp" type="number" placeholder="Enter OTP">
+  <input id="otp" type="text" placeholder="Enter 6-digit OTP" maxlength="6">
 
-<button onclick="verifyOTP()">Verify</button>
-<button onclick="resendOTP()">Resend OTP</button>
+  <button id="verifyBtn" onclick="verifyOTP()">
+    <span id="verifyText">Verify</span>
+    <div id="verifyLoader" class="loader hidden">
+      <span></span><span></span><span></span>
+    </div>
+  </button>
+
+  <button id="resendBtn" onclick="resendOTP()">
+    <span id="resendText">Resend OTP</span>
+    <div id="resendLoader" class="loader hidden">
+      <span></span><span></span><span></span>
+    </div>
+  </button>
+
+  <div style="margin-top:10px;">
+    <a href="#" onclick="updateEmail()">Wrong email? Update email.</a>
+  </div>
 
 </div>
 
@@ -379,6 +394,148 @@ async function resendOTP(){
     showModal("OTP resent!");
 
   }catch{
+    showModal("Network error");
+  }
+}
+
+/* =========================
+   LOADING HELPERS
+========================= */
+function setVerifyLoading(isLoading){
+  const btn = document.getElementById("verifyBtn");
+  const text = document.getElementById("verifyText");
+  const loader = document.getElementById("verifyLoader");
+
+  if(isLoading){
+    text.classList.add("hidden");
+    loader.classList.remove("hidden");
+    btn.disabled = true;
+  } else {
+    text.classList.remove("hidden");
+    loader.classList.add("hidden");
+    btn.disabled = false;
+  }
+}
+
+function setResendLoading(isLoading){
+  const btn = document.getElementById("resendBtn");
+  const text = document.getElementById("resendText");
+  const loader = document.getElementById("resendLoader");
+
+  if(isLoading){
+    text.classList.add("hidden");
+    loader.classList.remove("hidden");
+    btn.disabled = true;
+  } else {
+    text.classList.remove("hidden");
+    loader.classList.add("hidden");
+    btn.disabled = false;
+  }
+}
+
+/* =========================
+   UPDATE EMAIL FLOW
+========================= */
+function updateEmail(){
+  showFormState();
+  localStorage.removeItem("registerState");
+  localStorage.removeItem("userId");
+}
+
+/* =========================
+   VERIFY OTP
+========================= */
+async function verifyOTP(){
+  const otpInput = document.getElementById("otp");
+  const otp = otpInput.value.trim();
+  const userId = localStorage.getItem("userId");
+
+  // INPUT VALIDATION: 6 digits
+  if(!otp){
+    showModal("Enter OTP");
+    return;
+  }
+  if(!/^\d{6}$/.test(otp)){
+    showModal("OTP must be 6 digits");
+    return;
+  }
+
+  setVerifyLoading(true);
+
+  try{
+    const res = await fetch(`${API}/verify-otp`,{
+      method: "POST",
+      headers: { "Content-Type":"application/json" },
+      body: JSON.stringify({ userId, otp })
+    });
+
+    const data = await res.json();
+    setVerifyLoading(false);
+
+    if(!res.ok){
+      showModal(data.message);
+      return;
+    }
+
+    localStorage.clear();
+    showModal("Verified successfully!");
+
+    setTimeout(()=>{
+      window.location.href="profile.html";
+    },1500);
+
+  }catch(err){
+    console.error(err);
+    setVerifyLoading(false);
+    showModal("Network error");
+  }
+}
+
+/* =========================
+   RESEND OTP (RATE-LIMIT)
+========================= */
+let resendCooldown = false;
+
+async function resendOTP(){
+  if(resendCooldown){
+    showModal("Wait before resending OTP");
+    return;
+  }
+
+  const userId = localStorage.getItem("userId");
+  if(!userId){
+    showModal("No user session found");
+    return;
+  }
+
+  resendCooldown = true;
+  setResendLoading(true);
+
+  try{
+    const res = await fetch(`${API}/resend-otp`,{
+      method:"POST",
+      headers:{ "Content-Type":"application/json" },
+      body: JSON.stringify({ userId })
+    });
+
+    const data = await res.json();
+    setResendLoading(false);
+
+    if(!res.ok){
+      showModal(data.message);
+      resendCooldown = false;
+      return;
+    }
+
+    showModal("OTP resent successfully!");
+
+    // 60 sec cooldown
+    setTimeout(()=>resendCooldown=false,60000);
+
+  }catch(err){
+    console.error(err);
+    setResendLoading(false);
+    resendCooldown = false;
     showModal("Network error");
   }
 }
