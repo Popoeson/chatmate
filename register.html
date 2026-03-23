@@ -330,6 +330,23 @@ window.onload = () => {
   }
 };
 
+/*========= LOADING STATUS =========*/
+function setLoading(isLoading){
+  const btnText = document.getElementById("btnText");
+  const loader = document.getElementById("loader");
+  const btn = document.getElementById("signupBtn");
+
+  if(isLoading){
+    btnText.classList.add("hidden");
+    loader.classList.remove("hidden");
+    btn.disabled = true;
+  } else {
+    btnText.classList.remove("hidden");
+    loader.classList.add("hidden");
+    btn.disabled = false;
+  }
+}
+
 /* =========================
    FORM SUBMIT (REGISTER)
 ========================= */
@@ -341,9 +358,11 @@ async function submitForm(){
   const password = document.getElementById("password").value;
 
   if(!email || !phone || !password){
-    alert("Fill all fields");
+    showModal("Fill all fields");
     return;
   }
+
+  setLoading(true);
 
   try{
     const res = await fetch(`${API}/register`, {
@@ -356,20 +375,22 @@ async function submitForm(){
 
     const data = await res.json();
 
+    setLoading(false);
+
     if(!res.ok){
-      alert(data.message || "Registration failed");
+      showModal(data.message || "Registration failed");
       return;
     }
 
-    // Save userId for OTP verification
     localStorage.setItem("userId", data.userId);
 
-    alert("OTP sent to your email");
+    showModal("OTP sent to your email");
     showOTPState();
 
   }catch(err){
+    setLoading(false);
     console.error(err);
-    alert("Network error");
+    showModal("Network error");
   }
 }
 
@@ -383,7 +404,7 @@ async function verifyOTP(){
   const userId = localStorage.getItem("userId");
 
   if(!otp){
-    alert("Enter OTP");
+    showModal("Enter OTP");
     return;
   }
 
@@ -399,7 +420,7 @@ async function verifyOTP(){
     const data = await res.json();
 
     if(!res.ok){
-      alert(data.message || "Invalid OTP");
+      showModal(data.message || "Invalid OTP");
       return;
     }
 
@@ -407,12 +428,12 @@ async function verifyOTP(){
     localStorage.removeItem("registerState");
     localStorage.removeItem("userId");
 
-    alert("Verified successfully!");
+    showModal("Verified successfully!");
     window.location.href = "profile.html";
 
   }catch(err){
     console.error(err);
-    alert("Network error");
+    showModal("Network error");
   }
 }
 
@@ -425,7 +446,7 @@ async function resendOTP(){
   const userId = localStorage.getItem("userId");
 
   if(!userId){
-    alert("No user session found");
+    showModal("No user session found");
     return;
   }
 
@@ -441,15 +462,15 @@ async function resendOTP(){
     const data = await res.json();
 
     if(!res.ok){
-      alert(data.message || "Failed to resend OTP");
+      showModal(data.message || "Failed to resend OTP");
       return;
     }
 
-    alert("OTP resent successfully!");
+    showModal("OTP resent successfully!");
 
   }catch(err){
     console.error(err);
-    alert("Network error");
+    showModal("Network error");
   }
 }
 
