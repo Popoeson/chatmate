@@ -176,6 +176,8 @@ button {
 
 <script>
 
+const API = "http://localhost:5000/api/auth";
+
 /* =========================
    THEME TOGGLE
 ========================= */
@@ -214,7 +216,7 @@ function showFormState(){
 }
 
 /* =========================
-   LOAD STATE (REMEMBER FLOW)
+   LOAD STATE
 ========================= */
 
 window.onload = () => {
@@ -226,7 +228,7 @@ window.onload = () => {
 };
 
 /* =========================
-   FORM SUBMIT
+   FORM SUBMIT (REGISTER)
 ========================= */
 
 async function submitForm(){
@@ -240,11 +242,32 @@ async function submitForm(){
     return;
   }
 
-  // TODO: send to backend
-  console.log("Sending registration...", {email, phone, password});
+  try{
+    const res = await fetch(`${API}/register`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ email, phone, password })
+    });
 
-  // Simulate success
-  showOTPState();
+    const data = await res.json();
+
+    if(!res.ok){
+      alert(data.message || "Registration failed");
+      return;
+    }
+
+    // Save userId for OTP verification
+    localStorage.setItem("userId", data.userId);
+
+    alert("OTP sent to your email");
+    showOTPState();
+
+  }catch(err){
+    console.error(err);
+    alert("Network error");
+  }
 }
 
 /* =========================
@@ -254,31 +277,79 @@ async function submitForm(){
 async function verifyOTP(){
 
   const otp = document.getElementById("otp").value;
+  const userId = localStorage.getItem("userId");
 
   if(!otp){
     alert("Enter OTP");
     return;
   }
 
-  // TODO: verify with backend
-  console.log("Verifying OTP...", otp);
+  try{
+    const res = await fetch(`${API}/verify-otp`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ userId, otp })
+    });
 
-  // Simulate success
-  localStorage.removeItem("registerState");
+    const data = await res.json();
 
-  alert("Verified! Redirecting...");
-  window.location.href = "profile.html";
+    if(!res.ok){
+      alert(data.message || "Invalid OTP");
+      return;
+    }
+
+    // Clear state
+    localStorage.removeItem("registerState");
+    localStorage.removeItem("userId");
+
+    alert("Verified successfully!");
+    window.location.href = "profile.html";
+
+  }catch(err){
+    console.error(err);
+    alert("Network error");
+  }
 }
 
 /* =========================
    RESEND OTP
 ========================= */
 
-function resendOTP(){
-  alert("OTP resent!");
+async function resendOTP(){
+
+  const userId = localStorage.getItem("userId");
+
+  if(!userId){
+    alert("No user session found");
+    return;
+  }
+
+  try{
+    const res = await fetch(`${API}/resend-otp`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ userId })
+    });
+
+    const data = await res.json();
+
+    if(!res.ok){
+      alert(data.message || "Failed to resend OTP");
+      return;
+    }
+
+    alert("OTP resent successfully!");
+
+  }catch(err){
+    console.error(err);
+    alert("Network error");
+  }
 }
 
 </script>
-
 </body>
 </html>
