@@ -163,28 +163,50 @@ router.post("/verify-otp", async (req, res) => {
 });
 
 /* =========================
-   RESEND OTP
+   RESEND OTP (SECURE WITH RATE LIMIT)
 ========================= */
-router.post("/resend-otp", async (req,res)=>{
+router.post("/resend-otp", async (req, res) => {
   const { userId } = req.body;
-  if(!userId) return res.status(400).json({ message: "Missing userId" });
+  if (!userId) return res.status(400).json({ message: "Missing userId" });
 
-  try{
+  try {
     const user = await User.findById(userId);
-    if(!user) return res.status(404).json({ message: "User not found" });
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    let otpRecord = await OTP.findOne({ userId });
+
+    const now = new Date();
+
+    // Check for existing OTP and cooldown (60s)
+    if (otpRecord && otpRecord.lastSentAt && (now - otpRecord.lastSentAt < 60 * 1000)) {
+      return res.status(429).json({
+        message: "Please wait before requesting another OTP"
+      });
+    }
 
     // Generate new OTP
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     const otpHash = await bcrypt.hash(otp, 10);
-    const expiresAt = new Date(Date.now() + 5*60*1000);
+    const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
 
-    await OTP.findOneAndDelete({ userId });
-    await OTP.create({ userId, otpHash, expiresAt });
+    // Delete old OTP if exists
+    if (otpRecord) await OTP.deleteOne({ userId });
 
+    // Save new OTP with lastSentAt
+    await OTP.create({
+      userId,
+      otpHash,
+      expiresAt,
+      lastSentAt: now,
+      attempts: 0
+    });
+
+    // Send OTP via email
     await sendOTPEmail(user.email, otp);
-    res.status(200).json({ message: "OTP resent" });
 
-  }catch(err){
+    res.status(200).json({ message: "OTP resent successfully" });
+
+  } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Server error" });
   }
