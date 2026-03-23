@@ -6,14 +6,13 @@ import crypto from "crypto";
 import { sendOTPEmail } from "../utils/sendEmail.js"
 import validator from "validator";
 
-
 const router = express.Router();
 
 /* =========================
-   REGISTER ROUTE (SECURE)
+   REGISTER ROUTE (FINAL)
 ========================= */
 router.post("/register", async (req, res) => {
-  const { email, phone, password } = req.body;
+  let { email, phone, password } = req.body;
 
   /* =========================
      INPUT VALIDATION
@@ -22,6 +21,9 @@ router.post("/register", async (req, res) => {
   if (!email || !phone || !password) {
     return res.status(400).json({ message: "All fields required" });
   }
+
+  // Normalize email
+  email = email.toLowerCase().trim();
 
   if (!validator.isEmail(email)) {
     return res.status(400).json({ message: "Invalid email format" });
@@ -38,12 +40,20 @@ router.post("/register", async (req, res) => {
   try {
     let user = await User.findOne({ email });
 
-    if(user){
-      if(user.isVerified){
-        return res.status(400).json({ message: "User already exists" });
+    /* =========================
+       DUPLICATE HANDLING
+    ========================= */
+
+    if (user) {
+      if (user.isVerified) {
+        return res.status(400).json({
+          message: "Account already exists. Please login."
+        });
       }
+      // If not verified → continue (resend OTP flow)
     } else {
       const passwordHash = await bcrypt.hash(password, 10);
+
       user = await User.create({
         email,
         phone,
@@ -54,7 +64,7 @@ router.post("/register", async (req, res) => {
     }
 
     /* =========================
-       RATE LIMITING (OTP)
+       RATE LIMITING (OTP COOLDOWN)
     ========================= */
 
     const existingOTP = await OTP.findOne({ userId: user._id });
@@ -62,8 +72,8 @@ router.post("/register", async (req, res) => {
     if (existingOTP) {
       const now = new Date();
 
-      // ⛔ Cooldown: 60 seconds between OTP requests
-      if (existingOTP.lastSentAt && now - existingOTP.lastSentAt < 60 * 1000) {
+      // ⛔ 60 seconds cooldown
+      if (existingOTP.lastSentAt && (now - existingOTP.lastSentAt) < 60 * 1000) {
         return res.status(429).json({
           message: "Please wait before requesting another OTP"
         });
@@ -104,6 +114,14 @@ router.post("/register", async (req, res) => {
 
   } catch (err) {
     console.error(err);
+
+    // 🔥 Handle duplicate email (DB-level protection)
+    if (err.code === 11000) {
+      return res.status(400).json({
+        message: "Email already registered"
+      });
+    }
+
     res.status(500).json({ message: "Server error" });
   }
 });
