@@ -6,14 +6,14 @@
 
 <title>ChatMate - Register</title>
 
-<!-- Font Awesome for Icons -->
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+<!-- FONT AWESOME -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 
 <style>
-/* =========================
-   THEME VARIABLES (60:30:10)
-========================= */
 
+/* =========================
+   THEME VARIABLES
+========================= */
 :root {
   --bg: #F5F6F7;
   --surface: #7B7F85;
@@ -28,10 +28,7 @@ body.dark {
   --text: #F5F6F7;
 }
 
-/* =========================
-   BASE STYLES
-========================= */
-
+/* ========================= */
 body {
   margin: 0;
   font-family: 'Poppins', sans-serif;
@@ -40,34 +37,16 @@ body {
   transition: 0.3s;
 }
 
-/* =========================
-   HEADER
-========================= */
-
+/* ========================= */
 header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
   padding: 15px 20px;
   backdrop-filter: blur(15px);
   background: rgba(255,255,255,0.1);
-  border-bottom: 1px solid rgba(255,255,255,0.2);
 }
 
-.logo {
-  font-weight: bold;
-  font-size: 20px;
-}
-
-.theme-toggle {
-  cursor: pointer;
-  font-size: 20px;
-}
-
-/* =========================
-   CENTER CONTAINER
-========================= */
-
+/* ========================= */
 .container {
   height: calc(100vh - 60px);
   display: flex;
@@ -75,37 +54,27 @@ header {
   align-items: center;
 }
 
-/* =========================
-   CARD (GLASSMORPHISM)
-========================= */
-
+/* ========================= */
 .card {
   width: 360px;
   padding: 25px;
   border-radius: 16px;
   backdrop-filter: blur(20px);
   background: rgba(255,255,255,0.1);
-  border: 1px solid rgba(255,255,255,0.2);
   text-align: center;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
 }
 
-/* =========================
-   FORM
-========================= */
-
+/* ========================= */
 input {
   width: 90%;
   padding: 12px;
   margin: 10px 0;
   border-radius: 10px;
   border: none;
-  outline: none;
   text-align: center;
 }
 
+/* ========================= */
 button {
   width: 95%;
   padding: 12px;
@@ -116,17 +85,18 @@ button {
   color: var(--bg);
   cursor: pointer;
   font-weight: bold;
+  position: relative;
 }
 
 /* =========================
-   LOADING DOTS
+   LOADER
 ========================= */
-
 .loader {
   display: inline-flex;
   gap: 5px;
-  justify-content: center;
-  align-items: center;
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
 }
 
 .loader span {
@@ -137,69 +107,49 @@ button {
   animation: bounce 1s infinite;
 }
 
-.loader span:nth-child(2) {
-  animation-delay: 0.2s;
-}
-
-.loader span:nth-child(3) {
-  animation-delay: 0.4s;
-}
+.loader span:nth-child(2){ animation-delay: 0.2s; }
+.loader span:nth-child(3){ animation-delay: 0.4s; }
 
 @keyframes bounce {
-  0%, 80%, 100% { transform: scale(0); }
-  40% { transform: scale(1); }
+  0%,80%,100%{ transform: scale(0); }
+  40%{ transform: scale(1); }
 }
 
 /* =========================
    MODAL
 ========================= */
-
 .modal {
   position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  display: none;
-  justify-content: center;
-  align-items: center;
-  background: rgba(0,0,0,0.5);
+  top:0; left:0;
+  width:100%; height:100%;
+  display:none;
+  justify-content:center;
+  align-items:center;
+  background:rgba(0,0,0,0.5);
 }
 
 .modal-content {
-  width: 300px;
-  padding: 20px;
-  border-radius: 12px;
-  backdrop-filter: blur(20px);
-  background: rgba(255,255,255,0.1);
-  text-align: center;
+  padding:20px;
+  border-radius:12px;
+  backdrop-filter:blur(20px);
+  background:rgba(255,255,255,0.1);
+  text-align:center;
 }
 
-.modal button {
-  margin-top: 10px;
-}
-
-/* =========================
-   LOGIN LINK
-========================= */
-
+/* ========================= */
 .login-link {
-  margin-top: 15px;
-  font-size: 14px;
+  margin-top:15px;
 }
 
 .login-link a {
   color: var(--accent);
-  text-decoration: none;
-  font-weight: bold;
+  font-weight:bold;
+  text-decoration:none;
 }
 
-/* =========================
-   HIDDEN STATE
-========================= */
-
+/* ========================= */
 .hidden {
-  display: none;
+  display:none;
 }
 
 </style>
@@ -207,59 +157,54 @@ button {
 
 <body>
 
-<!-- HEADER -->
 <header>
-  <div class="logo">ChatMate</div>
-  <div class="theme-toggle" id="themeToggle">
-    <i class="fa-solid fa-moon"></i>
-  </div>
+  <div>ChatMate</div>
+  <div id="themeToggle"><i class="fa-solid fa-moon"></i></div>
 </header>
 
-<!-- MAIN -->
 <div class="container">
 
-  <div class="card">
+<div class="card">
 
-    <!-- TITLE -->
-    <h2>Welcome to ChatMate!</h2>
+<h2>Welcome to ChatMate!</h2>
 
-    <!-- ================= FORM STATE ================= -->
-    <div id="formState">
+<!-- FORM -->
+<div id="formState">
 
-      <input type="email" id="email" placeholder="Email">
-      <input type="text" id="phone" placeholder="Phone Number">
-      <input type="password" id="password" placeholder="Password">
+<input id="email" placeholder="Email">
+<input id="phone" placeholder="Phone">
+<input type="password" id="password" placeholder="Password">
 
-      <button id="signupBtn" onclick="submitForm()">
+<button id="signupBtn" onclick="submitForm()">
   <span id="btnText">Sign Up</span>
   <div id="loader" class="loader hidden">
     <span></span><span></span><span></span>
   </div>
 </button>
-    </div>
 
-<!-- ===== LOGIN LINK =========== -->
 <div class="login-link">
-  Already have an account? <a href="login.html">Login</a>
+Already have an account? <a href="login.html">Login</a>
 </div>
-
-    <!-- ================= OTP STATE ================= -->
-    <div id="otpState" class="hidden">
-
-      <h3>Verify Your Email</h3>
-
-      <input type="text" id="otp" placeholder="Enter OTP">
-
-      <button onclick="verifyOTP()">Verify</button>
-      <button onclick="resendOTP()">Resend OTP</button>
-
-    </div>
-
-  </div>
 
 </div>
 
-<!-- ==== SHOW MODAL ====== -->
+<!-- OTP -->
+<div id="otpState" class="hidden">
+
+<h3>Verify Email</h3>
+
+<input id="otp" type="number" placeholder="Enter OTP">
+
+<button onclick="verifyOTP()">Verify</button>
+<button onclick="resendOTP()">Resend OTP</button>
+
+</div>
+
+</div>
+
+</div>
+
+<!-- MODAL -->
 <div id="modal" class="modal">
   <div class="modal-content">
     <p id="modalMessage"></p>
@@ -271,46 +216,19 @@ button {
 
 const API = "https://chatmate-kbwz.onrender.com/api/auth";
 
-/* =========================
-   THEME TOGGLE
-========================= */
-
+/* THEME */
 const toggle = document.getElementById("themeToggle");
 const icon = toggle.querySelector("i");
 
 toggle.onclick = () => {
   document.body.classList.toggle("dark");
-
-  if(document.body.classList.contains("dark")){
-    icon.classList.remove("fa-moon");
-    icon.classList.add("fa-sun");
-  } else {
-    icon.classList.remove("fa-sun");
-    icon.classList.add("fa-moon");
-  }
+  icon.classList.toggle("fa-sun");
+  icon.classList.toggle("fa-moon");
 };
 
-/* =========================
-   STATE SWITCHING
-========================= */
-
-function showOTPState(){
-  document.getElementById("formState").classList.add("hidden");
-  document.getElementById("otpState").classList.remove("hidden");
-
-  localStorage.setItem("registerState", "otp");
-}
-
-function showFormState(){
-  document.getElementById("formState").classList.remove("hidden");
-  document.getElementById("otpState").classList.add("hidden");
-
-  localStorage.setItem("registerState", "form");
-}
-
-/* ============== SHOW MODAL ===========*/
-function showModal(message){
-  document.getElementById("modalMessage").innerText = message;
+/* MODAL */
+function showModal(msg){
+  document.getElementById("modalMessage").innerText = msg;
   document.getElementById("modal").style.display = "flex";
 }
 
@@ -318,44 +236,37 @@ function closeModal(){
   document.getElementById("modal").style.display = "none";
 }
 
-/* =========================
-   LOAD STATE
-========================= */
+document.getElementById("modal").onclick = (e)=>{
+  if(e.target.id === "modal") closeModal();
+};
 
-window.onload = () => {
-  const state = localStorage.getItem("registerState");
+/* LOADING */
+function setLoading(state){
+  document.getElementById("btnText").classList.toggle("hidden", state);
+  document.getElementById("loader").classList.toggle("hidden", !state);
+  document.getElementById("signupBtn").disabled = state;
+}
 
-  if(state === "otp"){
+/* STATE */
+function showOTPState(){
+  document.getElementById("formState").classList.add("hidden");
+  document.getElementById("otpState").classList.remove("hidden");
+  localStorage.setItem("registerState","otp");
+}
+
+/* LOAD */
+window.onload = ()=>{
+  if(localStorage.getItem("registerState")==="otp"){
     showOTPState();
   }
 };
 
-/*========= LOADING STATUS =========*/
-function setLoading(isLoading){
-  const btnText = document.getElementById("btnText");
-  const loader = document.getElementById("loader");
-  const btn = document.getElementById("signupBtn");
-
-  if(isLoading){
-    btnText.classList.add("hidden");
-    loader.classList.remove("hidden");
-    btn.disabled = true;
-  } else {
-    btnText.classList.remove("hidden");
-    loader.classList.add("hidden");
-    btn.disabled = false;
-  }
-}
-
-/* =========================
-   FORM SUBMIT (REGISTER)
-========================= */
-
+/* REGISTER */
 async function submitForm(){
 
-  const email = document.getElementById("email").value;
-  const phone = document.getElementById("phone").value;
-  const password = document.getElementById("password").value;
+  const email = emailInput.value;
+  const phone = phoneInput.value;
+  const password = passwordInput.value;
 
   if(!email || !phone || !password){
     showModal("Fill all fields");
@@ -365,39 +276,36 @@ async function submitForm(){
   setLoading(true);
 
   try{
-    const res = await fetch(`${API}/register`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({ email, phone, password })
+    const res = await fetch(`${API}/register`,{
+      method:"POST",
+      headers:{ "Content-Type":"application/json" },
+      body: JSON.stringify({email,phone,password})
     });
 
     const data = await res.json();
-
     setLoading(false);
 
     if(!res.ok){
-      showModal(data.message || "Registration failed");
+      showModal(data.message);
       return;
     }
 
     localStorage.setItem("userId", data.userId);
 
-    showModal("OTP sent to your email");
-    showOTPState();
+    showModal("OTP sent!");
+
+    setTimeout(()=>{
+      closeModal();
+      showOTPState();
+    },1500);
 
   }catch(err){
     setLoading(false);
-    console.error(err);
     showModal("Network error");
   }
 }
 
-/* =========================
-   VERIFY OTP
-========================= */
-
+/* VERIFY */
 async function verifyOTP(){
 
   const otp = document.getElementById("otp").value;
@@ -409,71 +317,69 @@ async function verifyOTP(){
   }
 
   try{
-    const res = await fetch(`${API}/verify-otp`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({ userId, otp })
+    const res = await fetch(`${API}/verify-otp`,{
+      method:"POST",
+      headers:{ "Content-Type":"application/json" },
+      body: JSON.stringify({userId, otp})
     });
 
     const data = await res.json();
 
     if(!res.ok){
-      showModal(data.message || "Invalid OTP");
+      showModal(data.message);
       return;
     }
 
-    // Clear state
-    localStorage.removeItem("registerState");
-    localStorage.removeItem("userId");
+    localStorage.clear();
 
-    showModal("Verified successfully!");
-    window.location.href = "profile.html";
+    showModal("Verified!");
 
-  }catch(err){
-    console.error(err);
+    setTimeout(()=>{
+      window.location.href="profile.html";
+    },1500);
+
+  }catch{
     showModal("Network error");
   }
 }
 
-/* =========================
-   RESEND OTP
-========================= */
+/* RESEND */
+let cooldown=false;
 
 async function resendOTP(){
 
-  const userId = localStorage.getItem("userId");
-
-  if(!userId){
-    showModal("No user session found");
+  if(cooldown){
+    showModal("Wait before resending");
     return;
   }
 
+  cooldown=true;
+  setTimeout(()=>cooldown=false,60000);
+
+  const userId = localStorage.getItem("userId");
+
   try{
-    const res = await fetch(`${API}/resend-otp`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({ userId })
+    const res = await fetch(`${API}/resend-otp`,{
+      method:"POST",
+      headers:{ "Content-Type":"application/json" },
+      body: JSON.stringify({userId})
     });
 
     const data = await res.json();
 
     if(!res.ok){
-      showModal(data.message || "Failed to resend OTP");
+      showModal(data.message);
       return;
     }
 
-    showModal("OTP resent successfully!");
+    showModal("OTP resent!");
 
-  }catch(err){
-    console.error(err);
+  }catch{
     showModal("Network error");
   }
 }
 
 </script>
+
 </body>
 </html>
