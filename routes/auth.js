@@ -29,9 +29,9 @@ router.post("/register", async (req, res) => {
     return res.status(400).json({ message: "Invalid email format" });
   }
 
-  if (!validator.isMobilePhone(phone + "", "any")) {
-    return res.status(400).json({ message: "Invalid phone number" });
-  }
+  if (!/^\d{10,15}$/.test(phone)) {
+  return res.status(400).json({ message: "Invalid phone number" });
+}
 
   if (password.length < 6) {
     return res.status(400).json({ message: "Password must be at least 6 characters" });
