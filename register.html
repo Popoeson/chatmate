@@ -540,6 +540,32 @@ async function resendOTP(){
   }
 }
 
+/* ===== UPDATE EMAIL ======= */
+
+function updateEmail(){
+  // Clear OTP input
+  document.getElementById("otp").value = "";
+  // Show registration form
+  showFormState();
+}
+
+
+/* =========================
+   STATE SWITCHING
+========================= */
+
+function showOTPState(){
+  document.getElementById("formState").classList.add("hidden");
+  document.getElementById("otpState").classList.remove("hidden");
+  localStorage.setItem("registerState", "otp");
+}
+
+function showFormState(){
+  document.getElementById("formState").classList.remove("hidden");
+  document.getElementById("otpState").classList.add("hidden");
+  localStorage.setItem("registerState", "form");
+}
+
 </script>
 
 </body>
