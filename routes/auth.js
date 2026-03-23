@@ -3,17 +3,37 @@ import User from "../models/User.js";
 import OTP from "../models/OTP.js";
 import bcrypt from "bcrypt";
 import crypto from "crypto";
-import { sendOTPEmail } from "../utils/sendEmail.js";
+import { sendOTPEmail } from "../utils/sendEmail.js"
+import validator from "validator";
+
 
 const router = express.Router();
 
 /* =========================
-   REGISTER ROUTE
+   REGISTER ROUTE (SECURE)
 ========================= */
 router.post("/register", async (req, res) => {
   const { email, phone, password } = req.body;
 
-  if (!email || !phone || !password) return res.status(400).json({ message: "All fields required" });
+  /* =========================
+     INPUT VALIDATION
+  ========================= */
+
+  if (!email || !phone || !password) {
+    return res.status(400).json({ message: "All fields required" });
+  }
+
+  if (!validator.isEmail(email)) {
+    return res.status(400).json({ message: "Invalid email format" });
+  }
+
+  if (!validator.isMobilePhone(phone + "", "any")) {
+    return res.status(400).json({ message: "Invalid phone number" });
+  }
+
+  if (password.length < 6) {
+    return res.status(400).json({ message: "Password must be at least 6 characters" });
+  }
 
   try {
     let user = await User.findOne({ email });
@@ -22,25 +42,65 @@ router.post("/register", async (req, res) => {
       if(user.isVerified){
         return res.status(400).json({ message: "User already exists" });
       }
-      // User exists but unverified — continue to resend OTP
     } else {
       const passwordHash = await bcrypt.hash(password, 10);
-      user = await User.create({ email, phone, passwordHash, registrationStep: "otp_pending" });
+      user = await User.create({
+        email,
+        phone,
+        passwordHash,
+        isVerified: false,
+        registrationStep: "otp_pending"
+      });
     }
 
-    // Generate OTP
+    /* =========================
+       RATE LIMITING (OTP)
+    ========================= */
+
+    const existingOTP = await OTP.findOne({ userId: user._id });
+
+    if (existingOTP) {
+      const now = new Date();
+
+      // ⛔ Cooldown: 60 seconds between OTP requests
+      if (existingOTP.lastSentAt && now - existingOTP.lastSentAt < 60 * 1000) {
+        return res.status(429).json({
+          message: "Please wait before requesting another OTP"
+        });
+      }
+    }
+
+    /* =========================
+       GENERATE OTP
+    ========================= */
+
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     const otpHash = await bcrypt.hash(otp, 10);
     const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 mins
 
-    // Save OTP
-    await OTP.findOneAndDelete({ userId: user._id }); // remove old OTP if exists
-    await OTP.create({ userId: user._id, otpHash, expiresAt });
+    /* =========================
+       SAVE OTP
+    ========================= */
 
-    // Send OTP
+    await OTP.findOneAndDelete({ userId: user._id });
+
+    await OTP.create({
+      userId: user._id,
+      otpHash,
+      expiresAt,
+      lastSentAt: new Date()
+    });
+
+    /* =========================
+       SEND EMAIL
+    ========================= */
+
     await sendOTPEmail(email, otp);
 
-    res.status(200).json({ message: "OTP sent", userId: user._id });
+    res.status(200).json({
+      message: "OTP sent",
+      userId: user._id
+    });
 
   } catch (err) {
     console.error(err);
