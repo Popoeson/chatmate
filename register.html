@@ -259,6 +259,14 @@ button {
 
 </div>
 
+<!-- ==== SHOW MODAL ====== -->
+<div id="modal" class="modal">
+  <div class="modal-content">
+    <p id="modalMessage"></p>
+    <button onclick="closeModal()">OK</button>
+  </div>
+</div>
+
 <script>
 
 const API = "https://chatmate-kbwz.onrender.com/api/auth";
@@ -298,6 +306,16 @@ function showFormState(){
   document.getElementById("otpState").classList.add("hidden");
 
   localStorage.setItem("registerState", "form");
+}
+
+/* ============== SHOW MODAL ===========*/
+function showModal(message){
+  document.getElementById("modalMessage").innerText = message;
+  document.getElementById("modal").style.display = "flex";
+}
+
+function closeModal(){
+  document.getElementById("modal").style.display = "none";
 }
 
 /* =========================
