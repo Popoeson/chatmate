@@ -127,26 +127,44 @@ router.post("/register", async (req, res) => {
 });
 
 /* =========================
-   VERIFY OTP
+   VERIFY OTP (WITH RATE LIMIT & ATTEMPT LIMIT)
 ========================= */
 router.post("/verify-otp", async (req, res) => {
   const { userId, otp } = req.body;
 
-  if(!userId || !otp) return res.status(400).json({ message: "Missing parameters" });
+  if (!userId || !otp) {
+    return res.status(400).json({ message: "Missing parameters" });
+  }
+
+  // Validate OTP format (6 digits)
+  if (!/^\d{6}$/.test(otp)) {
+    return res.status(400).json({ message: "OTP must be 6 digits" });
+  }
 
   try {
     const otpRecord = await OTP.findOne({ userId });
-    if(!otpRecord) return res.status(400).json({ message: "OTP not found or expired" });
+    if (!otpRecord) return res.status(400).json({ message: "OTP not found or expired" });
 
-    if(otpRecord.expiresAt < new Date()) {
+    const now = new Date();
+
+    // Check if OTP expired
+    if (otpRecord.expiresAt < now) {
       await OTP.deleteOne({ userId });
       return res.status(400).json({ message: "OTP expired" });
     }
 
+    // Check attempt limit (max 5)
+    if (otpRecord.attempts >= 5) {
+      return res.status(429).json({ message: "Too many invalid attempts. Request a new OTP." });
+    }
+
     const isMatch = await bcrypt.compare(otp, otpRecord.otpHash);
-    if(!isMatch){
+
+    if (!isMatch) {
       otpRecord.attempts += 1;
+      otpRecord.lastFailedAt = now; // optional: track last failed attempt
       await otpRecord.save();
+
       return res.status(400).json({ message: "Invalid OTP" });
     }
 
@@ -156,7 +174,7 @@ router.post("/verify-otp", async (req, res) => {
 
     res.status(200).json({ message: "Verified successfully" });
 
-  } catch(err){
+  } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Server error" });
   }
