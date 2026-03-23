@@ -3,10 +3,107 @@ import User from "../models/User.js";
 import OTP from "../models/OTP.js";
 import bcrypt from "bcrypt";
 import crypto from "crypto";
-import { sendOTPEmail } from "../utils/sendEmail.js"
+import { sendOTPEmail } from "../utils/sendEmail.js";
 import validator from "validator";
+import jwt from "jsonwebtoken";
+import multer from "multer";
+import { v2 as cloudinary } from "cloudinary";
+import { CloudinaryStorage } from "multer-storage-cloudinary";
 
 const router = express.Router();
+
+/* =========================
+   JWT AUTH MIDDLEWARE
+========================= */
+function authenticateJWT(req, res, next){
+  const authHeader = req.headers.authorization;
+  if(!authHeader || !authHeader.startsWith("Bearer ")) return res.status(401).json({ message: "Unauthorized" });
+
+  const token = authHeader.split(" ")[1];
+  try{
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    req.userId = decoded.id;
+    next();
+  }catch{
+    return res.status(401).json({ message: "Invalid or expired token" });
+  }
+}
+
+/* =========================
+   CLOUDINARY CONFIG
+========================= */
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_NAME,
+  api_key: process.env.CLOUDINARY_KEY,
+  api_secret: process.env.CLOUDINARY_SECRET,
+});
+
+const storage = new CloudinaryStorage({
+  cloudinary,
+  params: {
+    folder: "avatars",
+    allowed_formats: ["jpg","png","jpeg","webp"],
+    transformation: [{ width: 300, height: 300, crop: "thumb", gravity: "face" }]
+  }
+});
+
+const upload = multer({ storage });
+
+/* =========================
+   GET LOGGED-IN USER
+========================= */
+router.get("/me", authenticateJWT, async (req, res)=>{
+  try{
+    const user = await User.findById(req.userId).select("-passwordHash -__v");
+    if(!user) return res.status(404).json({ message: "User not found" });
+
+    res.status(200).json({ user });
+  }catch(err){
+    console.error(err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+/* =========================
+   UPDATE PROFILE
+========================= */
+router.post("/update-profile", authenticateJWT, upload.single("avatar"), async (req,res)=>{
+  const { phone, email, username, bio, lastSeenVisible, links } = req.body;
+
+  try{
+    const user = await User.findById(req.userId);
+    if(!user) return res.status(404).json({ message: "User not found" });
+
+    // VALIDATION
+    if(!phone || !email || !username) return res.status(400).json({ message: "Phone, email, and username required" });
+    if(!validator.isEmail(email)) return res.status(400).json({ message: "Invalid email format" });
+
+    // Check if username is unique
+    const existing = await User.findOne({ username, _id: { $ne: user._id } });
+    if(existing) return res.status(400).json({ message: "Username already taken" });
+
+    // Update fields
+    user.phone = phone;
+    user.email = email.toLowerCase();
+    user.username = username;
+    user.bio = bio || "";
+    user.lastSeenVisible = lastSeenVisible === "true" || lastSeenVisible === true;
+    user.links = Array.isArray(links) ? links : [];
+
+    // Handle avatar file
+    if(req.file && req.file.path){
+      user.avatarUrl = req.file.path; // Cloudinary URL
+    }
+
+    await user.save();
+
+    res.status(200).json({ message: "Profile updated", user });
+
+  }catch(err){
+    console.error(err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
 
 /* =========================
    REGISTER ROUTE (FINAL)
