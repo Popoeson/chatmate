@@ -8,9 +8,12 @@
     "mongoose": "^7.4.1",
     "bcrypt": "^5.1.0",
     "body-parser": "^1.20.2",
-    "resend": "^1.0.0", 
+    "resend": "^1.0.0",
     "dotenv": "^16.3.1",
     "validator": "^13.9.0",
-    "cors": "^2.8.5"
+    "cors": "^2.8.5",
+    "multer": "^1.4.5-lts.1",
+    "cloudinary": "^1.37.0",
+    "jsonwebtoken": "^9.0.2"
   }
 }
