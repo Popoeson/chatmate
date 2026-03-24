@@ -5,6 +5,7 @@ const otpSchema = new mongoose.Schema({
   otpHash: { type: String, required: true },
   expiresAt: { type: Date, required: true },
   attempts: { type: Number, default: 0 },
+  purpose: { type: String, default: "verify" } ,
   lastSentAt: { type: Date }
 }, { timestamps: true });
 
