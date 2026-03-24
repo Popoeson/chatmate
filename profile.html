@@ -567,21 +567,23 @@ document.getElementById("saveProfileBtn").onclick = async ()=>{
       return;
     }
 
-    // SUCCESS: update token if backend provides new one
-    if(data.newToken){
-      localStorage.setItem("token", data.newToken);
-    }
+    // SUCCESS: replace token properly
+if (data.newToken) {
+  // Remove old token completely
+  localStorage.removeItem("token");
 
-    showModal("Profile updated successfully!", ()=>{
-      window.location.href = "home.html";
-    });
+  // Save new token
+  localStorage.setItem("token", data.newToken);
+}
 
-  }catch(err){
-    console.error(err);
-    setLoading(false);
-    showModal("Network error");
-  }
-};
+// OPTIONAL: clear temporary registration data
+localStorage.removeItem("userEmail");
+localStorage.removeItem("userPhone");
+
+// Redirect AFTER everything is updated
+showModal("Profile updated successfully!", () => {
+  window.location.href = "home.html";
+});
 
 /* =========================
    INIT
