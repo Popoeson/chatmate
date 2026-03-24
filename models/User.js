@@ -13,7 +13,8 @@ const userSchema = new mongoose.Schema({
   bio: { type: String, default: "" },
   lastSeen: { type: Date, default: Date.now },
   onlineStatus: { type: Boolean, default: false },
-  links: { type: [String], default: [] }
+  links: { type: [String], default: [] },
+  tokenVersion: { type: Number, default: 0 }
 });
 
 export default mongoose.model("User", userSchema);
