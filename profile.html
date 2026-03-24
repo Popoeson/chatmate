@@ -335,6 +335,17 @@ input[readonly] {
 const API = "https://chatmate-kbwz.onrender.com/api/auth";
 
 /* =========================
+   ELEMENT REFERENCES
+========================= */
+const phoneInput = document.getElementById("phone");
+const emailInput = document.getElementById("email");
+const usernameInput = document.getElementById("username");
+const bioInput = document.getElementById("bio");
+const avatarInput = document.getElementById("avatarInput");
+const avatarPreview = document.getElementById("avatarPreview");
+const linksContainer = document.getElementById("linksContainer");
+
+/* =========================
    THEME TOGGLE
 ========================= */
 const toggle = document.getElementById("themeToggle");
@@ -363,23 +374,18 @@ document.getElementById("modal").onclick = (e)=>{
 };
 
 /* =========================
-   AVATAR PREVIEW
+   AVATAR PREVIEW + VALIDATION
 ========================= */
-const avatarInput = document.getElementById("avatarInput");
-const avatarPreview = document.getElementById("avatarPreview");
-
 avatarInput.onchange = (e)=>{
   const file = e.target.files[0];
 
   if(file){
-    // Validate file type
     if(!file.type.startsWith("image/")){
       showModal("Only image files allowed");
       avatarInput.value = "";
       return;
     }
 
-    // Validate size (max 2MB)
     if(file.size > 2 * 1024 * 1024){
       showModal("Image must be less than 2MB");
       avatarInput.value = "";
@@ -397,8 +403,6 @@ avatarInput.onchange = (e)=>{
 /* =========================
    LINKS (DYNAMIC)
 ========================= */
-const linksContainer = document.getElementById("linksContainer");
-
 document.getElementById("addLinkBtn").onclick = ()=>{
   addLinkInput("");
 };
@@ -422,20 +426,20 @@ function getLinksArray(){
 }
 
 /* =========================
-   LOADING
+   LOADING HANDLER
 ========================= */
 function setLoading(isLoading){
   const btn = document.getElementById("saveProfileBtn");
   const text = document.getElementById("saveProfileText");
   const loader = document.getElementById("saveProfileLoader");
 
-  text.style.display = isLoading ? "none" : "inline";
-  loader.classList.toggle("active", isLoading);
+  text.classList.toggle("hidden", isLoading);
+  loader.classList.toggle("hidden", !isLoading);
   btn.disabled = isLoading;
 }
 
 /* =========================
-   FETCH USER PROFILE
+   LOAD USER PROFILE (JWT)
 ========================= */
 async function loadUserProfile(){
   try{
@@ -460,23 +464,25 @@ async function loadUserProfile(){
     const data = await res.json();
     const user = data.user;
 
-    // Prefill fields
-    document.getElementById("phone").value = user.phone || "";
-    document.getElementById("email").value = user.email || "";
-    document.getElementById("username").value = user.username || "";
-    document.getElementById("bio").value = user.bio || "";
+    // PREFILL
+    phoneInput.value = user.phone || "";
+    emailInput.value = user.email || "";
+    usernameInput.value = user.username || "";
+    bioInput.value = user.bio || "";
 
-phoneInput.readOnly = true;
-emailInput.readOnly = true;
+    // LOCK FIELDS
+    phoneInput.readOnly = true;
+    emailInput.readOnly = true;
 
+    // AVATAR
     avatarPreview.src = user.avatarUrl || "default-avatar.png";
 
+    // LAST SEEN
     document.getElementById("lastSeenToggle").checked =
       user.lastSeenVisible !== false;
 
-    // Load links
+    // LINKS
     linksContainer.innerHTML = "";
-
     if(user.links && user.links.length > 0){
       user.links.forEach(link => addLinkInput(link));
     }
@@ -491,18 +497,15 @@ emailInput.readOnly = true;
    SAVE PROFILE
 ========================= */
 document.getElementById("saveProfileBtn").onclick = async ()=>{
-  const phone = document.getElementById("phone").value.trim();
-  const email = document.getElementById("email").value.trim();
-  const username = document.getElementById("username").value.trim();
-  const bio = document.getElementById("bio").value.trim();
+  const phone = phoneInput.value.trim();
+  const email = emailInput.value.trim();
+  const username = usernameInput.value.trim();
+  const bio = bioInput.value.trim();
   const avatarFile = avatarInput.files[0];
   const lastSeenVisible = document.getElementById("lastSeenToggle").checked;
   const links = getLinksArray();
 
-  /* =========================
-     VALIDATION
-  ========================= */
-
+  /* VALIDATION */
   if(!phone || !email || !username){
     showModal("Phone, Email, and Username are required.");
     return;
