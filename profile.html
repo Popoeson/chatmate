@@ -107,19 +107,6 @@ button {
   position: relative;
 }
 
-.loader {
-  display: none; /* 🔥 default hidden */
-  gap: 5px;
-  position: absolute;
-  left: 50%;
-  transform: translateX(-50%);
-}
-
-.loader.active {
-  display: inline-flex;
-}
-/*.hidden { display: none; }*/
-
 /* =========================
    AVATAR & TOGGLE
 ========================= */
@@ -202,7 +189,7 @@ input:checked + .slider:before {
    LOADER
 ========================= */
 .loader {
-  display: inline-flex;
+  display: none;
   gap: 5px;
   position: absolute;
   left: 50%;
