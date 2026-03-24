@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Login | ChatMate</title>
+
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+<style>
+:root {
+  --bg: #F5F6F7;
+  --surface: #7B7F85;
+  --accent: #2B2E33;
+  --text: #2B2E33;
+}
+
+body.dark {
+  --bg: #2B2E33;
+  --surface: #7B7F85;
+  --accent: #F5F6F7;
+  --text: #F5F6F7;
+}
+
+body {
+  margin: 0;
+  font-family: 'Poppins', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+}
+
+/* HEADER */
+header {
+  display: flex;
+  justify-content: space-between;
+  padding: 15px 20px;
+  backdrop-filter: blur(15px);
+  background: rgba(255,255,255,0.1);
+}
+
+/* CARD */
+.container {
+  height: calc(100vh - 60px);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.card {
+  width: 350px;
+  padding: 25px;
+  border-radius: 16px;
+  backdrop-filter: blur(20px);
+  background: rgba(255,255,255,0.1);
+  text-align: center;
+}
+
+input {
+  width: 100%;
+  padding: 12px;
+  margin: 10px 0;
+  border-radius: 10px;
+  border: none;
+  outline: none;
+}
+
+/* PASSWORD WRAP */
+.password-wrap {
+  position: relative;
+  width: 100%;
+}
+
+.password-wrap input {
+  padding-right: 40px;
+}
+
+.password-wrap i {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  cursor: pointer;
+  opacity: 0.6;
+}
+
+.password-wrap i:hover {
+  opacity: 1;
+}
+
+/* BUTTON */
+button {
+  width: 100%;
+  padding: 12px;
+  border-radius: 10px;
+  border: none;
+  background: var(--accent);
+  color: var(--bg);
+  font-weight: bold;
+  position: relative;
+  cursor: pointer;
+}
+
+/* LOADER */
+.loader {
+  display: none;
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.loader.active {
+  display: inline-flex;
+}
+
+.loader span {
+  width: 6px;
+  height: 6px;
+  margin: 0 2px;
+  background: var(--bg);
+  border-radius: 50%;
+  animation: bounce 1s infinite;
+}
+
+.loader span:nth-child(2){ animation-delay: 0.2s; }
+.loader span:nth-child(3){ animation-delay: 0.4s; }
+
+@keyframes bounce {
+  0%,80%,100%{ transform: scale(0); }
+  40%{ transform: scale(1); }
+}
+
+/* OPTIONS */
+.options {
+  display: flex;
+  justify-content: space-between;
+  font-size: 14px;
+  margin-top: 5px;
+}
+
+.options a {
+  text-decoration: none;
+  color: var(--accent);
+  font-weight: bold;
+}
+
+/* REGISTER */
+.link {
+  margin-top: 15px;
+  font-size: 14px;
+}
+
+.link a {
+  color: var(--accent);
+  text-decoration: none;
+  font-weight: bold;
+}
+
+/* MODAL */
+.modal {
+  position: fixed;
+  top:0; left:0;
+  width:100%; height:100%;
+  display:none;
+  justify-content:center;
+  align-items:center;
+  background:rgba(0,0,0,0.5);
+}
+
+.modal-content {
+  padding:20px;
+  border-radius:12px;
+  background:white;
+  text-align:center;
+}
+</style>
+</head>
+
+<body>
+
+<header>
+  <div>ChatMate</div>
+  <div id="themeToggle"><i class="fa-solid fa-moon"></i></div>
+</header>
+
+<div class="container">
+  <div class="card">
+    <h2>Login</h2>
+
+    <!-- EMAIL / USERNAME -->
+    <input type="text" id="identifier" placeholder="Email or Username">
+
+    <!-- PASSWORD -->
+    <div class="password-wrap">
+      <input type="password" id="password" placeholder="Password">
+      <i id="togglePassword" class="fa-solid fa-eye"></i>
+    </div>
+
+    <!-- OPTIONS -->
+    <div class="options">
+      <label>
+        <input type="checkbox" id="rememberMe"> Remember Me
+      </label>
+      <a href="forgot-password.html">Forgot Password?</a>
+    </div>
+
+    <!-- BUTTON -->
+    <button id="loginBtn">
+      <span id="loginText">Login</span>
+      <div id="loader" class="loader">
+        <span></span><span></span><span></span>
+      </div>
+    </button>
+
+    <div class="link">
+      Not signed in? <a href="register.html">Register</a>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL -->
+<div id="modal" class="modal">
+  <div class="modal-content">
+    <p id="modalMessage"></p>
+    <button onclick="closeModal()">OK</button>
+  </div>
+</div>
+
+<script>
+const API = "https://chatmate-kbwz.onrender.com/api/auth";
+
+/* =========================
+   THEME TOGGLE
+========================= */
+const toggle = document.getElementById("themeToggle");
+const icon = toggle.querySelector("i");
+
+toggle.onclick = () => {
+  document.body.classList.toggle("dark");
+  icon.classList.toggle("fa-sun");
+  icon.classList.toggle("fa-moon");
+};
+
+/* =========================
+   PASSWORD TOGGLE
+========================= */
+const passwordInput = document.getElementById("password");
+const togglePassword = document.getElementById("togglePassword");
+
+togglePassword.onclick = () => {
+  const hidden = passwordInput.type === "password";
+  passwordInput.type = hidden ? "text" : "password";
+  togglePassword.classList.toggle("fa-eye");
+  togglePassword.classList.toggle("fa-eye-slash");
+};
+
+/* =========================
+   MODAL
+========================= */
+function showModal(msg){
+  document.getElementById("modalMessage").innerText = msg;
+  document.getElementById("modal").style.display = "flex";
+}
+
+function closeModal(){
+  document.getElementById("modal").style.display = "none";
+}
+
+/* =========================
+   LOADING
+========================= */
+function setLoading(state){
+  document.getElementById("loginText").style.display = state ? "none" : "inline";
+  document.getElementById("loader").classList.toggle("active", state);
+  document.getElementById("loginBtn").disabled = state;
+}
+
+/* =========================
+   LOGIN
+========================= */
+document.getElementById("loginBtn").onclick = async ()=>{
+  const identifier = document.getElementById("identifier").value.trim();
+  const password = passwordInput.value.trim();
+  const rememberMe = document.getElementById("rememberMe").checked;
+
+  if(!identifier || !password){
+    showModal("All fields are required");
+    return;
+  }
+
+  if(password.length < 6){
+    showModal("Password must be at least 6 characters");
+    return;
+  }
+
+  setLoading(true);
+
+  try{
+    const res = await fetch(`${API}/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ identifier, password })
+    });
+
+    const data = await res.json();
+    setLoading(false);
+
+    if(res.status === 429){
+      showModal("Too many attempts. Try again later.");
+      return;
+    }
+
+    if(!res.ok){
+      showModal(data.message || "Login failed");
+      return;
+    }
+
+    // 🔥 SESSION HANDLING
+    if(rememberMe){
+      localStorage.setItem("token", data.token);
+    } else {
+      sessionStorage.setItem("token", data.token);
+    }
+
+    window.location.href = "home.html";
+
+  }catch(err){
+    console.error(err);
+    setLoading(false);
+    showModal("Network error");
+  }
+};
+</script>
+
+</body>
+</html>
