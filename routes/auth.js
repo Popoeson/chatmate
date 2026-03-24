@@ -361,4 +361,90 @@ router.post("/resend-otp", async (req, res) => {
   }
 });
 
+/* =========================
+   LOGIN ROUTE
+========================= */
+router.post("/login", async (req, res) => {
+  const { identifier, password } = req.body;
+
+  if (!identifier || !password) {
+    return res.status(400).json({ message: "All fields required" });
+  }
+
+  try {
+    // ===== Rate Limiting =====
+    const key = identifier.toLowerCase();
+    const now = Date.now();
+    const limitWindow = 60 * 1000; // 1 minute
+    const maxAttempts = 2;
+
+    const rate = rateLimitMap.get(key) || { count: 0, firstRequestTime: now };
+
+    if (now - rate.firstRequestTime > limitWindow) {
+      rate.count = 0;
+      rate.firstRequestTime = now;
+    }
+
+    rate.count += 1;
+    rateLimitMap.set(key, rate);
+
+    if (rate.count > maxAttempts) {
+      return res.status(429).json({
+        message: "Too many attempts. Try again later."
+      });
+    }
+
+    // ===== Find User (Email OR Username) =====
+    let user;
+
+    if (identifier.includes("@")) {
+      user = await User.findOne({ email: identifier.toLowerCase() });
+    } else {
+      user = await User.findOne({ username: identifier });
+    }
+
+    if (!user) {
+      return res.status(400).json({ message: "Invalid credentials" });
+    }
+
+    // ===== Check Password =====
+    const isMatch = await bcrypt.compare(password, user.passwordHash);
+
+    if (!isMatch) {
+      return res.status(400).json({ message: "Invalid credentials" });
+    }
+
+    // ===== Check Verification =====
+    if (!user.isVerified) {
+      return res.status(403).json({
+        message: "Please verify your account first"
+      });
+    }
+
+    // ===== Generate JWT =====
+    const token = jwt.sign(
+      {
+        userId: user._id,
+        tokenVersion: user.tokenVersion
+      },
+      process.env.JWT_SECRET,
+      { expiresIn: "3d" }
+    );
+
+    res.status(200).json({
+      message: "Login successful",
+      token,
+      user: {
+        email: user.email,
+        username: user.username
+      }
+    });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
 export default router;
+
