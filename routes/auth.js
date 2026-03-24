@@ -50,6 +50,7 @@ router.get("/me", authenticateJWT, async (req, res)=>{
   }
 });
 
+
 /* =========================
    UPDATE PROFILE
 ========================= */
@@ -60,14 +61,16 @@ router.post("/update-profile", authenticateJWT, upload.single("avatar"), async (
   try{
     // ===== Rate Limiting =====
     const now = Date.now();
-    const limitWindow = 60 * 1000; // 1 min
+    const limitWindow = 60 * 1000;
     const maxAttempts = 2;
 
     const userRate = rateLimitMap.get(userId) || { count: 0, firstRequestTime: now };
+
     if(now - userRate.firstRequestTime > limitWindow){
       userRate.count = 0;
       userRate.firstRequestTime = now;
     }
+
     userRate.count += 1;
     rateLimitMap.set(userId, userRate);
 
@@ -75,11 +78,9 @@ router.post("/update-profile", authenticateJWT, upload.single("avatar"), async (
       return res.status(429).json({ message: "Too many attempts. Try again later." });
     }
 
-    // ===== Fetch user =====
     const user = await User.findById(userId);
     if(!user) return res.status(404).json({ message: "User not found" });
 
-    // ===== Validation =====
     if(!phone || !email || !username)
       return res.status(400).json({ message: "Phone, email, and username required" });
 
@@ -89,24 +90,23 @@ router.post("/update-profile", authenticateJWT, upload.single("avatar"), async (
     const existing = await User.findOne({ username, _id: { $ne: user._id } });
     if(existing) return res.status(400).json({ message: "Username already taken" });
 
-    // ===== Update profile =====
     user.phone = phone;
     user.email = email.toLowerCase();
     user.username = username;
     user.bio = bio || "";
     user.lastSeenVisible = lastSeenVisible === "true" || lastSeenVisible === true;
     user.links = Array.isArray(links) ? links : [];
+
     if(req.file && req.file.path) user.avatarUrl = req.file.path;
 
-    // ===== Invalidate old token =====
-    user.tokenVersion += 1; // increments version => old tokens invalid
+    // 🔐 Invalidate old token
+    user.tokenVersion += 1;
     await user.save();
 
-    // ===== Generate new JWT =====
     const newToken = jwt.sign(
       { userId: user._id, tokenVersion: user.tokenVersion },
       process.env.JWT_SECRET,
-      { expiresIn: '3d' }
+      { expiresIn: "3d" }
     );
 
     res.status(200).json({ message: "Profile updated", user, newToken });
@@ -117,21 +117,17 @@ router.post("/update-profile", authenticateJWT, upload.single("avatar"), async (
   }
 });
 
+
 /* =========================
-   REGISTER ROUTE (FINAL)
+   REGISTER
 ========================= */
 router.post("/register", async (req, res) => {
   let { email, phone, password } = req.body;
-
-  /* =========================
-     INPUT VALIDATION
-  ========================= */
 
   if (!email || !phone || !password) {
     return res.status(400).json({ message: "All fields required" });
   }
 
-  // Normalize email
   email = email.toLowerCase().trim();
 
   if (!validator.isEmail(email)) {
@@ -139,8 +135,8 @@ router.post("/register", async (req, res) => {
   }
 
   if (!/^\d{10,15}$/.test(phone)) {
-  return res.status(400).json({ message: "Invalid phone number" });
-}
+    return res.status(400).json({ message: "Invalid phone number" });
+  }
 
   if (password.length < 6) {
     return res.status(400).json({ message: "Password must be at least 6 characters" });
@@ -149,18 +145,11 @@ router.post("/register", async (req, res) => {
   try {
     let user = await User.findOne({ email });
 
-    /* =========================
-       DUPLICATE HANDLING
-    ========================= */
+    if (user && user.isVerified) {
+      return res.status(400).json({ message: "Account already exists. Please login." });
+    }
 
-    if (user) {
-      if (user.isVerified) {
-        return res.status(400).json({
-          message: "Account already exists. Please login."
-        });
-      }
-      // If not verified → continue (resend OTP flow)
-    } else {
+    if (!user) {
       const passwordHash = await bcrypt.hash(password, 10);
 
       user = await User.create({
@@ -172,128 +161,74 @@ router.post("/register", async (req, res) => {
       });
     }
 
-    /* =========================
-       RATE LIMITING (OTP COOLDOWN)
-    ========================= */
+    const existingOTP = await OTP.findOne({ userId: user._id, purpose: "verify" });
+    const now = new Date();
 
-    const existingOTP = await OTP.findOne({ userId: user._id });
-
-    if (existingOTP) {
-      const now = new Date();
-
-      // ⛔ 60 seconds cooldown
-      if (existingOTP.lastSentAt && (now - existingOTP.lastSentAt) < 60 * 1000) {
-        return res.status(429).json({
-          message: "Please wait before requesting another OTP"
-        });
-      }
+    if (existingOTP && (now - existingOTP.lastSentAt < 60 * 1000)) {
+      return res.status(429).json({ message: "Please wait before requesting another OTP" });
     }
-
-    /* =========================
-       GENERATE OTP
-    ========================= */
 
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     const otpHash = await bcrypt.hash(otp, 10);
-    const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 mins
 
-    /* =========================
-       SAVE OTP
-    ========================= */
-
-    await OTP.findOneAndDelete({ userId: user._id, purpose: "verify" });
+    await OTP.deleteOne({ userId: user._id, purpose: "verify" });
 
     await OTP.create({
-  userId: user._id,
-  otpHash,
-  expiresAt,
-  lastSentAt: new Date(),
-  purpose: "verify"
-});
-
-
-    /* =========================
-       SEND EMAIL
-    ========================= */
+      userId: user._id,
+      otpHash,
+      expiresAt: new Date(now.getTime() + 5 * 60 * 1000),
+      lastSentAt: now,
+      attempts: 0,
+      purpose: "verify"
+    });
 
     await sendOTPEmail(email, otp);
 
-    res.status(200).json({
-      message: "OTP sent",
-      userId: user._id
-    });
+    res.status(200).json({ message: "OTP sent", userId: user._id });
 
   } catch (err) {
     console.error(err);
-
-    // 🔥 Handle duplicate email (DB-level protection)
-    if (err.code === 11000) {
-      return res.status(400).json({
-        message: "Email already registered"
-      });
-    }
-
     res.status(500).json({ message: "Server error" });
   }
 });
 
+
 /* =========================
-   VERIFY OTP (WITH JWT)
+   VERIFY OTP (REGISTER)
 ========================= */
 router.post("/verify-otp", async (req, res) => {
   const { userId, otp } = req.body;
 
-  if (!userId || !otp) {
-    return res.status(400).json({ message: "Missing parameters" });
-  }
-
-  if (!/^\d{6}$/.test(otp)) {
-    return res.status(400).json({ message: "OTP must be 6 digits" });
+  if (!userId || !otp || !/^\d{6}$/.test(otp)) {
+    return res.status(400).json({ message: "Invalid input" });
   }
 
   try {
     const otpRecord = await OTP.findOne({ userId, purpose: "verify" });
-    if (!otpRecord) {
-      return res.status(400).json({ message: "OTP not found or expired" });
-    }
+    if (!otpRecord) return res.status(400).json({ message: "OTP not found or expired" });
 
-    const now = new Date();
-
-    if (otpRecord.expiresAt < now) {
-      await OTP.deleteOne({ userId });
+    if (otpRecord.expiresAt < new Date()) {
+      await OTP.deleteOne({ userId, purpose: "verify" });
       return res.status(400).json({ message: "OTP expired" });
     }
 
-    if (otpRecord.attempts >= 5) {
-      return res.status(429).json({
-        message: "Too many invalid attempts. Request a new OTP."
-      });
-    }
-
     const isMatch = await bcrypt.compare(otp, otpRecord.otpHash);
-
     if (!isMatch) {
       otpRecord.attempts += 1;
       await otpRecord.save();
       return res.status(400).json({ message: "Invalid OTP" });
     }
 
-    /* =========================
-       SUCCESS: VERIFY USER
-    ========================= */
     const user = await User.findByIdAndUpdate(
       userId,
       { isVerified: true, registrationStep: "verified" },
       { new: true }
     );
 
-    await OTP.deleteOne({ userId });
+    await OTP.deleteOne({ userId, purpose: "verify" });
 
-    /* =========================
-       GENERATE JWT
-    ========================= */
     const token = jwt.sign(
-      { id: user._id },
+      { userId: user._id, tokenVersion: user.tokenVersion },
       process.env.JWT_SECRET,
       { expiresIn: "7d" }
     );
@@ -301,10 +236,7 @@ router.post("/verify-otp", async (req, res) => {
     res.status(200).json({
       message: "Verified successfully",
       token,
-      user: {
-        email: user.email,
-        phone: user.phone
-      }
+      user: { email: user.email, phone: user.phone }
     });
 
   } catch (err) {
@@ -313,232 +245,151 @@ router.post("/verify-otp", async (req, res) => {
   }
 });
 
+
 /* =========================
-   RESEND OTP (SECURE WITH RATE LIMIT)
+   RESEND OTP
 ========================= */
 router.post("/resend-otp", async (req, res) => {
   const { userId } = req.body;
-  if (!userId) return res.status(400).json({ message: "Missing userId" });
 
   try {
     const user = await User.findById(userId);
     if (!user) return res.status(404).json({ message: "User not found" });
 
-    let otpRecord = await OTP.findOne({ userId });
-
+    const otpRecord = await OTP.findOne({ userId, purpose: "verify" });
     const now = new Date();
 
-    // Check for existing OTP and cooldown (60s)
-    if (otpRecord && otpRecord.lastSentAt && (now - otpRecord.lastSentAt < 60 * 1000)) {
-      return res.status(429).json({
-        message: "Please wait before requesting another OTP"
-      });
+    if (otpRecord && (now - otpRecord.lastSentAt < 60 * 1000)) {
+      return res.status(429).json({ message: "Wait before requesting another OTP" });
     }
 
-    // Generate new OTP
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     const otpHash = await bcrypt.hash(otp, 10);
-    const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
 
-    // Delete old OTP if exists
-    if (otpRecord) await OTP.deleteOne({ userId });
+    await OTP.deleteOne({ userId, purpose: "verify" });
 
-    // Save new OTP with lastSentAt
     await OTP.create({
       userId,
       otpHash,
-      expiresAt,
+      expiresAt: new Date(now.getTime() + 5 * 60 * 1000),
       lastSentAt: now,
-      attempts: 0
+      attempts: 0,
+      purpose: "verify"
     });
 
-    // Send OTP via email
     await sendOTPEmail(user.email, otp);
 
     res.status(200).json({ message: "OTP resent successfully" });
 
   } catch (err) {
-    console.error(err);
     res.status(500).json({ message: "Server error" });
   }
 });
 
+
 /* =========================
-   LOGIN ROUTE
+   LOGIN
 ========================= */
 router.post("/login", async (req, res) => {
   const { identifier, password } = req.body;
 
-  if (!identifier || !password) {
-    return res.status(400).json({ message: "All fields required" });
-  }
-
   try {
-    // ===== Rate Limiting =====
-    const key = identifier.toLowerCase();
-    const now = Date.now();
-    const limitWindow = 60 * 1000; // 1 minute
-    const maxAttempts = 2;
+    let user = identifier.includes("@")
+      ? await User.findOne({ email: identifier.toLowerCase() })
+      : await User.findOne({ username: identifier });
 
-    const rate = rateLimitMap.get(key) || { count: 0, firstRequestTime: now };
+    if (!user) return res.status(400).json({ message: "Invalid credentials" });
 
-    if (now - rate.firstRequestTime > limitWindow) {
-      rate.count = 0;
-      rate.firstRequestTime = now;
-    }
-
-    rate.count += 1;
-    rateLimitMap.set(key, rate);
-
-    if (rate.count > maxAttempts) {
-      return res.status(429).json({
-        message: "Too many attempts. Try again later."
-      });
-    }
-
-    // ===== Find User (Email OR Username) =====
-    let user;
-
-    if (identifier.includes("@")) {
-      user = await User.findOne({ email: identifier.toLowerCase() });
-    } else {
-      user = await User.findOne({ username: identifier });
-    }
-
-    if (!user) {
-      return res.status(400).json({ message: "Invalid credentials" });
-    }
-
-    // ===== Check Password =====
     const isMatch = await bcrypt.compare(password, user.passwordHash);
+    if (!isMatch) return res.status(400).json({ message: "Invalid credentials" });
 
-    if (!isMatch) {
-      return res.status(400).json({ message: "Invalid credentials" });
-    }
-
-    // ===== Check Verification =====
     if (!user.isVerified) {
-      return res.status(403).json({
-        message: "Please verify your account first"
-      });
+      return res.status(403).json({ message: "Verify your account first" });
     }
 
-    // ===== Generate JWT =====
     const token = jwt.sign(
-      {
-        userId: user._id,
-        tokenVersion: user.tokenVersion
-      },
+      { userId: user._id, tokenVersion: user.tokenVersion },
       process.env.JWT_SECRET,
       { expiresIn: "3d" }
     );
 
-    res.status(200).json({
-      message: "Login successful",
-      token,
-      user: {
-        email: user.email,
-        username: user.username
-      }
-    });
+    res.json({ message: "Login successful", token });
 
-  } catch (err) {
-    console.error(err);
+  } catch {
     res.status(500).json({ message: "Server error" });
   }
 });
+
 
 /* =========================
    FORGOT PASSWORD
 ========================= */
 router.post("/forgot-password", async (req, res) => {
   const { email } = req.body;
-  if (!email || !validator.isEmail(email)) {
-    return res.status(400).json({ message: "Invalid email" });
-  }
 
   try {
     const user = await User.findOne({ email: email.toLowerCase() });
     if (!user) return res.status(404).json({ message: "User not found" });
 
-    // ===== Rate limit OTP requests =====
     const existingOTP = await OTP.findOne({ userId: user._id, purpose: "reset_password" });
     const now = new Date();
-    if (existingOTP && existingOTP.lastSentAt && (now - existingOTP.lastSentAt < 60 * 1000)) {
-      return res.status(429).json({ message: "Wait before requesting another OTP" });
+
+    if (existingOTP && (now - existingOTP.lastSentAt < 60 * 1000)) {
+      return res.status(429).json({ message: "Wait before requesting OTP" });
     }
 
-    // ===== Generate OTP =====
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     const otpHash = await bcrypt.hash(otp, 10);
-    const expiresAt = new Date(now.getTime() + 5 * 60 * 1000); // 5 mins
 
-    if (existingOTP) await OTP.deleteOne({ userId: user._id, purpose: "reset_password" });
+    await OTP.deleteOne({ userId: user._id, purpose: "reset_password" });
 
     await OTP.create({
       userId: user._id,
       otpHash,
-      expiresAt,
+      expiresAt: new Date(now.getTime() + 5 * 60 * 1000),
       lastSentAt: now,
       attempts: 0,
       purpose: "reset_password"
     });
 
-    // Send OTP email
     await sendOTPEmail(user.email, otp);
 
-    res.status(200).json({ message: "OTP sent to your email" });
+    res.json({ message: "OTP sent" });
 
-  } catch (err) {
-    console.error(err);
+  } catch {
     res.status(500).json({ message: "Server error" });
   }
 });
+
 
 /* =========================
    VERIFY RESET OTP
 ========================= */
 router.post("/verify-reset-otp", async (req, res) => {
   const { email, otp } = req.body;
-  if (!email || !validator.isEmail(email)) {
-    return res.status(400).json({ message: "Invalid email" });
-  }
-  if (!otp || !/^\d{6}$/.test(otp)) {
-    return res.status(400).json({ message: "OTP must be 6 digits" });
-  }
 
   try {
     const user = await User.findOne({ email: email.toLowerCase() });
-    if (!user) return res.status(404).json({ message: "User not found" });
-
     const otpRecord = await OTP.findOne({ userId: user._id, purpose: "reset_password" });
-    if (!otpRecord) return res.status(400).json({ message: "OTP not found or expired" });
 
-    if (otpRecord.expiresAt < new Date()) {
-      await OTP.deleteOne({ userId: user._id, purpose: "reset_password" });
-      return res.status(400).json({ message: "OTP expired" });
-    }
-
-    if (otpRecord.attempts >= 5) {
-      return res.status(429).json({ message: "Too many invalid attempts. Request a new OTP." });
-    }
+    if (!otpRecord) return res.status(400).json({ message: "OTP not found" });
 
     const isMatch = await bcrypt.compare(otp, otpRecord.otpHash);
-    if (!isMatch) {
-      otpRecord.attempts += 1;
-      await otpRecord.save();
-      return res.status(400).json({ message: "Invalid OTP" });
-    }
+    if (!isMatch) return res.status(400).json({ message: "Invalid OTP" });
 
-    // OTP valid → allow password reset
+    // mark verified
+    user.resetVerified = true;
+    await user.save();
+
     await OTP.deleteOne({ userId: user._id, purpose: "reset_password" });
-    res.status(200).json({ message: "OTP verified successfully" });
 
-  } catch (err) {
-    console.error(err);
+    res.json({ message: "OTP verified" });
+
+  } catch {
     res.status(500).json({ message: "Server error" });
   }
 });
+
 
 /* =========================
    RESET PASSWORD
@@ -546,31 +397,22 @@ router.post("/verify-reset-otp", async (req, res) => {
 router.post("/reset-password", async (req, res) => {
   const { email, newPassword } = req.body;
 
-  if (!email || !validator.isEmail(email)) {
-    return res.status(400).json({ message: "Invalid email" });
-  }
-
-  if (!newPassword || newPassword.length < 6) {
-    return res.status(400).json({ message: "Password must be at least 6 characters" });
-  }
-
   try {
     const user = await User.findOne({ email: email.toLowerCase() });
-    if (!user) return res.status(404).json({ message: "User not found" });
 
-    // Hash and save password
-    const passwordHash = await bcrypt.hash(newPassword, 10);
-    user.passwordHash = passwordHash;
+    if (!user.resetVerified) {
+      return res.status(403).json({ message: "OTP verification required" });
+    }
 
-    // Invalidate old JWTs
+    user.passwordHash = await bcrypt.hash(newPassword, 10);
     user.tokenVersion += 1;
+    user.resetVerified = false;
 
     await user.save();
 
-    res.status(200).json({ message: "Password updated successfully" });
+    res.json({ message: "Password reset successful" });
 
-  } catch (err) {
-    console.error(err);
+  } catch {
     res.status(500).json({ message: "Server error" });
   }
 });
