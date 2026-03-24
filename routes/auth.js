@@ -11,23 +11,38 @@ import { v2 as cloudinary } from "cloudinary";
 import { CloudinaryStorage } from "multer-storage-cloudinary";
 
 const router = express.Router();
+const rateLimitMap = new Map(); // key: userId, value: { count, firstRequestTime }
+
 
 /* =========================
    JWT AUTH MIDDLEWARE
 ========================= */
-function authenticateJWT(req, res, next){
+async function authenticateJWT(req, res, next){
   const authHeader = req.headers.authorization;
-  if(!authHeader || !authHeader.startsWith("Bearer ")) return res.status(401).json({ message: "Unauthorized" });
+  if(!authHeader || !authHeader.startsWith("Bearer "))
+    return res.status(401).json({ message: "No token provided" });
 
   const token = authHeader.split(" ")[1];
+
   try{
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    req.userId = decoded.id;
+
+    const user = await User.findById(decoded.userId);
+    if(!user) return res.status(401).json({ message: "User not found" });
+
+    // Check token version
+    if(decoded.tokenVersion !== user.tokenVersion){
+      return res.status(401).json({ message: "Session expired" });
+    }
+
+    req.userId = user._id;
     next();
-  }catch{
+  }catch(err){
     return res.status(401).json({ message: "Invalid or expired token" });
   }
 }
+
+module.exports = authenticateJWT;
 
 /* =========================
    CLOUDINARY CONFIG
@@ -68,36 +83,62 @@ router.get("/me", authenticateJWT, async (req, res)=>{
    UPDATE PROFILE
 ========================= */
 router.post("/update-profile", authenticateJWT, upload.single("avatar"), async (req,res)=>{
+  const userId = req.userId;
   const { phone, email, username, bio, lastSeenVisible, links } = req.body;
 
   try{
-    const user = await User.findById(req.userId);
+    // ===== Rate Limiting =====
+    const now = Date.now();
+    const limitWindow = 60 * 1000; // 1 min
+    const maxAttempts = 2;
+
+    const userRate = rateLimitMap.get(userId) || { count: 0, firstRequestTime: now };
+    if(now - userRate.firstRequestTime > limitWindow){
+      userRate.count = 0;
+      userRate.firstRequestTime = now;
+    }
+    userRate.count += 1;
+    rateLimitMap.set(userId, userRate);
+
+    if(userRate.count > maxAttempts){
+      return res.status(429).json({ message: "Too many attempts. Try again later." });
+    }
+
+    // ===== Fetch user =====
+    const user = await User.findById(userId);
     if(!user) return res.status(404).json({ message: "User not found" });
 
-    // VALIDATION
-    if(!phone || !email || !username) return res.status(400).json({ message: "Phone, email, and username required" });
-    if(!validator.isEmail(email)) return res.status(400).json({ message: "Invalid email format" });
+    // ===== Validation =====
+    if(!phone || !email || !username)
+      return res.status(400).json({ message: "Phone, email, and username required" });
 
-    // Check if username is unique
+    if(!validator.isEmail(email))
+      return res.status(400).json({ message: "Invalid email format" });
+
     const existing = await User.findOne({ username, _id: { $ne: user._id } });
     if(existing) return res.status(400).json({ message: "Username already taken" });
 
-    // Update fields
+    // ===== Update profile =====
     user.phone = phone;
     user.email = email.toLowerCase();
     user.username = username;
     user.bio = bio || "";
     user.lastSeenVisible = lastSeenVisible === "true" || lastSeenVisible === true;
     user.links = Array.isArray(links) ? links : [];
+    if(req.file && req.file.path) user.avatarUrl = req.file.path;
 
-    // Handle avatar file
-    if(req.file && req.file.path){
-      user.avatarUrl = req.file.path; // Cloudinary URL
-    }
-
+    // ===== Invalidate old token =====
+    user.tokenVersion += 1; // increments version => old tokens invalid
     await user.save();
 
-    res.status(200).json({ message: "Profile updated", user });
+    // ===== Generate new JWT =====
+    const newToken = jwt.sign(
+      { userId: user._id, tokenVersion: user.tokenVersion },
+      process.env.JWT_SECRET,
+      { expiresIn: '3d' }
+    );
+
+    res.status(200).json({ message: "Profile updated", user, newToken });
 
   }catch(err){
     console.error(err);
