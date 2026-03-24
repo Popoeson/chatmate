@@ -224,7 +224,7 @@ router.post("/register", async (req, res) => {
 });
 
 /* =========================
-   VERIFY OTP (WITH RATE LIMIT & ATTEMPT LIMIT)
+   VERIFY OTP (WITH JWT)
 ========================= */
 router.post("/verify-otp", async (req, res) => {
   const { userId, otp } = req.body;
@@ -233,43 +233,65 @@ router.post("/verify-otp", async (req, res) => {
     return res.status(400).json({ message: "Missing parameters" });
   }
 
-  // Validate OTP format (6 digits)
   if (!/^\d{6}$/.test(otp)) {
     return res.status(400).json({ message: "OTP must be 6 digits" });
   }
 
   try {
     const otpRecord = await OTP.findOne({ userId });
-    if (!otpRecord) return res.status(400).json({ message: "OTP not found or expired" });
+    if (!otpRecord) {
+      return res.status(400).json({ message: "OTP not found or expired" });
+    }
 
     const now = new Date();
 
-    // Check if OTP expired
     if (otpRecord.expiresAt < now) {
       await OTP.deleteOne({ userId });
       return res.status(400).json({ message: "OTP expired" });
     }
 
-    // Check attempt limit (max 5)
     if (otpRecord.attempts >= 5) {
-      return res.status(429).json({ message: "Too many invalid attempts. Request a new OTP." });
+      return res.status(429).json({
+        message: "Too many invalid attempts. Request a new OTP."
+      });
     }
 
     const isMatch = await bcrypt.compare(otp, otpRecord.otpHash);
 
     if (!isMatch) {
       otpRecord.attempts += 1;
-      otpRecord.lastFailedAt = now; // optional: track last failed attempt
       await otpRecord.save();
-
       return res.status(400).json({ message: "Invalid OTP" });
     }
 
-    // OTP correct — verify user
-    await User.findByIdAndUpdate(userId, { isVerified: true, registrationStep: "verified" });
+    /* =========================
+       SUCCESS: VERIFY USER
+    ========================= */
+    const user = await User.findByIdAndUpdate(
+      userId,
+      { isVerified: true, registrationStep: "verified" },
+      { new: true }
+    );
+
     await OTP.deleteOne({ userId });
 
-    res.status(200).json({ message: "Verified successfully" });
+    /* =========================
+       GENERATE JWT
+    ========================= */
+    const token = jwt.sign(
+      { id: user._id },
+      process.env.JWT_SECRET,
+      { expiresIn: "7d" }
+    );
+
+    res.status(200).json({
+      message: "Verified successfully",
+      token,
+      user: {
+        email: user.email,
+        phone: user.phone
+      }
+    });
 
   } catch (err) {
     console.error(err);
