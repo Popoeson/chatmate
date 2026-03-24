@@ -446,5 +446,132 @@ router.post("/login", async (req, res) => {
   }
 });
 
+/* =========================
+   FORGOT PASSWORD
+========================= */
+router.post("/forgot-password", async (req, res) => {
+  const { email } = req.body;
+  if (!email || !validator.isEmail(email)) {
+    return res.status(400).json({ message: "Invalid email" });
+  }
+
+  try {
+    const user = await User.findOne({ email: email.toLowerCase() });
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    // ===== Rate limit OTP requests =====
+    const existingOTP = await OTP.findOne({ userId: user._id, purpose: "reset_password" });
+    const now = new Date();
+    if (existingOTP && existingOTP.lastSentAt && (now - existingOTP.lastSentAt < 60 * 1000)) {
+      return res.status(429).json({ message: "Wait before requesting another OTP" });
+    }
+
+    // ===== Generate OTP =====
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const otpHash = await bcrypt.hash(otp, 10);
+    const expiresAt = new Date(now.getTime() + 5 * 60 * 1000); // 5 mins
+
+    if (existingOTP) await OTP.deleteOne({ userId: user._id, purpose: "reset_password" });
+
+    await OTP.create({
+      userId: user._id,
+      otpHash,
+      expiresAt,
+      lastSentAt: now,
+      attempts: 0,
+      purpose: "reset_password"
+    });
+
+    // Send OTP email
+    await sendOTPEmail(user.email, otp);
+
+    res.status(200).json({ message: "OTP sent to your email" });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+/* =========================
+   VERIFY RESET OTP
+========================= */
+router.post("/verify-reset-otp", async (req, res) => {
+  const { email, otp } = req.body;
+  if (!email || !validator.isEmail(email)) {
+    return res.status(400).json({ message: "Invalid email" });
+  }
+  if (!otp || !/^\d{6}$/.test(otp)) {
+    return res.status(400).json({ message: "OTP must be 6 digits" });
+  }
+
+  try {
+    const user = await User.findOne({ email: email.toLowerCase() });
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    const otpRecord = await OTP.findOne({ userId: user._id, purpose: "reset_password" });
+    if (!otpRecord) return res.status(400).json({ message: "OTP not found or expired" });
+
+    if (otpRecord.expiresAt < new Date()) {
+      await OTP.deleteOne({ userId: user._id, purpose: "reset_password" });
+      return res.status(400).json({ message: "OTP expired" });
+    }
+
+    if (otpRecord.attempts >= 5) {
+      return res.status(429).json({ message: "Too many invalid attempts. Request a new OTP." });
+    }
+
+    const isMatch = await bcrypt.compare(otp, otpRecord.otpHash);
+    if (!isMatch) {
+      otpRecord.attempts += 1;
+      await otpRecord.save();
+      return res.status(400).json({ message: "Invalid OTP" });
+    }
+
+    // OTP valid → allow password reset
+    await OTP.deleteOne({ userId: user._id, purpose: "reset_password" });
+    res.status(200).json({ message: "OTP verified successfully" });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+/* =========================
+   RESET PASSWORD
+========================= */
+router.post("/reset-password", async (req, res) => {
+  const { email, newPassword } = req.body;
+
+  if (!email || !validator.isEmail(email)) {
+    return res.status(400).json({ message: "Invalid email" });
+  }
+
+  if (!newPassword || newPassword.length < 6) {
+    return res.status(400).json({ message: "Password must be at least 6 characters" });
+  }
+
+  try {
+    const user = await User.findOne({ email: email.toLowerCase() });
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    // Hash and save password
+    const passwordHash = await bcrypt.hash(newPassword, 10);
+    user.passwordHash = passwordHash;
+
+    // Invalidate old JWTs
+    user.tokenVersion += 1;
+
+    await user.save();
+
+    res.status(200).json({ message: "Password updated successfully" });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
 export default router;
 
