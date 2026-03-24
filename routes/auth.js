@@ -42,7 +42,7 @@ async function authenticateJWT(req, res, next){
   }
 }
 
-module.exports = authenticateJWT;
+export default authenticateJWT;
 
 /* =========================
    CLOUDINARY CONFIG
