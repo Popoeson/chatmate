@@ -15,36 +15,6 @@ const rateLimitMap = new Map(); // key: userId, value: { count, firstRequestTime
 
 
 /* =========================
-   JWT AUTH MIDDLEWARE
-========================= */
-async function authenticateJWT(req, res, next){
-  const authHeader = req.headers.authorization;
-  if(!authHeader || !authHeader.startsWith("Bearer "))
-    return res.status(401).json({ message: "No token provided" });
-
-  const token = authHeader.split(" ")[1];
-
-  try{
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-
-    const user = await User.findById(decoded.userId);
-    if(!user) return res.status(401).json({ message: "User not found" });
-
-    // Check token version
-    if(decoded.tokenVersion !== user.tokenVersion){
-      return res.status(401).json({ message: "Session expired" });
-    }
-
-    req.userId = user._id;
-    next();
-  }catch(err){
-    return res.status(401).json({ message: "Invalid or expired token" });
-  }
-}
-
-export default authenticateJWT;
-
-/* =========================
    CLOUDINARY CONFIG
 ========================= */
 cloudinary.config({
