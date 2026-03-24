@@ -108,10 +108,15 @@ button {
 }
 
 .loader {
-  display: inline-flex;
+  display: none; /* 🔥 default hidden */
   gap: 5px;
-  justify-content: center;
-  align-items: center;
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.loader.active {
+  display: inline-flex;
 }
 
 .loader span {
@@ -419,8 +424,8 @@ function setLoading(isLoading){
   const text = document.getElementById("saveProfileText");
   const loader = document.getElementById("saveProfileLoader");
 
-  text.classList.toggle("hidden", isLoading);
-  loader.classList.toggle("hidden", !isLoading);
+  text.style.display = isLoading ? "none" : "inline";
+  loader.classList.toggle("active", isLoading);
   btn.disabled = isLoading;
 }
 
