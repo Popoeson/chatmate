@@ -204,11 +204,13 @@ router.post("/register", async (req, res) => {
     await OTP.findOneAndDelete({ userId: user._id });
 
     await OTP.create({
-      userId: user._id,
-      otpHash,
-      expiresAt,
-      lastSentAt: new Date()
-    });
+  userId: user._id,
+  otpHash,
+  expiresAt,
+  lastSentAt: new Date(),
+  purpose: "verify"
+});
+
 
     /* =========================
        SEND EMAIL
@@ -250,7 +252,7 @@ router.post("/verify-otp", async (req, res) => {
   }
 
   try {
-    const otpRecord = await OTP.findOne({ userId });
+    const otpRecord = await OTP.findOne({ userId, purpose: "verify" });
     if (!otpRecord) {
       return res.status(400).json({ message: "OTP not found or expired" });
     }
