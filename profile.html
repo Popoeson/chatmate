@@ -330,9 +330,19 @@ toggle.onclick = () => {
 /* =========================
    MODAL
 ========================= */
-function showModal(msg){
+function showModal(msg, onClose=null){
   document.getElementById("modalMessage").innerText = msg;
-  document.getElementById("modal").style.display = "flex";
+  const modal = document.getElementById("modal");
+  modal.style.display = "flex";
+
+  // Set a one-time close callback
+  const okBtn = modal.querySelector("button");
+  const closeHandler = ()=>{
+    closeModal();
+    if(onClose) onClose();
+    okBtn.removeEventListener("click", closeHandler);
+  };
+  okBtn.addEventListener("click", closeHandler);
 }
 
 function closeModal(){
@@ -348,24 +358,19 @@ document.getElementById("modal").onclick = (e)=>{
 ========================= */
 avatarInput.onchange = (e)=>{
   const file = e.target.files[0];
-
   if(file){
     if(!file.type.startsWith("image/")){
       showModal("Only image files allowed");
       avatarInput.value = "";
       return;
     }
-
     if(file.size > 2 * 1024 * 1024){
       showModal("Image must be less than 2MB");
       avatarInput.value = "";
       return;
     }
-
     const reader = new FileReader();
-    reader.onload = () => {
-      avatarPreview.src = reader.result;
-    };
+    reader.onload = () => { avatarPreview.src = reader.result; };
     reader.readAsDataURL(file);
   }
 };
@@ -373,19 +378,15 @@ avatarInput.onchange = (e)=>{
 /* =========================
    LINKS (DYNAMIC)
 ========================= */
-document.getElementById("addLinkBtn").onclick = ()=>{
-  addLinkInput("");
-};
+document.getElementById("addLinkBtn").onclick = ()=> addLinkInput();
 
 function addLinkInput(value=""){
   const div = document.createElement("div");
   div.className = "link-item";
-
   div.innerHTML = `
     <input type="url" class="linkInput" placeholder="https://example.com" value="${value}">
     <button type="button" onclick="this.parentElement.remove()">Remove</button>
   `;
-
   linksContainer.appendChild(div);
 }
 
@@ -402,7 +403,6 @@ function setLoading(isLoading){
   const btn = document.getElementById("saveProfileBtn");
   const text = document.getElementById("saveProfileText");
   const loader = document.getElementById("saveProfileLoader");
-
   text.classList.toggle("hidden", isLoading);
   loader.classList.toggle("hidden", !isLoading);
   btn.disabled = isLoading;
@@ -414,20 +414,17 @@ function setLoading(isLoading){
 async function loadUserProfile(){
   try{
     const token = localStorage.getItem("token");
-
     if(!token){
-      showModal("Session expired. Please login again.");
+      showModal("Session expired. Please login again.", ()=> window.location.href="login.html");
       return;
     }
 
     const res = await fetch(`${API}/me`, {
-      headers: {
-        "Authorization": `Bearer ${token}`
-      }
+      headers: { "Authorization": `Bearer ${token}` }
     });
 
     if(!res.ok){
-      showModal("Failed to load profile");
+      showModal("Failed to load profile", ()=> window.location.href="login.html");
       return;
     }
 
@@ -459,7 +456,7 @@ async function loadUserProfile(){
 
   }catch(err){
     console.error(err);
-    showModal("Error loading profile");
+    showModal("Error loading profile", ()=> window.location.href="login.html");
   }
 }
 
@@ -480,34 +477,17 @@ document.getElementById("saveProfileBtn").onclick = async ()=>{
     showModal("Phone, Email, and Username are required.");
     return;
   }
-
-  if(!/^\d{10,15}$/.test(phone)){
-    showModal("Invalid phone number");
-    return;
-  }
-
-  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){
-    showModal("Invalid email format");
-    return;
-  }
-
-  if(username.length < 3){
-    showModal("Username must be at least 3 characters");
-    return;
-  }
-
-  if(bio.length > 150){
-    showModal("Bio too long");
-    return;
-  }
+  if(!/^\d{10,15}$/.test(phone)){ showModal("Invalid phone number"); return; }
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){ showModal("Invalid email format"); return; }
+  if(username.length < 3){ showModal("Username must be at least 3 characters"); return; }
+  if(bio.length > 150){ showModal("Bio too long"); return; }
 
   setLoading(true);
 
   try{
     const token = localStorage.getItem("token");
-
     if(!token){
-      showModal("Session expired. Please login again.");
+      showModal("Session expired. Please login again.", ()=> window.location.href="login.html");
       setLoading(false);
       return;
     }
@@ -518,34 +498,39 @@ document.getElementById("saveProfileBtn").onclick = async ()=>{
     formData.append("username", username);
     formData.append("bio", bio);
     formData.append("lastSeenVisible", lastSeenVisible);
-
     links.forEach(link => formData.append("links[]", link));
-
-    if(avatarFile){
-      formData.append("avatar", avatarFile);
-    }
+    if(avatarFile) formData.append("avatar", avatarFile);
 
     const res = await fetch(`${API}/update-profile`, {
       method: "POST",
-      headers: {
-        "Authorization": `Bearer ${token}`
-      },
+      headers: { "Authorization": `Bearer ${token}` },
       body: formData
     });
 
     const data = await res.json();
     setLoading(false);
 
+    if(res.status === 429){
+      showModal("Too many attempts. Redirecting to login...", ()=>{
+        localStorage.removeItem("token");
+        window.location.href = "login.html";
+      });
+      return;
+    }
+
     if(!res.ok){
       showModal(data.message || "Failed to save profile");
       return;
     }
 
-    showModal("Profile updated successfully!");
+    // SUCCESS: update token if backend provides new one
+    if(data.newToken){
+      localStorage.setItem("token", data.newToken);
+    }
 
-    setTimeout(()=>{
+    showModal("Profile updated successfully!", ()=>{
       window.location.href = "home.html";
-    },1500);
+    });
 
   }catch(err){
     console.error(err);
