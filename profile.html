@@ -362,7 +362,6 @@ const linksContainer = document.getElementById("linksContainer");
 ========================= */
 const toggle = document.getElementById("themeToggle");
 const icon = toggle.querySelector("i");
-
 toggle.onclick = () => {
   document.body.classList.toggle("dark");
   icon.classList.toggle("fa-sun");
@@ -373,55 +372,41 @@ toggle.onclick = () => {
    MODAL
 ========================= */
 function showModal(msg, onClose=null){
-  document.getElementById("modalMessage").innerText = msg;
   const modal = document.getElementById("modal");
+  document.getElementById("modalMessage").innerText = msg;
   modal.style.display = "flex";
 
-  // Set a one-time close callback
   const okBtn = modal.querySelector("button");
-  const closeHandler = ()=>{
+  const closeHandler = () => {
     closeModal();
     if(onClose) onClose();
     okBtn.removeEventListener("click", closeHandler);
   };
   okBtn.addEventListener("click", closeHandler);
 }
-
-function closeModal(){
-  document.getElementById("modal").style.display = "none";
-}
-
-document.getElementById("modal").onclick = (e)=>{
+function closeModal(){ document.getElementById("modal").style.display = "none"; }
+document.getElementById("modal").onclick = e => {
   if(e.target.id === "modal") closeModal();
 };
 
 /* =========================
-   AVATAR PREVIEW + VALIDATION
+   AVATAR PREVIEW
 ========================= */
-avatarInput.onchange = (e)=>{
+avatarInput.onchange = e => {
   const file = e.target.files[0];
-  if(file){
-    if(!file.type.startsWith("image/")){
-      showModal("Only image files allowed");
-      avatarInput.value = "";
-      return;
-    }
-    if(file.size > 2 * 1024 * 1024){
-      showModal("Image must be less than 2MB");
-      avatarInput.value = "";
-      return;
-    }
-    const reader = new FileReader();
-    reader.onload = () => { avatarPreview.src = reader.result; };
-    reader.readAsDataURL(file);
-  }
+  if(!file) return;
+  if(!file.type.startsWith("image/")) return showModal("Only image files allowed");
+  if(file.size > 2*1024*1024) return showModal("Image must be less than 2MB");
+
+  const reader = new FileReader();
+  reader.onload = () => avatarPreview.src = reader.result;
+  reader.readAsDataURL(file);
 };
 
 /* =========================
    LINKS (DYNAMIC)
 ========================= */
-document.getElementById("addLinkBtn").onclick = ()=> addLinkInput();
-
+document.getElementById("addLinkBtn").onclick = () => addLinkInput();
 function addLinkInput(value=""){
   const div = document.createElement("div");
   div.className = "link-item";
@@ -431,11 +416,10 @@ function addLinkInput(value=""){
   `;
   linksContainer.appendChild(div);
 }
-
 function getLinksArray(){
   return Array.from(document.querySelectorAll(".linkInput"))
-    .map(input => input.value.trim())
-    .filter(url => url.length > 0);
+    .map(i => i.value.trim())
+    .filter(v => v.length > 0);
 }
 
 /* =========================
@@ -443,63 +427,46 @@ function getLinksArray(){
 ========================= */
 function setLoading(isLoading){
   const btn = document.getElementById("saveProfileBtn");
-  const text = document.getElementById("saveProfileText");
-  const loader = document.getElementById("saveProfileLoader");
-  text.classList.toggle("hidden", isLoading);
-  loader.classList.toggle("hidden", !isLoading);
+  document.getElementById("saveProfileText").classList.toggle("hidden", isLoading);
+  document.getElementById("saveProfileLoader").classList.toggle("hidden", !isLoading);
   btn.disabled = isLoading;
 }
 
 /* =========================
-   LOAD USER PROFILE (JWT)
+   LOAD USER PROFILE
 ========================= */
 async function loadUserProfile(){
-  try{
-    const token = localStorage.getItem("token");
+  const token = localStorage.getItem("token");
 
-    if(!token){
-      showModal("Session expired. Please login again.", ()=> window.location.href="login.html");
-      return;
-    }
+  if(!token){
+    showModal("Session expired. Please login.", ()=> window.location.href="login.html");
+    return;
+  }
 
-    /* =========================
-       STEP 1: PREFILL FROM LOCALSTORAGE
-    ========================= */
-    const storedEmail = localStorage.getItem("userEmail");
-    const storedPhone = localStorage.getItem("userPhone");
+  // Prefill from registration (if exists)
+  const regEmail = localStorage.getItem("userEmail");
+  const regPhone = localStorage.getItem("userPhone");
+  if(regEmail) emailInput.value = regEmail;
+  if(regPhone) phoneInput.value = regPhone;
 
-    if(storedEmail) emailInput.value = storedEmail;
-    if(storedPhone) phoneInput.value = storedPhone;
-
-    /* =========================
-       STEP 2: FETCH FROM BACKEND
-    ========================= */
-    const res = await fetch(`${API}/me`, {
-      headers: { "Authorization": `Bearer ${token}` }
-    });
-
+  // Fetch full user info from backend
+  try {
+    const res = await fetch(`${API}/me`, { headers: { "Authorization": `Bearer ${token}` } });
     if(!res.ok) return;
 
-    const data = await res.json();
-    const user = data.user;
+    const { user } = await res.json();
 
-    // overwrite with server data if exists
     phoneInput.value = user.phone || phoneInput.value;
     emailInput.value = user.email || emailInput.value;
     usernameInput.value = user.username || "";
     bioInput.value = user.bio || "";
-
     avatarPreview.src = user.avatarUrl || "default-avatar.png";
-
-    document.getElementById("lastSeenToggle").checked =
-      user.lastSeenVisible !== false;
+    document.getElementById("lastSeenToggle").checked = user.lastSeenVisible !== false;
 
     linksContainer.innerHTML = "";
-    if(user.links){
-      user.links.forEach(link => addLinkInput(link));
-    }
+    if(user.links) user.links.forEach(link => addLinkInput(link));
 
-  }catch(err){
+  } catch(err){
     console.error(err);
   }
 }
@@ -507,7 +474,7 @@ async function loadUserProfile(){
 /* =========================
    SAVE PROFILE
 ========================= */
-document.getElementById("saveProfileBtn").onclick = async ()=>{
+document.getElementById("saveProfileBtn").onclick = async () => {
   const phone = phoneInput.value.trim();
   const email = emailInput.value.trim();
   const username = usernameInput.value.trim();
@@ -516,33 +483,30 @@ document.getElementById("saveProfileBtn").onclick = async ()=>{
   const lastSeenVisible = document.getElementById("lastSeenToggle").checked;
   const links = getLinksArray();
 
-  /* VALIDATION */
   if(!phone || !email || !username){
-    showModal("Phone, Email, and Username are required.");
-    return;
+    return showModal("Phone, Email, and Username are required.");
   }
-  if(!/^\d{10,15}$/.test(phone)){ showModal("Invalid phone number"); return; }
-  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){ showModal("Invalid email format"); return; }
-  if(username.length < 3){ showModal("Username must be at least 3 characters"); return; }
-  if(bio.length > 150){ showModal("Bio too long"); return; }
+  if(!/^\d{10,15}$/.test(phone)) return showModal("Invalid phone number");
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return showModal("Invalid email format");
+  if(username.length < 3) return showModal("Username must be at least 3 characters");
+  if(bio.length > 150) return showModal("Bio too long");
 
   setLoading(true);
 
-  try{
-    const token = localStorage.getItem("token");
-    if(!token){
-      showModal("Session expired. Please login again.", ()=> window.location.href="login.html");
-      setLoading(false);
-      return;
-    }
+  const token = localStorage.getItem("token");
+  if(!token){
+    setLoading(false);
+    return showModal("Session expired. Please login.", ()=> window.location.href="login.html");
+  }
 
+  try {
     const formData = new FormData();
     formData.append("phone", phone);
     formData.append("email", email);
     formData.append("username", username);
     formData.append("bio", bio);
     formData.append("lastSeenVisible", lastSeenVisible);
-    links.forEach(link => formData.append("links[]", link));
+    links.forEach(l => formData.append("links[]", l));
     if(avatarFile) formData.append("avatar", avatarFile);
 
     const res = await fetch(`${API}/update-profile`, {
@@ -555,35 +519,32 @@ document.getElementById("saveProfileBtn").onclick = async ()=>{
     setLoading(false);
 
     if(res.status === 429){
-      showModal("Too many attempts. Redirecting to login...", ()=>{
-        localStorage.removeItem("token");
-        window.location.href = "login.html";
+      return showModal("Too many attempts. Redirecting...", ()=>{
+        localStorage.clear();
+        window.location.href="login.html";
       });
-      return;
+    }
+    if(!res.ok) return showModal(data.message || "Failed to save profile");
+
+    // Replace old token with new token
+    if(data.newToken){
+      localStorage.removeItem("token");
+      localStorage.setItem("token", data.newToken);
     }
 
-    if(!res.ok){
-      showModal(data.message || "Failed to save profile");
-      return;
-    }
+    // Clear temporary registration data
+    localStorage.removeItem("userEmail");
+    localStorage.removeItem("userPhone");
 
-    // SUCCESS: replace token properly
-if (data.newToken) {
-  // Remove old token completely
-  localStorage.removeItem("token");
+    // Success → redirect to homepage
+    showModal("Profile updated successfully!", ()=> window.location.href="home.html");
 
-  // Save new token
-  localStorage.setItem("token", data.newToken);
-}
-
-// OPTIONAL: clear temporary registration data
-localStorage.removeItem("userEmail");
-localStorage.removeItem("userPhone");
-
-// Redirect AFTER everything is updated
-showModal("Profile updated successfully!", () => {
-  window.location.href = "home.html";
-});
+  } catch(err){
+    setLoading(false);
+    console.error(err);
+    showModal("Network error");
+  }
+};
 
 /* =========================
    INIT
