@@ -263,6 +263,11 @@ input:checked + .slider:before {
   text-align:center;
 }
 
+input[readonly] {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
 </style>
 </head>
 <body>
@@ -283,10 +288,10 @@ input:checked + .slider:before {
     <input type="file" id="avatarInput" accept="image/*">
 
     <!-- PHONE -->
-    <input type="text" id="phone" placeholder="Phone Number">
+    <input type="text" id="phone" placeholder="Phone Number" readonly>
     
      <!-- EMAIL -->
-    <input type="mail" id="email" placeholder="example@mail.com">
+    <input type="mail" id="email" placeholder="example@mail.com" readonly>
 
     <!-- USERNAME -->
     <input type="text" id="username" placeholder="Username">
@@ -460,6 +465,9 @@ async function loadUserProfile(){
     document.getElementById("email").value = user.email || "";
     document.getElementById("username").value = user.username || "";
     document.getElementById("bio").value = user.bio || "";
+
+phoneInput.readOnly = true;
+emailInput.readOnly = true;
 
     avatarPreview.src = user.avatarUrl || "default-avatar.png";
 
