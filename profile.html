@@ -456,49 +456,51 @@ function setLoading(isLoading){
 async function loadUserProfile(){
   try{
     const token = localStorage.getItem("token");
+
     if(!token){
       showModal("Session expired. Please login again.", ()=> window.location.href="login.html");
       return;
     }
 
+    /* =========================
+       STEP 1: PREFILL FROM LOCALSTORAGE
+    ========================= */
+    const storedEmail = localStorage.getItem("userEmail");
+    const storedPhone = localStorage.getItem("userPhone");
+
+    if(storedEmail) emailInput.value = storedEmail;
+    if(storedPhone) phoneInput.value = storedPhone;
+
+    /* =========================
+       STEP 2: FETCH FROM BACKEND
+    ========================= */
     const res = await fetch(`${API}/me`, {
       headers: { "Authorization": `Bearer ${token}` }
     });
 
-    if(!res.ok){
-      showModal("Failed to load profile", ()=> window.location.href="login.html");
-      return;
-    }
+    if(!res.ok) return;
 
     const data = await res.json();
     const user = data.user;
 
-    // PREFILL
-    phoneInput.value = user.phone || "";
-    emailInput.value = user.email || "";
+    // overwrite with server data if exists
+    phoneInput.value = user.phone || phoneInput.value;
+    emailInput.value = user.email || emailInput.value;
     usernameInput.value = user.username || "";
     bioInput.value = user.bio || "";
 
-    // LOCK FIELDS
-    phoneInput.readOnly = true;
-    emailInput.readOnly = true;
-
-    // AVATAR
     avatarPreview.src = user.avatarUrl || "default-avatar.png";
 
-    // LAST SEEN
     document.getElementById("lastSeenToggle").checked =
       user.lastSeenVisible !== false;
 
-    // LINKS
     linksContainer.innerHTML = "";
-    if(user.links && user.links.length > 0){
+    if(user.links){
       user.links.forEach(link => addLinkInput(link));
     }
 
   }catch(err){
     console.error(err);
-    showModal("Error loading profile", ()=> window.location.href="login.html");
   }
 }
 
