@@ -397,52 +397,63 @@ function setLoading(state){
   document.getElementById("loader").classList.toggle("active", state);
 }
 
-/* LOGIN */
-document.getElementById("loginBtn").onclick = async ()=>{
-  const identifier = document.getElementById("identifier").value.trim();
-  const password = passwordInput.value.trim();
-  const rememberMe = document.getElementById("rememberMe").checked;
 
-  if(!identifier || !password){
-    showModal("All fields are required");
-    return;
-  }
+/* =========================  
+   LOGIN  
+========================= */  
+document.getElementById("loginBtn").onclick = async ()=>{  
+  const identifier = document.getElementById("identifier").value.trim();  
+  const password = passwordInput.value.trim();  
+  const rememberMe = document.getElementById("rememberMe").checked;  
+  
+  if(!identifier || !password){  
+    showModal("All fields are required");  
+    return;  
+  }  
+  
+  if(password.length < 6){  
+    showModal("Password must be at least 6 characters");  
+    return;  
+  }  
+  
+  setLoading(true);  
+  
+  try{  
+    const res = await fetch(`${API}/login`, {  
+      method: "POST",  
+      headers: { "Content-Type": "application/json" },  
+      body: JSON.stringify({ identifier, password })  
+    });  
+  
+    const data = await res.json();  
+    setLoading(false);  
+  
+    if(res.status === 429){  
+      showModal("Too many attempts. Try again later.");  
+      return;  
+    }  
+  
+    if(!res.ok){  
+      showModal(data.message || "Login failed");  
+      return;  
+    }  
+  
+    // 🔥 SESSION HANDLING  
+    if(rememberMe){  
+      localStorage.setItem("token", data.token);  
+    } else {  
+      sessionStorage.setItem("token", data.token);  
+    }  
+  
+    window.location.href = "home.html";  
+  
+  }catch(err){  
+    console.error(err);  
+    setLoading(false);  
+    showModal("Network error");  
+  }  
+};  
 
-  setLoading(true);
-
-  try{
-    const res = await fetch(`${API}/login`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ identifier, password })
-    });
-
-    const data = await res.json();
-    setLoading(false);
-
-    if(res.status === 429){
-      showModal("Too many attempts. Try again later.");
-      return;
-    }
-
-    if(!res.ok){
-      showModal(data.message || "Login failed");
-      return;
-    }
-
-    if(rememberMe){
-      localStorage.setItem("token", data.token);
-    } else {
-      sessionStorage.setItem("token", data.token);
-    }
-
-    window.location.href = "home.html";
-
-  }catch(err){
-    setLoading(false);
-    showModal("Network error");
-  }
-};
 </script>
 
 </body>
