@@ -381,7 +381,8 @@ router.post("/verify-reset-otp", async (req, res) => {
     user.resetVerified = true;
     await user.save();
 
-    await OTP.deleteOne({ userId: user._id, purpose: "reset_password" });
+    otpRecord.isVerified = true;
+await otpRecord.save();
 
     res.json({ message: "OTP verified" });
 
@@ -397,22 +398,43 @@ router.post("/verify-reset-otp", async (req, res) => {
 router.post("/reset-password", async (req, res) => {
   const { email, newPassword } = req.body;
 
+  if (!email || !validator.isEmail(email)) {
+    return res.status(400).json({ message: "Invalid email" });
+  }
+
+  if (!newPassword || newPassword.length < 6) {
+    return res.status(400).json({ message: "Password must be at least 6 characters" });
+  }
+
   try {
     const user = await User.findOne({ email: email.toLowerCase() });
+    if (!user) return res.status(404).json({ message: "User not found" });
 
-    if (!user.resetVerified) {
-      return res.status(403).json({ message: "OTP verification required" });
+    const otpRecord = await OTP.findOne({
+      userId: user._id,
+      purpose: "reset_password"
+    });
+
+    if (!otpRecord || !otpRecord.isVerified) {
+      return res.status(400).json({ message: "OTP verification required" });
     }
 
-    user.passwordHash = await bcrypt.hash(newPassword, 10);
+    // Update password
+    const passwordHash = await bcrypt.hash(newPassword, 10);
+    user.passwordHash = passwordHash;
+
+    // Invalidate old sessions
     user.tokenVersion += 1;
-    user.resetVerified = false;
 
     await user.save();
 
-    res.json({ message: "Password reset successful" });
+    // Clean up OTP AFTER success
+    await OTP.deleteOne({ userId: user._id, purpose: "reset_password" });
 
-  } catch {
+    res.status(200).json({ message: "Password updated successfully" });
+
+  } catch (err) {
+    console.error(err);
     res.status(500).json({ message: "Server error" });
   }
 });
