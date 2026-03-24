@@ -201,7 +201,7 @@ router.post("/register", async (req, res) => {
        SAVE OTP
     ========================= */
 
-    await OTP.findOneAndDelete({ userId: user._id });
+    await OTP.findOneAndDelete({ userId: user._id, purpose: "verify" });
 
     await OTP.create({
   userId: user._id,
