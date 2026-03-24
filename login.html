@@ -14,6 +14,8 @@
   --surface: #7B7F85;
   --accent: #2B2E33;
   --text: #2B2E33;
+  --btn-bg: #2B2E33;   /* NEW */
+  --btn-text: #F5F6F7; /* NEW */
 }
 
 body.dark {
@@ -21,6 +23,8 @@ body.dark {
   --surface: #7B7F85;
   --accent: #F5F6F7;
   --text: #F5F6F7;
+  --btn-bg: #F5F6F7;   /* NEW */
+  --btn-text: #2B2E33; /* NEW */
 }
 
 body {
@@ -66,12 +70,19 @@ input {
   border-radius: 10px;
   border: none;
   text-align: center;
+  background: rgba(255,255,255,0.2);
+  color: var(--text);
+}
+
+input:focus {
+  outline: 2px solid var(--accent);
 }
 
 /* PASSWORD WRAP */
 .password-wrap {
   position: relative;
-  width: 100%;
+  width: 90%;
+  margin: 0 auto;
 }
 
 .password-wrap input {
@@ -84,9 +95,13 @@ input {
   top: 50%;
   transform: translateY(-50%);
   cursor: pointer;
-  opacity: 0.6;
+  opacity: 0.7;
+  color: var(--text); /* 🔥 FIX */
 }
 
+.password-wrap i:hover {
+  opacity: 1;
+}
 .password-wrap i:hover {
   opacity: 1;
 }
@@ -97,8 +112,8 @@ button {
   padding: 12px;
   border-radius: 10px;
   border: none;
-  background: var(--accent);
-  color: var(--bg);
+  background: var(--btn-bg);  
+  color: var(--btn-text);    
   font-weight: bold;
   position: relative;
   cursor: pointer;
