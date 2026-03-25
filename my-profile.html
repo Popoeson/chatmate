@@ -196,7 +196,9 @@ footer {
 <script>
 const API = "https://chatmate-kbwz.onrender.com/api/auth";
 
-/* THEME TOGGLE */
+/* =========================
+   THEME TOGGLE
+========================= */
 const toggle = document.getElementById("themeToggle");
 toggle.onclick = () => {
   document.body.classList.toggle("dark");
@@ -204,16 +206,21 @@ toggle.onclick = () => {
   toggle.classList.toggle("fa-moon");
 };
 
-/* TOKEN CHECK */
+/* =========================
+   TOKEN CHECK
+========================= */
 const token = localStorage.getItem("token") || sessionStorage.getItem("token");
+
 if(!token){
-  alert("You are not logged in. Redirecting to login page.");
+  alert("You are not logged in.");
   window.location.href = "login.html";
 } else {
-  console.log("Token available on my-profile page:", token);
+  console.log("Token:", token);
 }
 
-/* LOAD PROFILE */
+/* =========================
+   LOAD PROFILE
+========================= */
 async function loadProfile(){
   try {
     const res = await fetch(`${API}/me`, {
@@ -223,51 +230,64 @@ async function loadProfile(){
     const data = await res.json();
     console.log("PROFILE RESPONSE:", data);
 
-    if(!res.ok || !data.user){
-      console.warn("Failed to load profile:", data.message);
+    if(!res.ok){
+      console.warn(data.message);
       return;
     }
 
     const user = data.user;
+    if(!user) return;
 
-    // Update avatar
-    const avatarPreview = document.getElementById("avatarPreview");
-    if(avatarPreview){
-      avatarPreview.src = user.avatarUrl || "https://i.pravatar.cc/100";
+    // ✅ FIXED SAFE ASSIGNMENTS
+    const usernameEl = document.getElementById("username");
+    if(usernameEl) usernameEl.value = user.username || "";
+
+    const emailEl = document.getElementById("email");
+    if(emailEl) emailEl.value = user.email || "";
+
+    const phoneEl = document.getElementById("phone");
+    if(phoneEl) phoneEl.value = user.phone || "";
+
+    const bioEl = document.getElementById("bio");
+    if(bioEl) bioEl.value = user.bio || "";
+
+    // ✅ FIXED AVATAR
+    const avatar = document.getElementById("avatarPreview");
+    if(avatar){
+      avatar.src = user.avatarUrl || "https://i.pravatar.cc/100";
     }
-
-    // Update other fields
-    document.getElementById("username")?.value = user.username || "";
-    document.getElementById("email")?.value = user.email || "";
-    document.getElementById("phone")?.value = user.phone || "";
-    document.getElementById("bio")?.value = user.bio || "";
 
   } catch(err){
     console.error("LOAD PROFILE ERROR:", err);
   }
 }
 
-/* EDIT TOGGLE */
+/* =========================
+   EDIT TOGGLE
+========================= */
 let editing = false;
 const container = document.getElementById("profileContainer");
 const saveBtn = document.getElementById("saveBtn");
-const editToggleBtn = document.getElementById("editToggle");
 
-editToggleBtn?.addEventListener("click", () => {
+document.getElementById("editToggle").onclick = () => {
   editing = !editing;
-  if(editing){
-    container?.classList.remove("read-only");
-    saveBtn?.classList.remove("hidden");
-  } else {
-    container?.classList.add("read-only");
-    saveBtn?.classList.add("hidden");
-  }
-});
 
-/* SAVE PROFILE */
-saveBtn?.addEventListener("click", async () => {
+  if(editing){
+    container.classList.remove("read-only");
+    saveBtn.classList.remove("hidden");
+  } else {
+    container.classList.add("read-only");
+    saveBtn.classList.add("hidden");
+  }
+};
+
+/* =========================
+   SAVE PROFILE
+========================= */
+saveBtn.onclick = async () => {
   try{
     const formData = new FormData();
+
     const usernameEl = document.getElementById("username");
     const emailEl = document.getElementById("email");
     const phoneEl = document.getElementById("phone");
@@ -278,7 +298,7 @@ saveBtn?.addEventListener("click", async () => {
     if(phoneEl) formData.append("phone", phoneEl.value);
     if(bioEl) formData.append("bio", bioEl.value);
 
-    const file = document.getElementById("avatarInput")?.files[0];
+    const file = document.getElementById("avatarInput").files[0];
     if(file) formData.append("avatar", file);
 
     const res = await fetch(`${API}/update-profile`, {
@@ -288,28 +308,38 @@ saveBtn?.addEventListener("click", async () => {
     });
 
     const data = await res.json();
-    if(!res.ok) return alert(data.message || "Error updating profile");
 
-    if(data.newToken) localStorage.setItem("token", data.newToken);
+    if(!res.ok){
+      alert(data.message || "Error updating profile");
+      return;
+    }
 
-    alert("Profile updated successfully!");
-    editing = false;
-    container?.classList.add("read-only");
-    saveBtn?.classList.add("hidden");
+    if(data.newToken){
+      localStorage.setItem("token", data.newToken);
+    }
 
-    // Reload profile to update avatar
+    alert("Profile updated!");
     loadProfile();
 
-  } catch(err){
-    console.error("SAVE PROFILE ERROR:", err);
-    alert("Something went wrong while saving profile");
-  }
-});
+    editing = false;
+    container.classList.add("read-only");
+    saveBtn.classList.add("hidden");
 
-/* AVATAR PREVIEW */
+  }catch(err){
+    console.error(err);
+    alert("Something went wrong");
+  }
+};
+
+/* =========================
+   AVATAR PREVIEW
+========================= */
 const avatarInput = document.getElementById("avatarInput");
 const avatarPreview = document.getElementById("avatarPreview");
+
 if(avatarInput && avatarPreview){
+  avatarPreview.onclick = () => avatarInput.click();
+
   avatarInput.onchange = e => {
     const file = e.target.files[0];
     if(file){
@@ -318,15 +348,12 @@ if(avatarInput && avatarPreview){
       reader.readAsDataURL(file);
     }
   };
-
-  // Click on avatar opens file picker
-  avatarPreview.addEventListener("click", () => avatarInput.click());
 }
 
-/* INIT ON DOM LOAD */
-window.addEventListener("DOMContentLoaded", () => {
-  loadProfile();
-});
+/* =========================
+   INIT
+========================= */
+window.onload = loadProfile;
 </script>
 
 </body>
