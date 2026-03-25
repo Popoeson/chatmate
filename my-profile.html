@@ -59,6 +59,7 @@ header {
   border-radius: 50%;
   object-fit: cover;
   margin-bottom: 15px;
+  cursor: pointer;
 }
 
 .input-group {
@@ -157,7 +158,7 @@ footer {
 
 <!-- PROFILE -->
 <div class="container read-only" id="profileContainer">
-  <img id="avatarPreview" class="avatar" src="default-avatar.png" alt="Profile Picture">
+  <img id="avatarPreview" class="avatar" src="https://i.pravatar.cc/100" alt="Profile Picture">
   <input type="file" id="avatarInput" class="hidden">
 
   <div class="input-group">
@@ -232,7 +233,7 @@ async function loadProfile(){
     // Update avatar
     const avatarPreview = document.getElementById("avatarPreview");
     if(avatarPreview){
-      avatarPreview.src = user.avatarUrl || "https://i.pravatar.cc/100"; // fallback avatar
+      avatarPreview.src = user.avatarUrl || "https://i.pravatar.cc/100";
     }
 
     // Update other fields
@@ -296,7 +297,7 @@ saveBtn?.addEventListener("click", async () => {
     container?.classList.add("read-only");
     saveBtn?.classList.add("hidden");
 
-    // Reload profile with updated avatar
+    // Reload profile to update avatar
     loadProfile();
 
   } catch(err){
@@ -318,7 +319,7 @@ if(avatarInput && avatarPreview){
     }
   };
 
-  // Optional: click on avatar opens file picker
+  // Click on avatar opens file picker
   avatarPreview.addEventListener("click", () => avatarInput.click());
 }
 
