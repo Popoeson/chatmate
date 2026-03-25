@@ -7,19 +7,31 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
 
 <style>
+
 /* =========================
-   GLOBAL
+   THEME
 ========================= */
+:root {
+  --bg: #F8F7F4;
+  --text: #1C1C1E;
+  --input-border: #ccc;
+  --btn-bg: #1C1C1E;
+  --btn-text: #fff;
+}
+
+body.dark {
+  --bg: #1C1C1E;
+  --text: #fff;
+  --input-border: #555;
+  --btn-bg: #fff;
+  --btn-text: #1C1C1E;
+}
+
 body {
   margin: 0;
-  font-family: 'Segoe UI', sans-serif;
-  background: #f9f9f9;
-  color: #111;
-  transition: 0.3s;
-}
-body.dark {
-  background: #111;
-  color: #fff;
+  font-family: 'Poppins', sans-serif;
+  background: var(--bg);
+  color: var(--text);
 }
 
 /* =========================
@@ -28,332 +40,274 @@ body.dark {
 header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  padding: 12px 20px;
-  background: linear-gradient(to right, #2B2E33, #7B7F85);
-  color: #fff;
+  padding: 20px;
 }
-.logo { font-size: 1.5rem; font-weight: bold; }
 
 .header-icons {
   display: flex;
-  gap: 16px;
-  font-size: 1.2rem;
+  gap: 15px;
   cursor: pointer;
-}
-.header-icons i:hover {
-  transform: scale(1.1);
 }
 
 /* =========================
-   PROFILE
+   CARD
 ========================= */
 .container {
-  padding: 20px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: calc(100vh - 80px);
+}
+
+.card {
+  width: 100%;
+  max-width: 380px;
+  padding: 30px;
+  border-radius: 24px;
   text-align: center;
 }
 
+body.dark .card {
+  background: #1C1C1E;
+  box-shadow:
+    inset 0 0 15px rgba(255,255,255,0.05),
+    0 15px 40px rgba(0,0,0,0.5);
+}
+
+/* =========================
+   AVATAR
+========================= */
 .avatar {
   width: 100px;
   height: 100px;
   border-radius: 50%;
   object-fit: cover;
-  margin-bottom: 15px;
   cursor: pointer;
+  margin-bottom: 20px;
+  display: none; /* hidden until loaded */
 }
 
+/* =========================
+   INPUTS
+========================= */
 .input-group {
-  margin: 15px 0;
+  margin-bottom: 20px;
   text-align: left;
-}
-
-.input-group label {
-  font-size: 0.8rem;
-  opacity: 0.7;
 }
 
 .input-group input,
 .input-group textarea {
   width: 100%;
   border: none;
-  border-bottom: 1px solid #ccc;
-  padding: 8px 0;
+  border-bottom: 1.5px solid var(--input-border);
+  padding: 10px 0;
   background: transparent;
-  color: inherit;
+  color: var(--text);
 }
 
-body.dark input,
-body.dark textarea {
-  border-bottom: 1px solid #555;
-}
-
-input:focus, textarea:focus { outline: none; }
-
-/* READ MODE */
 .read-only input,
 .read-only textarea {
-  border: none;
   pointer-events: none;
 }
 
 /* =========================
-   BUTTON
+   BUTTONS
 ========================= */
-.save-btn {
-  margin-top: 20px;
-  padding: 10px;
-  border-radius: 20px;
+button {
+  width: 100%;
+  height: 40px;
+  border-radius: 999px;
   border: none;
-  background: #1C1C1E;
-  color: #fff;
+  margin-top: 20px;
+  background: var(--btn-bg);
+  color: var(--btn-text);
   cursor: pointer;
 }
-body.dark .save-btn {
-  background: #fff;
-  color: #1C1C1E;
+
+.hidden {
+  display: none;
 }
 
 /* =========================
-   FOOTER
+   MODAL
 ========================= */
-footer {
+.modal {
   position: fixed;
-  bottom: 0;
-  width: 100%;
-  display: flex;
-  justify-content: space-around;
-  padding: 10px 0;
-  background: linear-gradient(to right, #2B2E33, #7B7F85);
-  color: #fff;
+  top:0; left:0;
+  width:100%; height:100%;
+  display:none;
+  justify-content:center;
+  align-items:center;
+  background:rgba(0,0,0,0.6);
 }
 
-.footer-item {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  font-size: 0.75rem;
-  cursor: pointer;
+.modal img {
+  width: 80%;
+  max-width: 300px;
+  border-radius: 20px;
 }
 
-.footer-item i {
-  font-size: 1.3rem;
-}
-
-.footer-item.active {
-  color: #4caf50;
-}
 </style>
 </head>
 
 <body>
 
-<!-- HEADER -->
 <header>
-  <div class="logo">ChatMate</div>
+  <div><b>ChatMate</b></div>
   <div class="header-icons">
     <i id="themeToggle" class="fa-solid fa-moon"></i>
     <i id="editToggle" class="fa-solid fa-pen"></i>
   </div>
 </header>
 
-<!-- PROFILE -->
-<div class="container read-only" id="profileContainer">
-  <img id="avatarPreview" class="avatar" src="https://i.pravatar.cc/100" alt="Profile Picture">
-  <input type="file" id="avatarInput" class="hidden">
+<div class="container">
+  <div class="card read-only" id="profileContainer">
 
-  <div class="input-group">
-    <label>Username</label>
-    <input id="username">
+    <img id="avatarPreview" class="avatar">
+
+    <input type="file" id="avatarInput" class="hidden">
+
+    <div class="input-group">
+      <input id="username" placeholder="Username">
+    </div>
+
+    <div class="input-group">
+      <input id="email" placeholder="Email">
+    </div>
+
+    <div class="input-group">
+      <input id="phone" placeholder="Phone">
+    </div>
+
+    <div class="input-group">
+      <textarea id="bio" placeholder="Bio"></textarea>
+    </div>
+
+    <button id="saveBtn" class="hidden">Save Changes</button>
+    <button id="cancelBtn" class="hidden">Cancel</button>
+
   </div>
-
-  <div class="input-group">
-    <label>Email</label>
-    <input id="email">
-  </div>
-
-  <div class="input-group">
-    <label>Phone</label>
-    <input id="phone">
-  </div>
-
-  <div class="input-group">
-    <label>Bio</label>
-    <textarea id="bio"></textarea>
-  </div>
-
-  <button id="saveBtn" class="save-btn hidden">Save Changes</button>
 </div>
 
-<!-- FOOTER -->
-<footer>
-  <div class="footer-item"><i class="fa-solid fa-circle-user"></i><span>Status</span></div>
-  <div class="footer-item"><i class="fa-solid fa-comment"></i><span>Chats</span></div>
-  <div class="footer-item"><i class="fa-solid fa-upload"></i><span>Posts</span></div>
-  <div class="footer-item active"><i class="fa-solid fa-user"></i><span>Profile</span></div>
-  <div class="footer-item"><i class="fa-solid fa-gear"></i><span>Settings</span></div>
-</footer>
+<!-- IMAGE MODAL -->
+<div id="imageModal" class="modal">
+  <img id="modalImg">
+</div>
 
 <script>
 const API = "https://chatmate-kbwz.onrender.com/api/auth";
 
-/* =========================
-   THEME TOGGLE
-========================= */
-const toggle = document.getElementById("themeToggle");
-toggle.onclick = () => {
+/* THEME */
+themeToggle.onclick = () => {
   document.body.classList.toggle("dark");
-  toggle.classList.toggle("fa-sun");
-  toggle.classList.toggle("fa-moon");
 };
 
-/* =========================
-   TOKEN CHECK
-========================= */
-const token = localStorage.getItem("token") || sessionStorage.getItem("token");
-
+/* TOKEN */
+const token = localStorage.getItem("token");
 if(!token){
-  alert("You are not logged in.");
   window.location.href = "login.html";
-} else {
-  console.log("Token:", token);
 }
 
-/* =========================
-   LOAD PROFILE
-========================= */
+/* LOAD PROFILE */
 async function loadProfile(){
-  try {
-    const res = await fetch(`${API}/me`, {
-      headers: { Authorization: `Bearer ${token}` }
-    });
+  const res = await fetch(`${API}/me`, {
+    headers: { Authorization: `Bearer ${token}` }
+  });
 
-    const data = await res.json();
-    console.log("PROFILE RESPONSE:", data);
+  const data = await res.json();
+  if(!data.user) return;
 
-    if(!res.ok){
-      console.warn(data.message);
-      return;
-    }
+  const user = data.user;
 
-    const user = data.user;
-    if(!user) return;
+  username.value = user.username || "";
+  email.value = user.email || "";
+  phone.value = user.phone || "";
+  bio.value = user.bio || "";
 
-    // ✅ FIXED SAFE ASSIGNMENTS
-    const usernameEl = document.getElementById("username");
-    if(usernameEl) usernameEl.value = user.username || "";
-
-    const emailEl = document.getElementById("email");
-    if(emailEl) emailEl.value = user.email || "";
-
-    const phoneEl = document.getElementById("phone");
-    if(phoneEl) phoneEl.value = user.phone || "";
-
-    const bioEl = document.getElementById("bio");
-    if(bioEl) bioEl.value = user.bio || "";
-
-    // ✅ FIXED AVATAR
-    const avatar = document.getElementById("avatarPreview");
-    if(avatar){
-      avatar.src = user.avatarUrl || "https://i.pravatar.cc/100";
-    }
-
-  } catch(err){
-    console.error("LOAD PROFILE ERROR:", err);
+  if(user.avatarUrl){
+    avatarPreview.src = user.avatarUrl;
+    avatarPreview.style.display = "block";
   }
 }
 
-/* =========================
-   EDIT TOGGLE
-========================= */
+/* EDIT MODE */
 let editing = false;
-const container = document.getElementById("profileContainer");
-const saveBtn = document.getElementById("saveBtn");
 
-document.getElementById("editToggle").onclick = () => {
-  editing = !editing;
+editToggle.onclick = () => {
+  editing = true;
+  profileContainer.classList.remove("read-only");
 
-  if(editing){
-    container.classList.remove("read-only");
-    saveBtn.classList.remove("hidden");
-  } else {
-    container.classList.add("read-only");
-    saveBtn.classList.add("hidden");
-  }
+  saveBtn.classList.remove("hidden");
+  cancelBtn.classList.remove("hidden");
+  avatarInput.classList.remove("hidden");
 };
 
-/* =========================
-   SAVE PROFILE
-========================= */
+cancelBtn.onclick = () => {
+  editing = false;
+  profileContainer.classList.add("read-only");
+
+  saveBtn.classList.add("hidden");
+  cancelBtn.classList.add("hidden");
+  avatarInput.classList.add("hidden");
+
+  loadProfile();
+};
+
+/* SAVE */
 saveBtn.onclick = async () => {
-  try{
-    const formData = new FormData();
+  const formData = new FormData();
+  formData.append("username", username.value);
+  formData.append("email", email.value);
+  formData.append("phone", phone.value);
+  formData.append("bio", bio.value);
 
-    const usernameEl = document.getElementById("username");
-    const emailEl = document.getElementById("email");
-    const phoneEl = document.getElementById("phone");
-    const bioEl = document.getElementById("bio");
+  const file = avatarInput.files[0];
+  if(file) formData.append("avatar", file);
 
-    if(usernameEl) formData.append("username", usernameEl.value);
-    if(emailEl) formData.append("email", emailEl.value);
-    if(phoneEl) formData.append("phone", phoneEl.value);
-    if(bioEl) formData.append("bio", bioEl.value);
+  const res = await fetch(`${API}/update-profile`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+    body: formData
+  });
 
-    const file = document.getElementById("avatarInput").files[0];
-    if(file) formData.append("avatar", file);
+  const data = await res.json();
 
-    const res = await fetch(`${API}/update-profile`, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${token}` },
-      body: formData
-    });
+  if(data.newToken){
+    localStorage.setItem("token", data.newToken);
+  }
 
-    const data = await res.json();
+  cancelBtn.onclick(); // exit edit mode
+};
 
-    if(!res.ok){
-      alert(data.message || "Error updating profile");
-      return;
-    }
-
-    if(data.newToken){
-      localStorage.setItem("token", data.newToken);
-    }
-
-    alert("Profile updated!");
-    loadProfile();
-
-    editing = false;
-    container.classList.add("read-only");
-    saveBtn.classList.add("hidden");
-
-  }catch(err){
-    console.error(err);
-    alert("Something went wrong");
+/* AVATAR PREVIEW + MODAL */
+avatarPreview.onclick = () => {
+  if(editing){
+    avatarInput.click();
+  } else {
+    modalImg.src = avatarPreview.src;
+    imageModal.style.display = "flex";
   }
 };
 
-/* =========================
-   AVATAR PREVIEW
-========================= */
-const avatarInput = document.getElementById("avatarInput");
-const avatarPreview = document.getElementById("avatarPreview");
+imageModal.onclick = () => {
+  imageModal.style.display = "none";
+};
 
-if(avatarInput && avatarPreview){
-  avatarPreview.onclick = () => avatarInput.click();
+/* FILE PREVIEW */
+avatarInput.onchange = e => {
+  const file = e.target.files[0];
+  if(file){
+    const reader = new FileReader();
+    reader.onload = () => {
+      avatarPreview.src = reader.result;
+      avatarPreview.style.display = "block";
+    };
+    reader.readAsDataURL(file);
+  }
+};
 
-  avatarInput.onchange = e => {
-    const file = e.target.files[0];
-    if(file){
-      const reader = new FileReader();
-      reader.onload = () => avatarPreview.src = reader.result;
-      reader.readAsDataURL(file);
-    }
-  };
-}
-
-/* =========================
-   INIT
-========================= */
-window.onload = loadProfile;
+/* INIT */
+loadProfile();
 </script>
 
 </body>
