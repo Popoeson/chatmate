@@ -439,5 +439,65 @@ router.post("/reset-password", async (req, res) => {
   }
 });
 
+/* =========================
+   SEARCH FRIEND 
+========================= */
+
+router.get('/users/search', authMiddleware, async (req, res) => {
+  try {
+    const query = req.query.username || '';
+    if (!query) return res.json({ users: [] });
+
+    const users = await User.find({
+      username: { $regex: query, $options: 'i' }
+    })
+    .select('_id username avatarUrl bio') // only return necessary fields
+    .limit(10);
+
+    res.json({ users });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+/* =========================
+   FRIEND REQUEST 
+========================= */
+
+router.post('/friends/request', authMiddleware, async (req, res) => {
+  try {
+    const requesterId = req.user.id;
+    const { userId } = req.body;
+
+    if (!userId) return res.status(400).json({ message: 'Recipient userId required' });
+    if (userId === requesterId) return res.status(400).json({ message: "Cannot add yourself" });
+
+    // Check if request already exists (both directions)
+    const existing = await FriendRequest.findOne({
+      $or: [
+        { requester: requesterId, recipient: userId },
+        { requester: userId, recipient: requesterId },
+      ]
+    });
+
+    if (existing) {
+      return res.status(400).json({ message: existing.status === 'pending' ? 'Friend request already pending' : 'You are already friends' });
+    }
+
+    const newRequest = new FriendRequest({
+      requester: requesterId,
+      recipient: userId
+    });
+
+    await newRequest.save();
+    res.json({ message: 'Friend request sent' });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
 export default router;
 
