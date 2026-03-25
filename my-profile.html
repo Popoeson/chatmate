@@ -195,9 +195,7 @@ footer {
 <script>
 const API = "https://chatmate-kbwz.onrender.com/api/auth";
 
-/* =========================
-   THEME TOGGLE
-========================= */
+/* THEME TOGGLE */
 const toggle = document.getElementById("themeToggle");
 toggle.onclick = () => {
   document.body.classList.toggle("dark");
@@ -205,11 +203,8 @@ toggle.onclick = () => {
   toggle.classList.toggle("fa-moon");
 };
 
-/* =========================
-   TOKEN CHECK
-========================= */
+/* TOKEN CHECK */
 const token = localStorage.getItem("token") || sessionStorage.getItem("token");
-
 if(!token){
   alert("You are not logged in. Redirecting to login page.");
   window.location.href = "login.html";
@@ -217,18 +212,9 @@ if(!token){
   console.log("Token available on my-profile page:", token);
 }
 
-/* =========================
-   LOAD PROFILE
-========================= */
+/* LOAD PROFILE */
 async function loadProfile(){
-  try{
-    const token = localStorage.getItem("token") || sessionStorage.getItem("token");
-    if(!token){
-      alert("Not logged in");
-      window.location.href = "login.html";
-      return;
-    }
-
+  try {
     const res = await fetch(`${API}/me`, {
       headers: { Authorization: `Bearer ${token}` }
     });
@@ -236,17 +222,18 @@ async function loadProfile(){
     const data = await res.json();
     console.log("PROFILE RESPONSE:", data);
 
-    if(!res.ok){
+    if(!res.ok || !data.user){
       console.warn("Failed to load profile:", data.message);
       return;
     }
 
     const user = data.user;
-    if(!user) return;
 
     // Update avatar
-    const avatarImg = document.getElementById("avatarPreview");
-    if(avatarImg) avatarImg.src = user.avatarUrl || "default-avatar.png";
+    const avatarPreview = document.getElementById("avatarPreview");
+    if(avatarPreview){
+      avatarPreview.src = user.avatarUrl || "https://i.pravatar.cc/100"; // fallback avatar
+    }
 
     // Update other fields
     document.getElementById("username")?.value = user.username || "";
@@ -259,9 +246,7 @@ async function loadProfile(){
   }
 }
 
-/* =========================
-   EDIT TOGGLE
-========================= */
+/* EDIT TOGGLE */
 let editing = false;
 const container = document.getElementById("profileContainer");
 const saveBtn = document.getElementById("saveBtn");
@@ -278,14 +263,9 @@ editToggleBtn?.addEventListener("click", () => {
   }
 });
 
-/* =========================
-   SAVE PROFILE
-========================= */
+/* SAVE PROFILE */
 saveBtn?.addEventListener("click", async () => {
   try{
-    const token = localStorage.getItem("token") || sessionStorage.getItem("token");
-    if(!token) return alert("Not logged in");
-
     const formData = new FormData();
     const usernameEl = document.getElementById("username");
     const emailEl = document.getElementById("email");
@@ -307,7 +287,6 @@ saveBtn?.addEventListener("click", async () => {
     });
 
     const data = await res.json();
-
     if(!res.ok) return alert(data.message || "Error updating profile");
 
     if(data.newToken) localStorage.setItem("token", data.newToken);
@@ -317,18 +296,18 @@ saveBtn?.addEventListener("click", async () => {
     container?.classList.add("read-only");
     saveBtn?.classList.add("hidden");
 
+    // Reload profile with updated avatar
+    loadProfile();
+
   } catch(err){
     console.error("SAVE PROFILE ERROR:", err);
     alert("Something went wrong while saving profile");
   }
 });
 
-/* =========================
-   AVATAR PREVIEW
-========================= */
+/* AVATAR PREVIEW */
 const avatarInput = document.getElementById("avatarInput");
 const avatarPreview = document.getElementById("avatarPreview");
-
 if(avatarInput && avatarPreview){
   avatarInput.onchange = e => {
     const file = e.target.files[0];
@@ -338,14 +317,16 @@ if(avatarInput && avatarPreview){
       reader.readAsDataURL(file);
     }
   };
+
+  // Optional: click on avatar opens file picker
+  avatarPreview.addEventListener("click", () => avatarInput.click());
 }
 
-/* =========================
-   INIT
-========================= */
+/* INIT ON DOM LOAD */
 window.addEventListener("DOMContentLoaded", () => {
   loadProfile();
 });
 </script>
+
 </body>
 </html>
