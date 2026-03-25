@@ -148,35 +148,36 @@ button {
   border-radius: 20px;
 }
 
-/* =========================
-   FOOTER
-========================= */
-footer {
-  position: fixed;
-  bottom: 0;
-  width: 100%;
-  display: flex;
-  justify-content: space-around;
-  padding: 10px 0;
-  background: linear-gradient(to right, #2B2E33, #7B7F85);
-  color: #fff;
-}
+  /* =========================
+     FOOTER NAVIGATION
+  ========================= */
+  footer {
+    position: sticky;
+    bottom: 0;
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    padding: 10px 0;
+    background: linear-gradient(to right, #2B2E33, #7B7F85);
+    color: #fff;
+  }
+  .footer-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    font-size: 0.75rem;
+    cursor: pointer;
+    color: #fff;
+    transition: color 0.2s;
+  }
+  .footer-item i {
+    font-size: 1.3rem;
+    margin-bottom: 4px;
+  }
+  .footer-item.active {
+    color: #4caf50;
+  }
 
-.footer-item {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  font-size: 0.75rem;
-  cursor: pointer;
-}
-
-.footer-item i {
-  font-size: 1.3rem;
-}
-
-.footer-item.active {
-  color: #4caf50;
-}
 </style>
 
 </style>
