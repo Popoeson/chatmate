@@ -276,89 +276,31 @@ body.dark .modal button {
   </div>
 </main>
 
-/* =========================
-   MODAL CONTROLS
-========================= */
-const addModal = document.getElementById("addFriendModal");
-const profileModal = document.getElementById("profileModal");
+<!-- =========================
+   ADD FRIEND MODAL
+========================= -->
+<div id="addFriendModal" class="modal hidden">
+  <div class="modal-content">
+    <input id="searchInput" placeholder="Search username..." />
 
-document.getElementById("addFriendBtn").onclick = () => {
-  addModal.classList.remove("hidden");
-};
+    <div id="searchResults"></div>
 
-document.getElementById("closeAddModal").onclick = () => {
-  addModal.classList.add("hidden");
-};
+    <button id="closeAddModal">Close</button>
+  </div>
+</div>
 
-document.getElementById("closeProfileModal").onclick = () => {
-  profileModal.classList.add("hidden");
-};
+<!-- =========================
+   PROFILE MODAL
+========================= -->
+<div id="profileModal" class="modal hidden">
+  <div class="modal-content">
+    <img id="viewAvatar" class="avatar-large">
+    <h3 id="viewUsername"></h3>
+    <p id="viewBio"></p>
 
-/* =========================
-   SEARCH USERS
-========================= */
-const searchInput = document.getElementById("searchInput");
-const resultsDiv = document.getElementById("searchResults");
-
-searchInput.oninput = async () => {
-  const query = searchInput.value.trim();
-  if(!query) return resultsDiv.innerHTML = "";
-
-  const token = localStorage.getItem("token");
-
-  try {
-    const res = await fetch(`${API}/users/search?username=${query}`, {
-      headers: { Authorization: `Bearer ${token}` }
-    });
-
-    const data = await res.json();
-    resultsDiv.innerHTML = "";
-
-    data.users.forEach(user => {
-      const card = document.createElement("div");
-      card.className = "search-card";
-
-      card.innerHTML = `
-        <img src="${user.avatarUrl}">
-        <span>${user.username}</span>
-        <div class="search-actions">
-          <button class="small-btn view-btn">View</button>
-          <button class="small-btn add-btn">Add</button>
-        </div>
-      `;
-
-      // VIEW PROFILE
-      card.querySelector(".view-btn").onclick = () => {
-        document.getElementById("viewAvatar").src = user.avatarUrl;
-        document.getElementById("viewUsername").textContent = user.username;
-        document.getElementById("viewBio").textContent = user.bio || "";
-
-        profileModal.classList.remove("hidden");
-      };
-
-      // ADD FRIEND
-      card.querySelector(".add-btn").onclick = async (e) => {
-        const btn = e.target;
-        btn.textContent = "Pending";
-        btn.disabled = true;
-
-        await fetch(`${API}/friends/request`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`
-          },
-          body: JSON.stringify({ userId: user._id })
-        });
-      };
-
-      resultsDiv.appendChild(card);
-    });
-
-  } catch(err) {
-    console.error(err);
-  }
-};
+    <button id="closeProfileModal">Close</button>
+  </div>
+</div>
 
 <!-- FOOTER -->
 <footer>
