@@ -14,7 +14,7 @@ const userSchema = new mongoose.Schema({
   lastSeen: { type: Date, default: Date.now },
   onlineStatus: { type: Boolean, default: false },
   links: { type: [String], default: [] },
-  tokenVersion: { type: Number, default: 0 }
+  tokenVersion: { type: Number, default: 1 }
 });
 
 export default mongoose.model("User", userSchema);
