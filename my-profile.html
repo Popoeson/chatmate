@@ -206,71 +206,70 @@ toggle.onclick = () => {
   toggle.classList.toggle("fa-moon");
 };
 
-// TOKEN CHECK 
-
-const token = localStorage.getItem("token");
+/* =========================
+   TOKEN CHECK
+========================= */
+const token = localStorage.getItem("token") || sessionStorage.getItem("token");
 
 if(!token){
-  showModal("You are not logged in", () => {
-    window.location.href = "login.html";
-  });
+  alert("You are not logged in. Redirecting to login page.");
+  window.location.href = "login.html";
+} else {
+  console.log("Token available on my-profile page:", token);
 }
 
 /* =========================
    LOAD PROFILE
 ========================= */
-
 async function loadProfile(){
   try{
-    const token = localStorage.getItem("token");
-
+    const token = localStorage.getItem("token") || sessionStorage.getItem("token");
     if(!token){
       alert("Not logged in");
       window.location.href = "login.html";
       return;
     }
 
-    const res = await fetch("https://chatmate-kbwz.onrender.com/api/auth/me", {
-      headers: {
-        Authorization: "Bearer " + token
-      }
+    const res = await fetch(`${API}/me`, {
+      headers: { Authorization: `Bearer ${token}` }
     });
 
     const data = await res.json();
-
-    console.log("PROFILE RESPONSE:", data); // 🔥 DEBUG
+    console.log("PROFILE RESPONSE:", data);
 
     if(!res.ok){
-      alert(data.message || "Failed to load profile");
+      console.warn("Failed to load profile:", data.message);
       return;
     }
 
-    // ✅ THIS IS THE FIX
     const user = data.user;
-
     if(!user){
-      alert("User data not found");
+      console.warn("User data not found");
       return;
     }
 
-    // ✅ Safe assignments
-    document.getElementById("username").value = user.username || "";
-    document.getElementById("email").value = user.email || "";
-    document.getElementById("phone").value = user.phone || "";
-    document.getElementById("bio").value = user.bio || "";
+    // Safe assignments with null checks
+    const usernameEl = document.getElementById("username");
+    if(usernameEl) usernameEl.value = user.username || "";
 
-    if(user.avatarUrl){
-      document.getElementById("avatar").src = user.avatarUrl;
+    const emailEl = document.getElementById("email");
+    if(emailEl) emailEl.value = user.email || "";
+
+    const phoneEl = document.getElementById("phone");
+    if(phoneEl) phoneEl.value = user.phone || "";
+
+    const bioEl = document.getElementById("bio");
+    if(bioEl) bioEl.value = user.bio || "";
+
+    const avatarImg = document.getElementById("avatar");
+    if(avatarImg && user.avatarUrl){
+      avatarImg.src = user.avatarUrl;
     }
 
-  }catch(err){
+  } catch(err){
     console.error("LOAD PROFILE ERROR:", err);
-    alert("Something went wrong");
   }
 }
-
-// Run on page load
-loadProfile();
 
 /* =========================
    EDIT TOGGLE
@@ -279,71 +278,91 @@ let editing = false;
 const container = document.getElementById("profileContainer");
 const saveBtn = document.getElementById("saveBtn");
 
-document.getElementById("editToggle").onclick = () => {
-  editing = !editing;
-
-  if(editing){
-    container.classList.remove("read-only");
-    saveBtn.classList.remove("hidden");
-  } else {
-    container.classList.add("read-only");
-    saveBtn.classList.add("hidden");
-  }
-};
+const editToggleBtn = document.getElementById("editToggle");
+if(editToggleBtn){
+  editToggleBtn.onclick = () => {
+    editing = !editing;
+    if(editing){
+      container?.classList.remove("read-only");
+      saveBtn?.classList.remove("hidden");
+    } else {
+      container?.classList.add("read-only");
+      saveBtn?.classList.add("hidden");
+    }
+  };
+}
 
 /* =========================
    SAVE PROFILE
 ========================= */
-saveBtn.onclick = async () => {
-  const token = localStorage.getItem("token");
+if(saveBtn){
+  saveBtn.onclick = async () => {
+    try{
+      const token = localStorage.getItem("token") || sessionStorage.getItem("token");
+      if(!token) return alert("Not logged in");
 
-  const formData = new FormData();
-  formData.append("username", username.value);
-  formData.append("email", email.value);
-  formData.append("phone", phone.value);
-  formData.append("bio", bio.value);
+      const formData = new FormData();
+      const usernameEl = document.getElementById("username");
+      const emailEl = document.getElementById("email");
+      const phoneEl = document.getElementById("phone");
+      const bioEl = document.getElementById("bio");
 
-  const file = document.getElementById("avatarInput").files[0];
-  if(file) formData.append("avatar", file);
+      if(usernameEl) formData.append("username", usernameEl.value);
+      if(emailEl) formData.append("email", emailEl.value);
+      if(phoneEl) formData.append("phone", phoneEl.value);
+      if(bioEl) formData.append("bio", bioEl.value);
 
-  const res = await fetch(`${API}/update-profile`, {
-    method: "POST",
-    headers: { Authorization: `Bearer ${token}` },
-    body: formData
-  });
+      const file = document.getElementById("avatarInput")?.files[0];
+      if(file) formData.append("avatar", file);
 
-  const data = await res.json();
+      const res = await fetch(`${API}/update-profile`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: formData
+      });
 
-  if(!res.ok) return alert(data.message || "Error");
+      const data = await res.json();
 
-  if(data.newToken){
-    localStorage.setItem("token", data.newToken);
-  }
+      if(!res.ok) return alert(data.message || "Error updating profile");
 
-  alert("Profile updated!");
+      if(data.newToken){
+        localStorage.setItem("token", data.newToken);
+      }
 
-  editing = false;
-  container.classList.add("read-only");
-  saveBtn.classList.add("hidden");
-};
+      alert("Profile updated successfully!");
+      editing = false;
+      container?.classList.add("read-only");
+      saveBtn?.classList.add("hidden");
+
+    } catch(err){
+      console.error("SAVE PROFILE ERROR:", err);
+      alert("Something went wrong while saving profile");
+    }
+  };
+}
 
 /* =========================
    AVATAR PREVIEW
 ========================= */
-document.getElementById("avatarInput").onchange = e => {
-  const file = e.target.files[0];
-  if(file){
-    const reader = new FileReader();
-    reader.onload = () => {
-      document.getElementById("avatarPreview").src = reader.result;
-    };
-    reader.readAsDataURL(file);
-  }
-};
+const avatarInput = document.getElementById("avatarInput");
+const avatarPreview = document.getElementById("avatar");
+if(avatarInput && avatarPreview){
+  avatarInput.onchange = e => {
+    const file = e.target.files[0];
+    if(file){
+      const reader = new FileReader();
+      reader.onload = () => avatarPreview.src = reader.result;
+      reader.readAsDataURL(file);
+    }
+  };
+}
 
-/* INIT */
-window.onload = loadProfile;
+/* =========================
+   INIT ON DOM LOAD
+========================= */
+window.addEventListener("DOMContentLoaded", () => {
+  loadProfile();
+});
 </script>
-
 </body>
 </html>
