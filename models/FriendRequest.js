@@ -1,5 +1,4 @@
-// models/FriendRequest.js
-const mongoose = require('mongoose');
+import mongoose from "mongoose";
 
 const FriendRequestSchema = new mongoose.Schema({
   requester: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
@@ -7,4 +6,4 @@ const FriendRequestSchema = new mongoose.Schema({
   status: { type: String, enum: ['pending', 'accepted'], default: 'pending' },
 }, { timestamps: true });
 
-module.exports = mongoose.model('FriendRequest', FriendRequestSchema);
+export default mongoose.model('FriendRequest', FriendRequestSchema);
