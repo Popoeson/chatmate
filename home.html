@@ -116,6 +116,97 @@ header .header-icons i:hover {
     gap: 4px;
   }
 
+/* =========================
+   MODALS (LOGIN STYLE)
+========================= */
+.modal {
+  position: fixed;
+  top:0; left:0;
+  width:100%; height:100%;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  background: rgba(0,0,0,0.6);
+  z-index: 999;
+}
+
+.modal.hidden { display:none; }
+
+.modal-content {
+  width: 90%;
+  max-width: 350px;
+  padding: 20px;
+  border-radius: 20px;
+  background: #fff;
+  text-align: center;
+}
+
+body.dark .modal-content {
+  background: #1C1C1E;
+}
+
+.modal input {
+  width: 100%;
+  padding: 10px;
+  border: none;
+  border-bottom: 1px solid #ccc;
+  margin-bottom: 15px;
+  background: transparent;
+  color: inherit;
+}
+
+.modal button {
+  margin-top: 15px;
+  padding: 10px;
+  border-radius: 999px;
+  border: none;
+  background: #1C1C1E;
+  color: #fff;
+  cursor: pointer;
+}
+
+body.dark .modal button {
+  background: #fff;
+  color: #1C1C1E;
+}
+
+/* =========================
+   SEARCH CARD
+========================= */
+.search-card {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  margin-bottom:10px;
+}
+
+.search-card img {
+  width:40px;
+  height:40px;
+  border-radius:50%;
+}
+
+.search-actions {
+  display:flex;
+  gap:8px;
+}
+
+.small-btn {
+  padding:5px 10px;
+  border-radius:12px;
+  border:none;
+  cursor:pointer;
+  font-size:12px;
+}
+
+/* PROFILE MODAL */
+.avatar-large {
+  width:100px;
+  height:100px;
+  border-radius:50%;
+  margin-bottom:10px;
+}
+
   /* =========================
      FOOTER NAVIGATION
   ========================= */
@@ -184,6 +275,90 @@ header .header-icons i:hover {
     </div>
   </div>
 </main>
+
+/* =========================
+   MODAL CONTROLS
+========================= */
+const addModal = document.getElementById("addFriendModal");
+const profileModal = document.getElementById("profileModal");
+
+document.getElementById("addFriendBtn").onclick = () => {
+  addModal.classList.remove("hidden");
+};
+
+document.getElementById("closeAddModal").onclick = () => {
+  addModal.classList.add("hidden");
+};
+
+document.getElementById("closeProfileModal").onclick = () => {
+  profileModal.classList.add("hidden");
+};
+
+/* =========================
+   SEARCH USERS
+========================= */
+const searchInput = document.getElementById("searchInput");
+const resultsDiv = document.getElementById("searchResults");
+
+searchInput.oninput = async () => {
+  const query = searchInput.value.trim();
+  if(!query) return resultsDiv.innerHTML = "";
+
+  const token = localStorage.getItem("token");
+
+  try {
+    const res = await fetch(`${API}/users/search?username=${query}`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+
+    const data = await res.json();
+    resultsDiv.innerHTML = "";
+
+    data.users.forEach(user => {
+      const card = document.createElement("div");
+      card.className = "search-card";
+
+      card.innerHTML = `
+        <img src="${user.avatarUrl}">
+        <span>${user.username}</span>
+        <div class="search-actions">
+          <button class="small-btn view-btn">View</button>
+          <button class="small-btn add-btn">Add</button>
+        </div>
+      `;
+
+      // VIEW PROFILE
+      card.querySelector(".view-btn").onclick = () => {
+        document.getElementById("viewAvatar").src = user.avatarUrl;
+        document.getElementById("viewUsername").textContent = user.username;
+        document.getElementById("viewBio").textContent = user.bio || "";
+
+        profileModal.classList.remove("hidden");
+      };
+
+      // ADD FRIEND
+      card.querySelector(".add-btn").onclick = async (e) => {
+        const btn = e.target;
+        btn.textContent = "Pending";
+        btn.disabled = true;
+
+        await fetch(`${API}/friends/request`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`
+          },
+          body: JSON.stringify({ userId: user._id })
+        });
+      };
+
+      resultsDiv.appendChild(card);
+    });
+
+  } catch(err) {
+    console.error(err);
+  }
+};
 
 <!-- FOOTER -->
 <footer>
@@ -346,6 +521,92 @@ dummyChats.forEach(chat => {
   `;
   chatList.appendChild(card);
 });
+
+/* =========================
+   MODAL CONTROLS
+========================= */
+const addModal = document.getElementById("addFriendModal");
+const profileModal = document.getElementById("profileModal");
+
+document.getElementById("addFriendBtn").onclick = () => {
+  addModal.classList.remove("hidden");
+};
+
+document.getElementById("closeAddModal").onclick = () => {
+  addModal.classList.add("hidden");
+};
+
+document.getElementById("closeProfileModal").onclick = () => {
+  profileModal.classList.add("hidden");
+};
+
+/* =========================
+   SEARCH USERS
+========================= */
+const searchInput = document.getElementById("searchInput");
+const resultsDiv = document.getElementById("searchResults");
+
+searchInput.oninput = async () => {
+  const query = searchInput.value.trim();
+  if(!query) return resultsDiv.innerHTML = "";
+
+  const token = localStorage.getItem("token");
+
+  try {
+    const res = await fetch(`${API}/users/search?username=${query}`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+
+    const data = await res.json();
+    resultsDiv.innerHTML = "";
+
+    data.users.forEach(user => {
+      const card = document.createElement("div");
+      card.className = "search-card";
+
+      card.innerHTML = `
+        <img src="${user.avatarUrl}">
+        <span>${user.username}</span>
+        <div class="search-actions">
+          <button class="small-btn view-btn">View</button>
+          <button class="small-btn add-btn">Add</button>
+        </div>
+      `;
+
+      // VIEW PROFILE
+      card.querySelector(".view-btn").onclick = () => {
+        document.getElementById("viewAvatar").src = user.avatarUrl;
+        document.getElementById("viewUsername").textContent = user.username;
+        document.getElementById("viewBio").textContent = user.bio || "";
+
+        profileModal.classList.remove("hidden");
+      };
+
+      // ADD FRIEND
+      card.querySelector(".add-btn").onclick = async (e) => {
+        const btn = e.target;
+        btn.textContent = "Pending";
+        btn.disabled = true;
+
+        await fetch(`${API}/friends/request`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`
+          },
+          body: JSON.stringify({ userId: user._id })
+        });
+      };
+
+      resultsDiv.appendChild(card);
+    });
+
+  } catch(err) {
+    console.error(err);
+  }
+};
+
+
 </script>
 
 </body>
