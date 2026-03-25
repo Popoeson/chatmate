@@ -206,6 +206,16 @@ toggle.onclick = () => {
   toggle.classList.toggle("fa-moon");
 };
 
+// TOKEN CHECK 
+
+const token = localStorage.getItem("token");
+
+if(!token){
+  showModal("You are not logged in", () => {
+    window.location.href = "login.html";
+  });
+}
+
 /* =========================
    LOAD PROFILE
 ========================= */
