@@ -16,10 +16,7 @@
     color: #111;
     transition: background 0.3s, color 0.3s;
   }
-  body.dark {
-    background: #111;
-    color: #f9f9f9;
-  }
+  body.dark { background: #111; color: #f9f9f9; }
   .hidden { display: none; }
 
   /* =========================
@@ -36,26 +33,10 @@
     color: #fff;
     z-index: 100;
   }
-  header .logo {
-    font-size: 1.5rem;
-    font-weight: bold;
-  }
-  header .header-icons {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-    font-size: 1.2rem;
-    cursor: pointer;
-  }
- 
-  header .header-icons i {
-  color: #fff; /* keep white */
-  transition: transform 0.2s; /* allow slight scale on hover */
-}
-header .header-icons i:hover {
-  transform: scale(1.1); /* optional: small zoom effect on hover */
-  color: inherit; /* prevent any color change */
-}
+  header .logo { font-size: 1.5rem; font-weight: bold; }
+  header .header-icons { display: flex; gap: 16px; font-size: 1.2rem; }
+  header .header-icons i { cursor: pointer; transition: transform 0.2s; }
+  header .header-icons i:hover { transform: scale(1.1); }
 
   /* =========================
      MAIN CHAT LIST
@@ -63,7 +44,7 @@ header .header-icons i:hover {
   main {
     padding: 10px 0;
     overflow-y: auto;
-    height: calc(100vh - 120px); /* header + footer height */
+    height: calc(100vh - 120px);
   }
   .chat-card {
     display: flex;
@@ -76,136 +57,74 @@ header .header-icons i:hover {
     cursor: pointer;
     transition: background 0.2s;
   }
-  body.dark .chat-card {
-    background: #222;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.4);
+  body.dark .chat-card { background: #222; box-shadow: 0 2px 5px rgba(0,0,0,0.4); }
+  .chat-card:hover { background: #e2e2e2; }
+  body.dark .chat-card:hover { background: #333; }
+  .chat-card img { width: 50px; height: 50px; border-radius: 50%; object-fit: cover; margin-right: 14px; }
+  .chat-info { flex: 1; }
+  .chat-info .username { font-weight: bold; margin-bottom: 4px; }
+  .chat-info .last-message { font-size: 0.9rem; color: #555; }
+  body.dark .chat-info .last-message { color: #ccc; }
+  .chat-status { font-size: 0.9rem; color: #888; display: flex; align-items: center; gap: 4px; }
+
+  /* =========================
+     MODALS
+  ========================= */
+  .modal {
+    position: fixed;
+    top:0; left:0;
+    width:100%; height:100%;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    background: rgba(0,0,0,0.6);
+    z-index: 999;
   }
-  .chat-card:hover {
-    background: #e2e2e2;
+  .modal.hidden { display:none; }
+  .modal-content {
+    width: 90%;
+    max-width: 350px;
+    padding: 20px;
+    border-radius: 20px;
+    background: #fff;
+    text-align: center;
   }
-  body.dark .chat-card:hover {
-    background: #333;
+  body.dark .modal-content { background: #1C1C1E; }
+  .modal input {
+    width: 100%;
+    padding: 10px;
+    border: none;
+    border-bottom: 1px solid #ccc;
+    margin-bottom: 15px;
+    background: transparent;
+    color: inherit;
   }
-  .chat-card img {
-    width: 50px;
-    height: 50px;
-    border-radius: 50%;
-    object-fit: cover;
-    margin-right: 14px;
+  .modal button {
+    margin-top: 15px;
+    padding: 10px;
+    border-radius: 999px;
+    border: none;
+    background: #1C1C1E;
+    color: #fff;
+    cursor: pointer;
   }
-  .chat-info {
-    flex: 1;
+  body.dark .modal button { background: #fff; color: #1C1C1E; }
+
+  /* =========================
+     SEARCH CARD
+  ========================= */
+  .search-card {
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    margin-bottom:10px;
   }
-  .chat-info .username {
-    font-weight: bold;
-    font-size: 1rem;
-    margin-bottom: 4px;
-  }
-  .chat-info .last-message {
-    font-size: 0.9rem;
-    color: #555;
-  }
-  body.dark .chat-info .last-message {
-    color: #ccc;
-  }
-  .chat-status {
-    font-size: 0.9rem;
-    color: #888;
-    display: flex;
-    align-items: center;
-    gap: 4px;
-  }
+  .search-card img { width:40px; height:40px; border-radius:50%; }
+  .search-actions { display:flex; gap:8px; }
+  .small-btn { padding:5px 10px; border-radius:12px; border:none; cursor:pointer; font-size:12px; }
 
-/* =========================
-   MODALS (LOGIN STYLE)
-========================= */
-.modal {
-  position: fixed;
-  top:0; left:0;
-  width:100%; height:100%;
-  display:flex;
-  justify-content:center;
-  align-items:center;
-  background: rgba(0,0,0,0.6);
-  z-index: 999;
-}
-
-.modal.hidden { display:none; }
-
-.modal-content {
-  width: 90%;
-  max-width: 350px;
-  padding: 20px;
-  border-radius: 20px;
-  background: #fff;
-  text-align: center;
-}
-
-body.dark .modal-content {
-  background: #1C1C1E;
-}
-
-.modal input {
-  width: 100%;
-  padding: 10px;
-  border: none;
-  border-bottom: 1px solid #ccc;
-  margin-bottom: 15px;
-  background: transparent;
-  color: inherit;
-}
-
-.modal button {
-  margin-top: 15px;
-  padding: 10px;
-  border-radius: 999px;
-  border: none;
-  background: #1C1C1E;
-  color: #fff;
-  cursor: pointer;
-}
-
-body.dark .modal button {
-  background: #fff;
-  color: #1C1C1E;
-}
-
-/* =========================
-   SEARCH CARD
-========================= */
-.search-card {
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  margin-bottom:10px;
-}
-
-.search-card img {
-  width:40px;
-  height:40px;
-  border-radius:50%;
-}
-
-.search-actions {
-  display:flex;
-  gap:8px;
-}
-
-.small-btn {
-  padding:5px 10px;
-  border-radius:12px;
-  border:none;
-  cursor:pointer;
-  font-size:12px;
-}
-
-/* PROFILE MODAL */
-.avatar-large {
-  width:100px;
-  height:100px;
-  border-radius:50%;
-  margin-bottom:10px;
-}
+  /* PROFILE MODAL */
+  .avatar-large { width:100px; height:100px; border-radius:50%; margin-bottom:10px; }
 
   /* =========================
      FOOTER NAVIGATION
@@ -220,23 +139,9 @@ body.dark .modal button {
     background: linear-gradient(to right, #2B2E33, #7B7F85);
     color: #fff;
   }
-  .footer-item {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    font-size: 0.75rem;
-    cursor: pointer;
-    color: #fff;
-    transition: color 0.2s;
-  }
-  .footer-item i {
-    font-size: 1.3rem;
-    margin-bottom: 4px;
-  }
-  .footer-item.active {
-    color: #4caf50;
-  }
-
+  .footer-item { display: flex; flex-direction: column; align-items: center; font-size: 0.75rem; cursor: pointer; color: #fff; transition: color 0.2s; }
+  .footer-item i { font-size: 1.3rem; margin-bottom: 4px; }
+  .footer-item.active { color: #4caf50; }
 </style>
 </head>
 <body>
@@ -253,7 +158,6 @@ body.dark .modal button {
 
 <!-- MAIN CHAT LIST -->
 <main id="chatList">
-  <!-- Example chat cards, dynamically rendered via JS later -->
   <div class="chat-card">
     <img src="https://i.pravatar.cc/50?img=1" alt="Profile">
     <div class="chat-info">
@@ -276,243 +180,130 @@ body.dark .modal button {
   </div>
 </main>
 
-<!-- =========================
-   ADD FRIEND MODAL
-========================= -->
+<!-- ADD FRIEND MODAL -->
 <div id="addFriendModal" class="modal hidden">
   <div class="modal-content">
     <input id="searchInput" placeholder="Search username..." />
-
     <div id="searchResults"></div>
-
     <button id="closeAddModal">Close</button>
   </div>
 </div>
 
-<!-- =========================
-   PROFILE MODAL
-========================= -->
+<!-- PROFILE MODAL -->
 <div id="profileModal" class="modal hidden">
   <div class="modal-content">
     <img id="viewAvatar" class="avatar-large">
     <h3 id="viewUsername"></h3>
     <p id="viewBio"></p>
-
     <button id="closeProfileModal">Close</button>
   </div>
 </div>
 
 <!-- FOOTER -->
 <footer>
-  <div class="footer-item">
-    <i class="fa-solid fa-circle-user"></i>
-    <span>Status</span>
-  </div>
-  <div class="footer-item active">
-    <i class="fa-solid fa-comment"></i>
-    <span>Chats</span>
-  </div>
-  <div class="footer-item">
-    <i class="fa-solid fa-upload"></i>
-    <span>Posts</span>
-  </div>
-  <div class="footer-item">
-      <a href="my-profile.html" class="footer-item">
-  <i class="fa-solid fa-user"></i>
-  <span>Profile</span>
-</a>
-  </div>
-  <div class="footer-item">
-    <i class="fa-solid fa-gear"></i>
-    <span>Settings</span>
-  </div>
+  <div class="footer-item"><i class="fa-solid fa-circle-user"></i><span>Status</span></div>
+  <div class="footer-item active"><i class="fa-solid fa-comment"></i><span>Chats</span></div>
+  <div class="footer-item"><i class="fa-solid fa-upload"></i><span>Posts</span></div>
+  <div class="footer-item"><a href="my-profile.html" class="footer-item"><i class="fa-solid fa-user"></i><span>Profile</span></a></div>
+  <div class="footer-item"><i class="fa-solid fa-gear"></i><span>Settings</span></div>
 </footer>
 
 <script>
-
-/* =========================
-   API BASE
-========================= */
 const API = "https://chatmate-kbwz.onrender.com/api/auth";
 
-/* =========================
-   INIT AFTER DOM LOAD
-========================= */
 document.addEventListener("DOMContentLoaded", () => {
-
-  /* =========================
-     ELEMENTS
-  ========================= */
+  // ELEMENTS
   const addModal = document.getElementById("addFriendModal");
   const profileModal = document.getElementById("profileModal");
-
   const addFriendBtn = document.getElementById("addFriendBtn");
   const closeAddModal = document.getElementById("closeAddModal");
   const closeProfileModal = document.getElementById("closeProfileModal");
-
   const searchInput = document.getElementById("searchInput");
   const resultsDiv = document.getElementById("searchResults");
-
   const toggle = document.getElementById("themeToggle");
   const encryptionToggle = document.getElementById("encryptionToggle");
 
-  /* =========================
-     THEME TOGGLE
-  ========================= */
-  toggle.onclick = () => {
+  // THEME TOGGLE
+  toggle.addEventListener("click", () => {
     document.body.classList.toggle("dark");
     toggle.classList.toggle("fa-sun");
     toggle.classList.toggle("fa-moon");
-  };
+  });
 
-  /* =========================
-     ENCRYPTION TOGGLE
-  ========================= */
+  // ENCRYPTION TOGGLE
   let encrypted = true;
-  encryptionToggle.onclick = () => {
+  encryptionToggle.addEventListener("click", () => {
     encrypted = !encrypted;
     encryptionToggle.classList.toggle("fa-lock", encrypted);
     encryptionToggle.classList.toggle("fa-lock-open", !encrypted);
-  };
+  });
 
-  /* =========================
-     OPEN MODAL (FIXED)
-  ========================= */
-  addFriendBtn.onclick = () => {
-    console.log("Opening modal...");
+  // OPEN ADD FRIEND MODAL
+  addFriendBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
     addModal.classList.remove("hidden");
-  };
+  });
 
-  /* =========================
-     CLOSE MODALS
-  ========================= */
-  closeAddModal.onclick = () => {
-    addModal.classList.add("hidden");
-  };
+  // CLOSE MODALS
+  closeAddModal.addEventListener("click", () => addModal.classList.add("hidden"));
+  closeProfileModal.addEventListener("click", () => profileModal.classList.add("hidden"));
 
-  closeProfileModal.onclick = () => {
-    profileModal.classList.add("hidden");
-  };
-
-  /* =========================
-     CLOSE WHEN CLICK OUTSIDE
-  ========================= */
-  window.onclick = (e) => {
+  // CLOSE WHEN CLICK OUTSIDE
+  window.addEventListener("click", (e) => {
     if (e.target === addModal) addModal.classList.add("hidden");
     if (e.target === profileModal) profileModal.classList.add("hidden");
-  };
+  });
 
-  /* =========================
-     LOAD USER
-  ========================= */
+  // LOAD USER
   async function loadUser() {
     const token = localStorage.getItem("token") || sessionStorage.getItem("token");
-
-    if (!token) {
-      alert("You are not logged in.");
-      window.location.href = "login.html";
-      return;
-    }
-
+    if (!token) { alert("Not logged in."); window.location.href="login.html"; return; }
     try {
-      const res = await fetch(`${API}/me`, {
-        headers: { Authorization: "Bearer " + token }
-      });
-
+      const res = await fetch(`${API}/me`, { headers:{ Authorization:`Bearer ${token}` } });
       const data = await res.json();
-
-      if (!res.ok) {
-        localStorage.removeItem("token");
-        sessionStorage.removeItem("token");
-        alert("Session expired.");
-        window.location.href = "login.html";
-        return;
-      }
-
+      if (!res.ok) { localStorage.removeItem("token"); sessionStorage.removeItem("token"); window.location.href="login.html"; return; }
       console.log("Logged-in user:", data.user);
-
-    } catch (err) {
-      console.error(err);
-      alert("Error loading user.");
-    }
+    } catch(err){ console.error(err); alert("Error loading user."); }
   }
-
   loadUser();
 
-  /* =========================
-     SEARCH USERS
-  ========================= */
+  // SEARCH USERS
   searchInput.addEventListener("input", async () => {
     const query = searchInput.value.trim();
     const token = localStorage.getItem("token");
-
-    if (!query) {
-      resultsDiv.innerHTML = "";
-      return;
-    }
-
+    if (!query) { resultsDiv.innerHTML=""; return; }
     try {
-      const res = await fetch(`${API}/users/search?username=${query}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-
+      const res = await fetch(`${API}/users/search?username=${query}`, { headers:{ Authorization:`Bearer ${token}` } });
       const data = await res.json();
       resultsDiv.innerHTML = "";
-
-      if (!data.users || data.users.length === 0) {
-        resultsDiv.innerHTML = "<p>No users found</p>";
-        return;
-      }
-
-      data.users.forEach(user => {
-        const card = document.createElement("div");
-        card.className = "search-card";
-
-        card.innerHTML = `
-          <img src="${user.avatarUrl || ''}">
+      if (!data.users || data.users.length===0) { resultsDiv.innerHTML="<p>No users found</p>"; return; }
+      data.users.forEach(user=>{
+        const card=document.createElement("div");
+        card.className="search-card";
+        card.innerHTML=`
+          <img src="${user.avatarUrl||''}">
           <span>${user.username}</span>
           <div class="search-actions">
             <button class="small-btn view-btn">View</button>
             <button class="small-btn add-btn">Add</button>
           </div>
         `;
-
         // VIEW PROFILE
-        card.querySelector(".view-btn").onclick = () => {
-          document.getElementById("viewAvatar").src = user.avatarUrl || "";
-          document.getElementById("viewUsername").textContent = user.username;
-          document.getElementById("viewBio").textContent = user.bio || "";
-
+        card.querySelector(".view-btn").addEventListener("click",()=>{
+          document.getElementById("viewAvatar").src=user.avatarUrl||"";
+          document.getElementById("viewUsername").textContent=user.username;
+          document.getElementById("viewBio").textContent=user.bio||"";
           profileModal.classList.remove("hidden");
-        };
-
+        });
         // ADD FRIEND
-        card.querySelector(".add-btn").onclick = async (e) => {
-          const btn = e.target;
-          btn.textContent = "Pending";
-          btn.disabled = true;
-
-          try {
-            await fetch(`${API}/friends/request`, {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                Authorization: `Bearer ${token}`
-              },
-              body: JSON.stringify({ userId: user._id })
-            });
-          } catch (err) {
-            console.error(err);
-            btn.textContent = "Error";
-          }
-        };
-
+        card.querySelector(".add-btn").addEventListener("click", async (e)=>{
+          const btn=e.target; btn.textContent="Pending"; btn.disabled=true;
+          try { await fetch(`${API}/friends/request`, { method:"POST", headers:{"Content-Type":"application/json", Authorization:`Bearer ${token}`}, body:JSON.stringify({userId:user._id}) }); } 
+          catch(err){ console.error(err); btn.textContent="Error"; }
+        });
         resultsDiv.appendChild(card);
       });
-
-    } catch (err) {
-      console.error("SEARCH ERROR:", err);
-    }
+    } catch(err){ console.error("SEARCH ERROR:", err); }
   });
 
 });
