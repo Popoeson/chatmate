@@ -441,10 +441,9 @@ router.post("/reset-password", async (req, res) => {
 });
 
 /* =========================
-   SEARCH FRIEND 
+   SEARCH USERS
 ========================= */
-
-router.get('/users/search', authMiddleware, async (req, res) => {
+router.get('/users/search', authenticateJWT, async (req, res) => {
   try {
     const query = req.query.username || '';
     if (!query) return res.json({ users: [] });
@@ -452,8 +451,8 @@ router.get('/users/search', authMiddleware, async (req, res) => {
     const users = await User.find({
       username: { $regex: query, $options: 'i' }
     })
-    .select('_id username avatarUrl bio') // only return necessary fields
-    .limit(10);
+      .select('_id username avatarUrl bio') // only return necessary fields
+      .limit(10);
 
     res.json({ users });
   } catch (err) {
@@ -463,18 +462,17 @@ router.get('/users/search', authMiddleware, async (req, res) => {
 });
 
 /* =========================
-   FRIEND REQUEST 
+   FRIEND REQUEST
 ========================= */
-
-router.post('/friends/request', authMiddleware, async (req, res) => {
+router.post('/friends/request', authenticateJWT, async (req, res) => {
   try {
-    const requesterId = req.user.id;
+    const requesterId = req.userId; // <-- FIXED
     const { userId } = req.body;
 
     if (!userId) return res.status(400).json({ message: 'Recipient userId required' });
     if (userId === requesterId) return res.status(400).json({ message: "Cannot add yourself" });
 
-    // Check if request already exists (both directions)
+    // Check if request already exists in either direction
     const existing = await FriendRequest.findOne({
       $or: [
         { requester: requesterId, recipient: userId },
@@ -483,12 +481,17 @@ router.post('/friends/request', authMiddleware, async (req, res) => {
     });
 
     if (existing) {
-      return res.status(400).json({ message: existing.status === 'pending' ? 'Friend request already pending' : 'You are already friends' });
+      return res.status(400).json({
+        message: existing.status === 'pending'
+          ? 'Friend request already pending'
+          : 'You are already friends'
+      });
     }
 
     const newRequest = new FriendRequest({
       requester: requesterId,
-      recipient: userId
+      recipient: userId,
+      status: 'pending'
     });
 
     await newRequest.save();
