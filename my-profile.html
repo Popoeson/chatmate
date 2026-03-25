@@ -219,23 +219,58 @@ if(!token){
 /* =========================
    LOAD PROFILE
 ========================= */
+
 async function loadProfile(){
-  const token = localStorage.getItem("token");
-  if(!token) return window.location.href = "login.html";
+  try{
+    const token = localStorage.getItem("token");
 
-  const res = await fetch(`${API}/me`, {
-    headers: { Authorization: `Bearer ${token}` }
-  });
+    if(!token){
+      alert("Not logged in");
+      window.location.href = "login.html";
+      return;
+    }
 
-  const data = await res.json();
-  const user = data.user;
+    const res = await fetch("https://chatmate-kbwz.onrender.com/api/auth/me", {
+      headers: {
+        Authorization: "Bearer " + token
+      }
+    });
 
-  document.getElementById("username").value = user.username || "";
-  document.getElementById("email").value = user.email || "";
-  document.getElementById("phone").value = user.phone || "";
-  document.getElementById("bio").value = user.bio || "";
-  document.getElementById("avatarPreview").src = user.avatarUrl || "default-avatar.png";
+    const data = await res.json();
+
+    console.log("PROFILE RESPONSE:", data); // 🔥 DEBUG
+
+    if(!res.ok){
+      alert(data.message || "Failed to load profile");
+      return;
+    }
+
+    // ✅ THIS IS THE FIX
+    const user = data.user;
+
+    if(!user){
+      alert("User data not found");
+      return;
+    }
+
+    // ✅ Safe assignments
+    document.getElementById("username").value = user.username || "";
+    document.getElementById("email").value = user.email || "";
+    document.getElementById("phone").value = user.phone || "";
+    document.getElementById("bio").value = user.bio || "";
+
+    if(user.avatarUrl){
+      document.getElementById("avatar").src = user.avatarUrl;
+    }
+
+  }catch(err){
+    console.error("LOAD PROFILE ERROR:", err);
+    alert("Something went wrong");
+  }
 }
+
+// Run on page load
+loadProfile();
 
 /* =========================
    EDIT TOGGLE
