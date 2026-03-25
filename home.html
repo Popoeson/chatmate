@@ -336,224 +336,186 @@ body.dark .modal button {
 const API = "https://chatmate-kbwz.onrender.com/api/auth";
 
 /* =========================
-   THEME TOGGLE
+   INIT AFTER DOM LOAD
 ========================= */
-const toggle = document.getElementById("themeToggle");
-toggle.onclick = () => {
-  document.body.classList.toggle("dark");
-  toggle.classList.toggle("fa-sun");
-  toggle.classList.toggle("fa-moon");
-};
+document.addEventListener("DOMContentLoaded", () => {
 
-/* =========================
-   ENCRYPTION TOGGLE
-========================= */
-const encryptionToggle = document.getElementById("encryptionToggle");
-let encrypted = true;
+  /* =========================
+     ELEMENTS
+  ========================= */
+  const addModal = document.getElementById("addFriendModal");
+  const profileModal = document.getElementById("profileModal");
 
-encryptionToggle.onclick = () => {
-  encrypted = !encrypted;
-  encryptionToggle.classList.toggle("fa-lock", encrypted);
-  encryptionToggle.classList.toggle("fa-lock-open", !encrypted);
-  encryptionToggle.title = encrypted 
-    ? "Messages are encrypted" 
-    : "Messages decrypted";
-};
+  const addFriendBtn = document.getElementById("addFriendBtn");
+  const closeAddModal = document.getElementById("closeAddModal");
+  const closeProfileModal = document.getElementById("closeProfileModal");
 
-/* =========================
-   LOAD USER
-========================= */
-async function loadUser() {
-  const token = localStorage.getItem("token") || sessionStorage.getItem("token");
+  const searchInput = document.getElementById("searchInput");
+  const resultsDiv = document.getElementById("searchResults");
 
-  if (!token) {
-    alert("You are not logged in.");
-    window.location.href = "login.html";
-    return;
-  }
+  const toggle = document.getElementById("themeToggle");
+  const encryptionToggle = document.getElementById("encryptionToggle");
 
-  try {
-    const res = await fetch(`${API}/me`, {
-      headers: { Authorization: "Bearer " + token }
-    });
+  /* =========================
+     THEME TOGGLE
+  ========================= */
+  toggle.onclick = () => {
+    document.body.classList.toggle("dark");
+    toggle.classList.toggle("fa-sun");
+    toggle.classList.toggle("fa-moon");
+  };
 
-    const data = await res.json();
-    console.log("PROFILE RESPONSE:", data);
+  /* =========================
+     ENCRYPTION TOGGLE
+  ========================= */
+  let encrypted = true;
+  encryptionToggle.onclick = () => {
+    encrypted = !encrypted;
+    encryptionToggle.classList.toggle("fa-lock", encrypted);
+    encryptionToggle.classList.toggle("fa-lock-open", !encrypted);
+  };
 
-    if (!res.ok) {
-      localStorage.removeItem("token");
-      sessionStorage.removeItem("token");
-      alert(data.message || "Session expired.");
+  /* =========================
+     OPEN MODAL (FIXED)
+  ========================= */
+  addFriendBtn.onclick = () => {
+    console.log("Opening modal...");
+    addModal.classList.remove("hidden");
+  };
+
+  /* =========================
+     CLOSE MODALS
+  ========================= */
+  closeAddModal.onclick = () => {
+    addModal.classList.add("hidden");
+  };
+
+  closeProfileModal.onclick = () => {
+    profileModal.classList.add("hidden");
+  };
+
+  /* =========================
+     CLOSE WHEN CLICK OUTSIDE
+  ========================= */
+  window.onclick = (e) => {
+    if (e.target === addModal) addModal.classList.add("hidden");
+    if (e.target === profileModal) profileModal.classList.add("hidden");
+  };
+
+  /* =========================
+     LOAD USER
+  ========================= */
+  async function loadUser() {
+    const token = localStorage.getItem("token") || sessionStorage.getItem("token");
+
+    if (!token) {
+      alert("You are not logged in.");
       window.location.href = "login.html";
       return;
     }
 
-    console.log("Logged-in user:", data.user);
+    try {
+      const res = await fetch(`${API}/me`, {
+        headers: { Authorization: "Bearer " + token }
+      });
 
-  } catch (err) {
-    console.error("LOAD USER ERROR:", err);
-    alert("Error loading profile.");
-    window.location.href = "login.html";
-  }
-}
+      const data = await res.json();
 
-/* =========================
-   CHAT LIST (DUMMY)
-========================= */
-const chatList = document.getElementById("chatList");
+      if (!res.ok) {
+        localStorage.removeItem("token");
+        sessionStorage.removeItem("token");
+        alert("Session expired.");
+        window.location.href = "login.html";
+        return;
+      }
 
-const dummyChats = [
-  {username:"Charlie", message:"See you at 5 PM", profile:"https://i.pravatar.cc/50?img=3", read:true},
-  {username:"Diana", message:"Thanks for the help!", profile:"https://i.pravatar.cc/50?img=4", read:false},
-];
+      console.log("Logged-in user:", data.user);
 
-dummyChats.forEach(chat => {
-  const card = document.createElement("div");
-  card.className = "chat-card";
-
-  card.innerHTML = `
-    <img src="${chat.profile}">
-    <div class="chat-info">
-      <div class="username">${chat.username}</div>
-      <div class="last-message">${chat.message}</div>
-    </div>
-    <div class="chat-status">
-      <i class="fa-solid ${chat.read ? 'fa-check-double' : 'fa-check'}"
-         style="color:${chat.read ? '#4caf50':'#888'};"></i>
-    </div>
-  `;
-
-  chatList.appendChild(card);
-});
-
-/* =========================
-   MODAL CONTROLS (FIXED)
-========================= */
-const addModal = document.getElementById("addFriendModal");
-const profileModal = document.getElementById("profileModal");
-
-const addFriendBtn = document.getElementById("addFriendBtn");
-const closeAddModal = document.getElementById("closeAddModal");
-const closeProfileModal = document.getElementById("closeProfileModal");
-
-// OPEN ADD FRIEND MODAL
-addFriendBtn.addEventListener("click", () => {
-  console.log("Opening modal...");
-  addModal.classList.remove("hidden");
-});
-
-// CLOSE ADD FRIEND MODAL
-closeAddModal.addEventListener("click", () => {
-  addModal.classList.add("hidden");
-});
-
-// CLOSE PROFILE MODAL
-closeProfileModal.addEventListener("click", () => {
-  profileModal.classList.add("hidden");
-});
-
-/* =========================
-   SEARCH USERS
-========================= */
-const searchInput = document.getElementById("searchInput");
-const resultsDiv = document.getElementById("searchResults");
-
-searchInput.addEventListener("input", async () => {
-  const query = searchInput.value.trim();
-  const token = localStorage.getItem("token");
-
-  if (!query) {
-    resultsDiv.innerHTML = "";
-    return;
+    } catch (err) {
+      console.error(err);
+      alert("Error loading user.");
+    }
   }
 
-  try {
-    const res = await fetch(`${API}/users/search?username=${query}`, {
-      headers: { Authorization: `Bearer ${token}` }
-    });
+  loadUser();
 
-    const data = await res.json();
-    resultsDiv.innerHTML = "";
+  /* =========================
+     SEARCH USERS
+  ========================= */
+  searchInput.addEventListener("input", async () => {
+    const query = searchInput.value.trim();
+    const token = localStorage.getItem("token");
 
-    if (!data.users || data.users.length === 0) {
-      resultsDiv.innerHTML = "<p>No users found</p>";
+    if (!query) {
+      resultsDiv.innerHTML = "";
       return;
     }
 
-    data.users.forEach(user => {
-      const card = document.createElement("div");
-      card.className = "search-card";
+    try {
+      const res = await fetch(`${API}/users/search?username=${query}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
 
-      card.innerHTML = `
-        <img src="${user.avatarUrl || ''}">
-        <span>${user.username}</span>
-        <div class="search-actions">
-          <button class="small-btn view-btn">View</button>
-          <button class="small-btn add-btn">Add</button>
-        </div>
-      `;
+      const data = await res.json();
+      resultsDiv.innerHTML = "";
 
-      // VIEW PROFILE
-      card.querySelector(".view-btn").onclick = () => {
-        document.getElementById("viewAvatar").src = user.avatarUrl || "";
-        document.getElementById("viewUsername").textContent = user.username;
-        document.getElementById("viewBio").textContent = user.bio || "";
+      if (!data.users || data.users.length === 0) {
+        resultsDiv.innerHTML = "<p>No users found</p>";
+        return;
+      }
 
-        profileModal.classList.remove("hidden");
-      };
+      data.users.forEach(user => {
+        const card = document.createElement("div");
+        card.className = "search-card";
 
-      // ADD FRIEND
-      card.querySelector(".add-btn").onclick = async (e) => {
-        const btn = e.target;
-        btn.textContent = "Pending";
-        btn.disabled = true;
+        card.innerHTML = `
+          <img src="${user.avatarUrl || ''}">
+          <span>${user.username}</span>
+          <div class="search-actions">
+            <button class="small-btn view-btn">View</button>
+            <button class="small-btn add-btn">Add</button>
+          </div>
+        `;
 
-        try {
-          await fetch(`${API}/friends/request`, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${token}`
-            },
-            body: JSON.stringify({ userId: user._id })
-          });
-        } catch (err) {
-          console.error(err);
-          btn.textContent = "Error";
-        }
-      };
+        // VIEW PROFILE
+        card.querySelector(".view-btn").onclick = () => {
+          document.getElementById("viewAvatar").src = user.avatarUrl || "";
+          document.getElementById("viewUsername").textContent = user.username;
+          document.getElementById("viewBio").textContent = user.bio || "";
 
-      resultsDiv.appendChild(card);
-    });
+          profileModal.classList.remove("hidden");
+        };
 
-  } catch (err) {
-    console.error("SEARCH ERROR:", err);
-  }
-});
+        // ADD FRIEND
+        card.querySelector(".add-btn").onclick = async (e) => {
+          const btn = e.target;
+          btn.textContent = "Pending";
+          btn.disabled = true;
 
-/* =========================
-   FOOTER NAVIGATION
-========================= */
-const footerItems = document.querySelectorAll(".footer-item");
+          try {
+            await fetch(`${API}/friends/request`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${token}`
+              },
+              body: JSON.stringify({ userId: user._id })
+            });
+          } catch (err) {
+            console.error(err);
+            btn.textContent = "Error";
+          }
+        };
 
-footerItems.forEach(item => {
-  item.addEventListener("click", () => {
-    footerItems.forEach(i => i.classList.remove("active"));
-    item.classList.add("active");
+        resultsDiv.appendChild(card);
+      });
 
-    const text = item.querySelector("span")?.textContent.toLowerCase();
-
-    if (text === "profile") {
-      window.location.href = "my-profile.html";
+    } catch (err) {
+      console.error("SEARCH ERROR:", err);
     }
   });
+
 });
-
-/* =========================
-   INIT
-========================= */
-window.addEventListener("DOMContentLoaded", loadUser);
-
 </script>
 
 </body>
