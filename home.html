@@ -330,6 +330,7 @@ body.dark .modal button {
 
 <!-- JS -->
 <script>
+
 /* =========================
    THEME TOGGLE
 ========================= */
@@ -465,22 +466,30 @@ dummyChats.forEach(chat => {
 });
 
 /* =========================
-   MODAL CONTROLS
+   MODAL CONTROLS (FIXED)
 ========================= */
 const addModal = document.getElementById("addFriendModal");
 const profileModal = document.getElementById("profileModal");
 
-document.getElementById("addFriendBtn").onclick = () => {
+const addFriendBtnReal = document.getElementById("addFriendBtn");
+const closeAddModal = document.getElementById("closeAddModal");
+const closeProfileModal = document.getElementById("closeProfileModal");
+
+// OPEN ADD FRIEND MODAL
+addFriendBtnReal.addEventListener("click", () => {
+  console.log("Opening modal...");
   addModal.classList.remove("hidden");
-};
+});
 
-document.getElementById("closeAddModal").onclick = () => {
+// CLOSE ADD FRIEND MODAL
+closeAddModal.addEventListener("click", () => {
   addModal.classList.add("hidden");
-};
+});
 
-document.getElementById("closeProfileModal").onclick = () => {
+// CLOSE PROFILE MODAL
+closeProfileModal.addEventListener("click", () => {
   profileModal.classList.add("hidden");
-};
+});
 
 /* =========================
    SEARCH USERS
@@ -495,7 +504,7 @@ searchInput.oninput = async () => {
   const token = localStorage.getItem("token");
 
   try {
-    const res = await fetch(`${API}/users/search?username=${query}`, {
+    const res = await fetch(`${API}/api/auths/users/search?username=${query}`, {
       headers: { Authorization: `Bearer ${token}` }
     });
 
