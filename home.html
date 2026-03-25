@@ -328,8 +328,12 @@ body.dark .modal button {
   </div>
 </footer>
 
-<!-- JS -->
 <script>
+
+/* =========================
+   API BASE
+========================= */
+const API = "https://chatmate-kbwz.onrender.com/api/auth";
 
 /* =========================
    THEME TOGGLE
@@ -345,105 +349,59 @@ toggle.onclick = () => {
    ENCRYPTION TOGGLE
 ========================= */
 const encryptionToggle = document.getElementById("encryptionToggle");
-let encrypted = true; // default: messages encrypted
+let encrypted = true;
+
 encryptionToggle.onclick = () => {
   encrypted = !encrypted;
   encryptionToggle.classList.toggle("fa-lock", encrypted);
   encryptionToggle.classList.toggle("fa-lock-open", !encrypted);
-  encryptionToggle.title = encrypted ? "Messages are encrypted" : "Messages decrypted";
+  encryptionToggle.title = encrypted 
+    ? "Messages are encrypted" 
+    : "Messages decrypted";
 };
 
 /* =========================
-   READ TOKEN & FETCH USER
+   LOAD USER
 ========================= */
 async function loadUser() {
   const token = localStorage.getItem("token") || sessionStorage.getItem("token");
 
   if (!token) {
-    alert("You are not logged in. Redirecting to login page.");
+    alert("You are not logged in.");
     window.location.href = "login.html";
     return;
   }
 
   try {
-    const res = await fetch("https://chatmate-kbwz.onrender.com/api/auth/me", {
+    const res = await fetch(`${API}/me`, {
       headers: { Authorization: "Bearer " + token }
     });
-    const data = await res.json();
 
+    const data = await res.json();
     console.log("PROFILE RESPONSE:", data);
 
     if (!res.ok) {
-      // Token invalid or expired
       localStorage.removeItem("token");
       sessionStorage.removeItem("token");
-      alert(data.message || "Session expired. Please login again.");
+      alert(data.message || "Session expired.");
       window.location.href = "login.html";
       return;
     }
 
-    const user = data.user;
-    if (!user) throw new Error("User data not found");
-
-    // Save token again (just in case it's refreshed in future)
-    localStorage.setItem("token", token);
-
-    // TODO: populate homepage user-specific info if needed
-    console.log("Logged-in user:", user);
+    console.log("Logged-in user:", data.user);
 
   } catch (err) {
     console.error("LOAD USER ERROR:", err);
-    alert("Error loading profile. Redirecting to login.");
+    alert("Error loading profile.");
     window.location.href = "login.html";
   }
 }
 
-// Run on page load
-window.onload = loadUser;
-
 /* =========================
-   ADD FRIEND BUTTON
-========================= */
-const addFriendBtn = document.getElementById("addFriendBtn");
-addFriendBtn.onclick = () => {
-  console.log("Add Friend clicked");
-  // TODO: Open add friend modal
-};
-
-/* =========================
-   FOOTER NAVIGATION LOGIC
-========================= */
-const footerItems = document.querySelectorAll(".footer-item");
-footerItems.forEach(item => {
-  item.addEventListener("click", () => {
-    footerItems.forEach(i => i.classList.remove("active"));
-    item.classList.add("active");
-
-    // Redirect to page based on clicked footer item
-    switch (item.querySelector("span").textContent.toLowerCase()) {
-      case "profile":
-        window.location.href = "my-profile.html";
-        break;
-      case "status":
-        // TODO: implement status page
-        break;
-      case "chats":
-        // TODO: implement chats page
-        break;
-      case "posts":
-        // TODO: implement posts page
-        break;
-      case "settings":
-        // TODO: implement settings page
-        break;
-    }
-  });
-});
-
-/* =========================
-   CHAT LIST DUMMY DATA LOGIC
+   CHAT LIST (DUMMY)
 ========================= */
 const chatList = document.getElementById("chatList");
+
 const dummyChats = [
   {username:"Charlie", message:"See you at 5 PM", profile:"https://i.pravatar.cc/50?img=3", read:true},
   {username:"Diana", message:"Thanks for the help!", profile:"https://i.pravatar.cc/50?img=4", read:false},
@@ -452,16 +410,19 @@ const dummyChats = [
 dummyChats.forEach(chat => {
   const card = document.createElement("div");
   card.className = "chat-card";
+
   card.innerHTML = `
-    <img src="${chat.profile}" alt="Profile">
+    <img src="${chat.profile}">
     <div class="chat-info">
       <div class="username">${chat.username}</div>
       <div class="last-message">${chat.message}</div>
     </div>
     <div class="chat-status">
-      <i class="fa-solid ${chat.read ? 'fa-check-double' : 'fa-check'}" style="color:${chat.read ? '#4caf50':'#888'};"></i>
+      <i class="fa-solid ${chat.read ? 'fa-check-double' : 'fa-check'}"
+         style="color:${chat.read ? '#4caf50':'#888'};"></i>
     </div>
   `;
+
   chatList.appendChild(card);
 });
 
@@ -471,12 +432,12 @@ dummyChats.forEach(chat => {
 const addModal = document.getElementById("addFriendModal");
 const profileModal = document.getElementById("profileModal");
 
-const addFriendBtnReal = document.getElementById("addFriendBtn");
+const addFriendBtn = document.getElementById("addFriendBtn");
 const closeAddModal = document.getElementById("closeAddModal");
 const closeProfileModal = document.getElementById("closeProfileModal");
 
 // OPEN ADD FRIEND MODAL
-addFriendBtnReal.addEventListener("click", () => {
+addFriendBtn.addEventListener("click", () => {
   console.log("Opening modal...");
   addModal.classList.remove("hidden");
 });
@@ -497,26 +458,34 @@ closeProfileModal.addEventListener("click", () => {
 const searchInput = document.getElementById("searchInput");
 const resultsDiv = document.getElementById("searchResults");
 
-searchInput.oninput = async () => {
+searchInput.addEventListener("input", async () => {
   const query = searchInput.value.trim();
-  if(!query) return resultsDiv.innerHTML = "";
-
   const token = localStorage.getItem("token");
 
+  if (!query) {
+    resultsDiv.innerHTML = "";
+    return;
+  }
+
   try {
-    const res = await fetch(`${API}/api/auths/users/search?username=${query}`, {
+    const res = await fetch(`${API}/users/search?username=${query}`, {
       headers: { Authorization: `Bearer ${token}` }
     });
 
     const data = await res.json();
     resultsDiv.innerHTML = "";
 
+    if (!data.users || data.users.length === 0) {
+      resultsDiv.innerHTML = "<p>No users found</p>";
+      return;
+    }
+
     data.users.forEach(user => {
       const card = document.createElement("div");
       card.className = "search-card";
 
       card.innerHTML = `
-        <img src="${user.avatarUrl}">
+        <img src="${user.avatarUrl || ''}">
         <span>${user.username}</span>
         <div class="search-actions">
           <button class="small-btn view-btn">View</button>
@@ -526,7 +495,7 @@ searchInput.oninput = async () => {
 
       // VIEW PROFILE
       card.querySelector(".view-btn").onclick = () => {
-        document.getElementById("viewAvatar").src = user.avatarUrl;
+        document.getElementById("viewAvatar").src = user.avatarUrl || "";
         document.getElementById("viewUsername").textContent = user.username;
         document.getElementById("viewBio").textContent = user.bio || "";
 
@@ -539,24 +508,51 @@ searchInput.oninput = async () => {
         btn.textContent = "Pending";
         btn.disabled = true;
 
-        await fetch(`${API}/friends/request`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`
-          },
-          body: JSON.stringify({ userId: user._id })
-        });
+        try {
+          await fetch(`${API}/friends/request`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`
+            },
+            body: JSON.stringify({ userId: user._id })
+          });
+        } catch (err) {
+          console.error(err);
+          btn.textContent = "Error";
+        }
       };
 
       resultsDiv.appendChild(card);
     });
 
-  } catch(err) {
-    console.error(err);
+  } catch (err) {
+    console.error("SEARCH ERROR:", err);
   }
-};
+});
 
+/* =========================
+   FOOTER NAVIGATION
+========================= */
+const footerItems = document.querySelectorAll(".footer-item");
+
+footerItems.forEach(item => {
+  item.addEventListener("click", () => {
+    footerItems.forEach(i => i.classList.remove("active"));
+    item.classList.add("active");
+
+    const text = item.querySelector("span")?.textContent.toLowerCase();
+
+    if (text === "profile") {
+      window.location.href = "my-profile.html";
+    }
+  });
+});
+
+/* =========================
+   INIT
+========================= */
+window.addEventListener("DOMContentLoaded", loadUser);
 
 </script>
 
