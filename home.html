@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ChatMate - Homepage</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+<style>
+  /* =========================
+     GLOBAL STYLES
+  ========================= */
+  body {
+    margin: 0;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: #f9f9f9;
+    color: #111;
+    transition: background 0.3s, color 0.3s;
+  }
+  body.dark {
+    background: #111;
+    color: #f9f9f9;
+  }
+  .hidden { display: none; }
+
+  /* =========================
+     HEADER
+  ========================= */
+  header {
+    position: sticky;
+    top: 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 20px;
+    background: linear-gradient(to right, #2B2E33, #7B7F85);
+    color: #fff;
+    z-index: 100;
+  }
+  header .logo {
+    font-size: 1.5rem;
+    font-weight: bold;
+  }
+  header .header-icons {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    font-size: 1.2rem;
+    cursor: pointer;
+  }
+ 
+  header .header-icons i {
+  color: #fff; /* keep white */
+  transition: transform 0.2s; /* allow slight scale on hover */
+}
+header .header-icons i:hover {
+  transform: scale(1.1); /* optional: small zoom effect on hover */
+  color: inherit; /* prevent any color change */
+}
+
+  /* =========================
+     MAIN CHAT LIST
+  ========================= */
+  main {
+    padding: 10px 0;
+    overflow-y: auto;
+    height: calc(100vh - 120px); /* header + footer height */
+  }
+  .chat-card {
+    display: flex;
+    align-items: center;
+    padding: 12px 20px;
+    margin: 0 12px 8px 12px;
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+  body.dark .chat-card {
+    background: #222;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.4);
+  }
+  .chat-card:hover {
+    background: #e2e2e2;
+  }
+  body.dark .chat-card:hover {
+    background: #333;
+  }
+  .chat-card img {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    object-fit: cover;
+    margin-right: 14px;
+  }
+  .chat-info {
+    flex: 1;
+  }
+  .chat-info .username {
+    font-weight: bold;
+    font-size: 1rem;
+    margin-bottom: 4px;
+  }
+  .chat-info .last-message {
+    font-size: 0.9rem;
+    color: #555;
+  }
+  body.dark .chat-info .last-message {
+    color: #ccc;
+  }
+  .chat-status {
+    font-size: 0.9rem;
+    color: #888;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  /* =========================
+     FOOTER NAVIGATION
+  ========================= */
+  footer {
+    position: sticky;
+    bottom: 0;
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    padding: 10px 0;
+    background: linear-gradient(to right, #2B2E33, #7B7F85);
+    color: #fff;
+  }
+  .footer-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    font-size: 0.75rem;
+    cursor: pointer;
+    color: #fff;
+    transition: color 0.2s;
+  }
+  .footer-item i {
+    font-size: 1.3rem;
+    margin-bottom: 4px;
+  }
+  .footer-item.active {
+    color: #4caf50;
+  }
+
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header>
+  <div class="logo">ChatMate</div>
+  <div class="header-icons">
+    <i id="encryptionToggle" class="fa-solid fa-lock" title="Encryption state"></i>
+    <i id="themeToggle" class="fa-solid fa-moon" title="Toggle Theme"></i>
+    <i id="addFriendBtn" class="fa-solid fa-plus" title="Add Friend"></i>
+  </div>
+</header>
+
+<!-- MAIN CHAT LIST -->
+<main id="chatList">
+  <!-- Example chat cards, dynamically rendered via JS later -->
+  <div class="chat-card">
+    <img src="https://i.pravatar.cc/50?img=1" alt="Profile">
+    <div class="chat-info">
+      <div class="username">Alice</div>
+      <div class="last-message">Hey! Are you free tomorrow?</div>
+    </div>
+    <div class="chat-status">
+      <i class="fa-solid fa-check-double" style="color:#4caf50;"></i>
+    </div>
+  </div>
+  <div class="chat-card">
+    <img src="https://i.pravatar.cc/50?img=2" alt="Profile">
+    <div class="chat-info">
+      <div class="username">Bob</div>
+      <div class="last-message">Sent the files. Check your email.</div>
+    </div>
+    <div class="chat-status">
+      <i class="fa-solid fa-check" style="color:#888;"></i>
+    </div>
+  </div>
+</main>
+
+<!-- FOOTER -->
+<footer>
+  <div class="footer-item active">
+    <i class="fa-solid fa-circle-user"></i>
+    <span>Status</span>
+  </div>
+  <div class="footer-item">
+    <i class="fa-solid fa-comment"></i>
+    <span>Chats</span>
+  </div>
+  <div class="footer-item">
+    <i class="fa-solid fa-upload"></i>
+    <span>Posts</span>
+  </div>
+  <div class="footer-item">
+      <a href="my-profile.html" class="footer-item">
+  <i class="fa-solid fa-user"></i>
+  <span>Profile</span>
+</a>
+  </div>
+  <div class="footer-item">
+    <i class="fa-solid fa-gear"></i>
+    <span>Settings</span>
+  </div>
+</footer>
+
+<!-- JS -->
+<script>
+  /* =========================
+     THEME TOGGLE
+  ========================= */
+  const toggle = document.getElementById("themeToggle");
+  toggle.onclick = () => {
+    document.body.classList.toggle("dark");
+    toggle.classList.toggle("fa-sun");
+    toggle.classList.toggle("fa-moon");
+  };
+
+  /* =========================
+     ENCRYPTION TOGGLE
+  ========================= */
+  const encryptionToggle = document.getElementById("encryptionToggle");
+  let encrypted = true; // default: messages encrypted
+  encryptionToggle.onclick = () => {
+    encrypted = !encrypted;
+    encryptionToggle.classList.toggle("fa-lock", encrypted);
+    encryptionToggle.classList.toggle("fa-lock-open", !encrypted);
+    encryptionToggle.title = encrypted ? "Messages are encrypted" : "Messages decrypted";
+  };
+
+  /* =========================
+     ADD FRIEND BUTTON
+  ========================= */
+  const addFriendBtn = document.getElementById("addFriendBtn");
+  addFriendBtn.onclick = () => {
+    console.log("Add Friend clicked");
+    // TODO: Open add friend modal
+  };
+
+  /* =========================
+     FOOTER NAVIGATION LOGIC
+  ========================= */
+  const footerItems = document.querySelectorAll(".footer-item");
+  footerItems.forEach(item => {
+    item.addEventListener("click", () => {
+      footerItems.forEach(i => i.classList.remove("active"));
+      item.classList.add("active");
+      // TODO: load respective section (status, chats, posts, profile, settings)
+    });
+  });
+
+  /* =========================
+     CHAT LIST DUMMY DATA LOGIC
+  ========================= */
+  const chatList = document.getElementById("chatList");
+  const dummyChats = [
+    {username:"Charlie", message:"See you at 5 PM", profile:"https://i.pravatar.cc/50?img=3", read:true},
+    {username:"Diana", message:"Thanks for the help!", profile:"https://i.pravatar.cc/50?img=4", read:false},
+  ];
+
+  dummyChats.forEach(chat => {
+    const card = document.createElement("div");
+    card.className = "chat-card";
+    card.innerHTML = `
+      <img src="${chat.profile}" alt="Profile">
+      <div class="chat-info">
+        <div class="username">${chat.username}</div>
+        <div class="last-message">${chat.message}</div>
+      </div>
+      <div class="chat-status">
+        <i class="fa-solid ${chat.read ? 'fa-check-double' : 'fa-check'}" style="color:${chat.read ? '#4caf50':'#888'};"></i>
+      </div>
+    `;
+    chatList.appendChild(card);
+  });
+</script>
+
+</body>
+</html>
