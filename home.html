@@ -235,10 +235,23 @@ header .header-icons i:hover {
     encryptionToggle.title = encrypted ? "Messages are encrypted" : "Messages decrypted";
   };
 
+// =========================
+// READ TOKEN
+// =========================
+const token = localStorage.getItem("token") || sessionStorage.getItem("token");
+
+if(!token){
+  alert("You are not logged in. Redirecting to login page.");
+  window.location.href = "login.html";
+} else {
+  console.log("Token available on homepage:", token);
+}
+
   /* =========================
      ADD FRIEND BUTTON
   ========================= */
-  const addFriendBtn = document.getElementById("addFriendBtn");
+  const addFriendBtn = document.getElementById("addFriend
+Btn");
   addFriendBtn.onclick = () => {
     console.log("Add Friend clicked");
     // TODO: Open add friend modal
