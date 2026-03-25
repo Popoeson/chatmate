@@ -157,8 +157,7 @@ footer {
 
 <!-- PROFILE -->
 <div class="container read-only" id="profileContainer">
-  <img id="avatarPreview" class="avatar" src="default-avatar.png">
-
+  <img id="avatarPreview" class="avatar" src="default-avatar.png" alt="Profile Picture">
   <input type="file" id="avatarInput" class="hidden">
 
   <div class="input-group">
@@ -243,28 +242,17 @@ async function loadProfile(){
     }
 
     const user = data.user;
-    if(!user){
-      console.warn("User data not found");
-      return;
-    }
+    if(!user) return;
 
-    // Safe assignments with null checks
-    const usernameEl = document.getElementById("username");
-    if(usernameEl) usernameEl.value = user.username || "";
+    // Update avatar
+    const avatarImg = document.getElementById("avatarPreview");
+    if(avatarImg) avatarImg.src = user.avatarUrl || "default-avatar.png";
 
-    const emailEl = document.getElementById("email");
-    if(emailEl) emailEl.value = user.email || "";
-
-    const phoneEl = document.getElementById("phone");
-    if(phoneEl) phoneEl.value = user.phone || "";
-
-    const bioEl = document.getElementById("bio");
-    if(bioEl) bioEl.value = user.bio || "";
-
-    const avatarImg = document.getElementById("avatar");
-    if(avatarImg && user.avatarUrl){
-      avatarImg.src = user.avatarUrl;
-    }
+    // Update other fields
+    document.getElementById("username")?.value = user.username || "";
+    document.getElementById("email")?.value = user.email || "";
+    document.getElementById("phone")?.value = user.phone || "";
+    document.getElementById("bio")?.value = user.bio || "";
 
   } catch(err){
     console.error("LOAD PROFILE ERROR:", err);
@@ -277,75 +265,70 @@ async function loadProfile(){
 let editing = false;
 const container = document.getElementById("profileContainer");
 const saveBtn = document.getElementById("saveBtn");
-
 const editToggleBtn = document.getElementById("editToggle");
-if(editToggleBtn){
-  editToggleBtn.onclick = () => {
-    editing = !editing;
-    if(editing){
-      container?.classList.remove("read-only");
-      saveBtn?.classList.remove("hidden");
-    } else {
-      container?.classList.add("read-only");
-      saveBtn?.classList.add("hidden");
-    }
-  };
-}
+
+editToggleBtn?.addEventListener("click", () => {
+  editing = !editing;
+  if(editing){
+    container?.classList.remove("read-only");
+    saveBtn?.classList.remove("hidden");
+  } else {
+    container?.classList.add("read-only");
+    saveBtn?.classList.add("hidden");
+  }
+});
 
 /* =========================
    SAVE PROFILE
 ========================= */
-if(saveBtn){
-  saveBtn.onclick = async () => {
-    try{
-      const token = localStorage.getItem("token") || sessionStorage.getItem("token");
-      if(!token) return alert("Not logged in");
+saveBtn?.addEventListener("click", async () => {
+  try{
+    const token = localStorage.getItem("token") || sessionStorage.getItem("token");
+    if(!token) return alert("Not logged in");
 
-      const formData = new FormData();
-      const usernameEl = document.getElementById("username");
-      const emailEl = document.getElementById("email");
-      const phoneEl = document.getElementById("phone");
-      const bioEl = document.getElementById("bio");
+    const formData = new FormData();
+    const usernameEl = document.getElementById("username");
+    const emailEl = document.getElementById("email");
+    const phoneEl = document.getElementById("phone");
+    const bioEl = document.getElementById("bio");
 
-      if(usernameEl) formData.append("username", usernameEl.value);
-      if(emailEl) formData.append("email", emailEl.value);
-      if(phoneEl) formData.append("phone", phoneEl.value);
-      if(bioEl) formData.append("bio", bioEl.value);
+    if(usernameEl) formData.append("username", usernameEl.value);
+    if(emailEl) formData.append("email", emailEl.value);
+    if(phoneEl) formData.append("phone", phoneEl.value);
+    if(bioEl) formData.append("bio", bioEl.value);
 
-      const file = document.getElementById("avatarInput")?.files[0];
-      if(file) formData.append("avatar", file);
+    const file = document.getElementById("avatarInput")?.files[0];
+    if(file) formData.append("avatar", file);
 
-      const res = await fetch(`${API}/update-profile`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
-        body: formData
-      });
+    const res = await fetch(`${API}/update-profile`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: formData
+    });
 
-      const data = await res.json();
+    const data = await res.json();
 
-      if(!res.ok) return alert(data.message || "Error updating profile");
+    if(!res.ok) return alert(data.message || "Error updating profile");
 
-      if(data.newToken){
-        localStorage.setItem("token", data.newToken);
-      }
+    if(data.newToken) localStorage.setItem("token", data.newToken);
 
-      alert("Profile updated successfully!");
-      editing = false;
-      container?.classList.add("read-only");
-      saveBtn?.classList.add("hidden");
+    alert("Profile updated successfully!");
+    editing = false;
+    container?.classList.add("read-only");
+    saveBtn?.classList.add("hidden");
 
-    } catch(err){
-      console.error("SAVE PROFILE ERROR:", err);
-      alert("Something went wrong while saving profile");
-    }
-  };
-}
+  } catch(err){
+    console.error("SAVE PROFILE ERROR:", err);
+    alert("Something went wrong while saving profile");
+  }
+});
 
 /* =========================
    AVATAR PREVIEW
 ========================= */
 const avatarInput = document.getElementById("avatarInput");
-const avatarPreview = document.getElementById("avatar");
+const avatarPreview = document.getElementById("avatarPreview");
+
 if(avatarInput && avatarPreview){
   avatarInput.onchange = e => {
     const file = e.target.files[0];
@@ -358,7 +341,7 @@ if(avatarInput && avatarPreview){
 }
 
 /* =========================
-   INIT ON DOM LOAD
+   INIT
 ========================= */
 window.addEventListener("DOMContentLoaded", () => {
   loadProfile();
