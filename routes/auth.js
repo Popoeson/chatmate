@@ -220,10 +220,10 @@ router.post("/verify-otp", async (req, res) => {
     }
 
     const user = await User.findByIdAndUpdate(
-      userId,
-      { isVerified: true, registrationStep: "verified" },
-      { new: true }
-    );
+  userId,
+  { isVerified: true, registrationStep: "verified", tokenVersion: 1 },
+  { new: true }
+);
 
     await OTP.deleteOne({ userId, purpose: "verify" });
 
