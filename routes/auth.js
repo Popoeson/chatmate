@@ -1,6 +1,7 @@
 import express from "express";
 import User from "../models/User.js";
 import OTP from "../models/OTP.js";
+import FriendRequest from "../models/FriendRequest.js";
 import authenticateJWT from "../middlewares/authenticateJWT.js";
 import bcrypt from "bcrypt";
 import crypto from "crypto";
