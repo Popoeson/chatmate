@@ -503,5 +503,55 @@ router.post('/friends/request', authenticateJWT, async (req, res) => {
   }
 });
 
+/* =========================
+   GET FRIENDS LIST
+========================= */
+router.get('/friends', authenticateJWT, async (req, res) => {
+  try {
+    const userId = req.userId;
+
+    const requests = await FriendRequest.find({
+      $or: [
+        { requester: userId },
+        { recipient: userId }
+      ]
+    })
+    .populate("requester", "username avatarUrl")
+    .populate("recipient", "username avatarUrl");
+
+    const accepted = [];
+    const sent = [];
+    const received = [];
+
+    requests.forEach(reqItem => {
+      if (reqItem.status === "accepted") {
+        const friend = reqItem.requester._id.toString() === userId
+          ? reqItem.recipient
+          : reqItem.requester;
+
+        accepted.push(friend);
+      }
+
+      else if (reqItem.status === "pending") {
+        if (reqItem.requester._id.toString() === userId) {
+          sent.push(reqItem.recipient);
+        } else {
+          received.push(reqItem.requester);
+        }
+      }
+    });
+
+    res.json({
+      friends: accepted,
+      sentRequests: sent,
+      receivedRequests: received
+    });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
 export default router;
 
