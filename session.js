@@ -1,23 +1,19 @@
 // session.js
 export const Auth = {
-  // Get the token from localStorage or sessionStorage
   getToken: () => {
     return localStorage.getItem("token") || sessionStorage.getItem("token") || null;
   },
 
-  // Save the token
   setToken: (token, rememberMe = false) => {
     if (rememberMe) localStorage.setItem("token", token);
     else sessionStorage.setItem("token", token);
   },
 
-  // Remove the token
   clearToken: () => {
     localStorage.removeItem("token");
     sessionStorage.removeItem("token");
   },
 
-  // Fetch the logged-in user info from backend
   getUser: async () => {
     const token = Auth.getToken();
     if (!token) return null;
@@ -31,8 +27,28 @@ export const Auth = {
       return data.user || null;
     } catch (err) {
       console.error("Auth.getUser error:", err);
-      Auth.clearToken(); // token invalid? clear it
+      Auth.clearToken();
       return null;
     }
   },
+
+  // ===============================
+  // Temporary session storage helpers
+  // ===============================
+  setTempData: (key, value) => {
+    sessionStorage.setItem(key, JSON.stringify(value));
+  },
+
+  getTempData: (key) => {
+    const val = sessionStorage.getItem(key);
+    return val ? JSON.parse(val) : null;
+  },
+
+  clearTempData: (key) => {
+    sessionStorage.removeItem(key);
+  },
+
+  clearAllTempData: () => {
+    sessionStorage.clear();
+  }
 };
