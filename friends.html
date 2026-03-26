@@ -16,8 +16,6 @@ body {
 }
 body.dark { background: #111; color: #fff; }
 
-.hidden { display: none; }
-
 /* HEADER */
 header {
   display: flex;
@@ -38,7 +36,7 @@ header {
   border: none;
 }
 
-/* SECTIONS */
+/* SECTION */
 .section-title {
   padding: 10px;
   font-weight: bold;
@@ -66,6 +64,7 @@ body.dark .card { background: #222; }
   width: 45px;
   height: 45px;
   border-radius: 50%;
+  cursor: pointer;
 }
 
 .actions button {
@@ -82,9 +81,13 @@ body.dark .card { background: #222; }
   top:0; left:0;
   width:100%; height:100%;
   background: rgba(0,0,0,0.6);
-  display:flex;
+  display: none;
   justify-content:center;
   align-items:center;
+}
+
+.modal.show {
+  display: flex;
 }
 
 .modal-content {
@@ -136,7 +139,7 @@ body.dark .modal-content { background:#1C1C1E; }
 <div id="receivedList"></div>
 
 <!-- PROFILE MODAL -->
-<div id="profileModal" class="modal hidden">
+<div id="profileModal" class="modal">
   <div class="modal-content">
     <img id="viewAvatar" class="avatar-large">
     <h3 id="viewUsername"></h3>
@@ -145,7 +148,7 @@ body.dark .modal-content { background:#1C1C1E; }
 </div>
 
 <!-- IMAGE PREVIEW -->
-<div id="imagePreview" class="modal hidden preview">
+<div id="imagePreview" class="modal preview">
   <img id="previewImg">
 </div>
 
@@ -176,7 +179,6 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   let currentUserId = null;
 
-  /* LOAD USER */
   async function loadUser() {
     const res = await fetch(`${API}/me`, {
       headers: { Authorization: `Bearer ${token}` }
@@ -185,7 +187,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     currentUserId = data.user._id;
   }
 
-  /* LOAD FRIENDS */
   async function loadFriends() {
     const res = await fetch(`${API}/friends`, {
       headers: { Authorization: `Bearer ${token}` }
@@ -202,7 +203,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     data.receivedRequests.forEach(u => receivedList.appendChild(createCard(u, "received")));
   }
 
-  /* CREATE CARD */
   function createCard(user, type) {
     const card = document.createElement("div");
     card.className = "card";
@@ -228,18 +228,17 @@ document.addEventListener("DOMContentLoaded", async () => {
       viewAvatar.src = user.avatarUrl || "";
       viewUsername.textContent = user.username;
       viewBio.textContent = user.bio || "";
-      profileModal.classList.remove("hidden");
+      profileModal.classList.add("show");
     };
 
-    viewAvatar.onclick = () => {
+    card.querySelector("img").onclick = () => {
       previewImg.src = user.avatarUrl || "";
-      imagePreview.classList.remove("hidden");
+      imagePreview.classList.add("show");
     };
 
     return card;
   }
 
-  /* SEARCH */
   searchInput.addEventListener("input", async () => {
     const query = searchInput.value.trim();
     if (!query) return resultsDiv.innerHTML = "";
@@ -272,12 +271,12 @@ document.addEventListener("DOMContentLoaded", async () => {
         viewAvatar.src = user.avatarUrl || "";
         viewUsername.textContent = user.username;
         viewBio.textContent = user.bio || "";
-        profileModal.classList.remove("hidden");
+        profileModal.classList.add("show");
       };
 
-      viewAvatar.onclick = () => {
+      card.querySelector("img").onclick = () => {
         previewImg.src = user.avatarUrl || "";
-        imagePreview.classList.remove("hidden");
+        imagePreview.classList.add("show");
       };
 
       card.querySelector(".add-btn").onclick = async (e) => {
@@ -299,15 +298,13 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
   });
 
-  /* THEME */
   themeToggle.onclick = () => {
     document.body.classList.toggle("dark");
   };
 
-  /* CLOSE MODALS */
   window.onclick = (e) => {
-    if (e.target === profileModal) profileModal.classList.add("hidden");
-    if (e.target === imagePreview) imagePreview.classList.add("hidden");
+    if (e.target === profileModal) profileModal.classList.remove("show");
+    if (e.target === imagePreview) imagePreview.classList.remove("show");
   };
 
   await loadUser();
