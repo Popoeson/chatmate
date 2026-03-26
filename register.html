@@ -323,10 +323,13 @@ body:not(.dark) .modal-content {
   </div>
 </div>
 
-<script>
+<script type="module">
+import { Auth } from "./session.js"; // 🔥 shared session helper
 const API = "https://chatmate-kbwz.onrender.com/api/auth";
 
-/* THEME */
+/* =========================
+   THEME TOGGLE
+========================= */
 const toggle = document.getElementById("themeToggle");
 const icon = toggle.querySelector("i");
 toggle.onclick = () => {
@@ -335,7 +338,9 @@ toggle.onclick = () => {
   icon.classList.toggle("fa-moon");
 };
 
-/* PASSWORD TOGGLE */
+/* =========================
+   PASSWORD TOGGLE
+========================= */
 const passwordInput = document.getElementById("password");
 const togglePassword = document.getElementById("togglePassword");
 togglePassword.onclick = () => {
@@ -345,53 +350,60 @@ togglePassword.onclick = () => {
   togglePassword.classList.toggle("fa-eye-slash");
 };
 
-/* MODAL */
+/* =========================
+   MODAL HELPERS
+========================= */
 function showModal(msg){
   document.getElementById("modalMessage").innerText = msg;
   document.getElementById("modal").style.display = "flex";
 }
 function closeModal(){ document.getElementById("modal").style.display = "none"; }
 
-/* LOADING HELPERS */
+/* =========================
+   LOADING HELPERS
+========================= */
 function setLoading(state){
   document.getElementById("btnText").classList.toggle("hidden", state);
   document.getElementById("loader").classList.toggle("active", state);
   document.getElementById("signupBtn").disabled = state;
 }
-
 function setVerifyLoading(isLoading){
   verifyText.classList.toggle("hidden", isLoading);
   document.getElementById("verifyLoader").classList.toggle("active", isLoading);
   document.getElementById("verifyBtn").disabled = isLoading;
 }
-
 function setResendLoading(isLoading){
   resendText.classList.toggle("hidden", isLoading);
   document.getElementById("resendLoader").classList.toggle("active", isLoading);
   document.getElementById("resendBtn").disabled = isLoading;
 }
 
-/* STATE SWITCHING */
+/* =========================
+   STATE SWITCHING
+========================= */
 function showOTPState(){
   document.getElementById("formState").classList.add("hidden");
   document.getElementById("otpState").classList.remove("hidden");
-  localStorage.setItem("registerState","otp");
+  Auth.setTempData("registerState","otp");
 }
-
 function showFormState(){
   document.getElementById("formState").classList.remove("hidden");
   document.getElementById("otpState").classList.add("hidden");
-  localStorage.setItem("registerState","form");
+  Auth.setTempData("registerState","form");
 }
 
-/* PAGE LOAD */
+/* =========================
+   PAGE LOAD
+========================= */
 window.onload = ()=>{
-  if(localStorage.getItem("registerState")==="otp"){
+  if(Auth.getTempData("registerState")==="otp"){
     showOTPState();
   }
 };
 
-/* REGISTER FORM */
+/* =========================
+   REGISTER FORM
+========================= */
 async function submitForm(){
   const email = document.getElementById("email").value.trim();
   const phone = document.getElementById("phone").value.trim();
@@ -411,16 +423,19 @@ async function submitForm(){
 
     if(!res.ok){ showModal(data.message); return; }
 
-    localStorage.setItem("userId", data.userId);
+    Auth.setTempData("userId", data.userId); // 🔥 store in session helper
     showModal("OTP sent!");
     setTimeout(()=>{ closeModal(); showOTPState(); },1500);
+
   }catch(err){ setLoading(false); showModal("Network error"); console.error(err); }
 }
 
-/* VERIFY OTP */
+/* =========================
+   VERIFY OTP
+========================= */
 async function verifyOTP(){
   const otp = document.getElementById("otp").value.trim();
-  const userId = localStorage.getItem("userId");
+  const userId = Auth.getTempData("userId");
 
   if(!otp){ showModal("Enter OTP"); return; }
   if(!/^\d{6}$/.test(otp)){ showModal("OTP must be 6 digits"); return; }
@@ -436,22 +451,27 @@ async function verifyOTP(){
     setVerifyLoading(false);
     if(!res.ok){ showModal(data.message); return; }
 
-    localStorage.setItem("token", data.token);
-    localStorage.setItem("userEmail", data.user.email);
-    localStorage.setItem("userPhone", data.user.phone);
-    localStorage.removeItem("userId");
-    localStorage.removeItem("registerState");
+    // 🔥 Store token and user info in shared session
+    Auth.setToken(data.token);
+    Auth.setTempData("userEmail", data.user.email);
+    Auth.setTempData("userPhone", data.user.phone);
+
+    Auth.clearTempData("userId");
+    Auth.clearTempData("registerState");
 
     showModal("Verified successfully!");
     setTimeout(()=>{ window.location.href="profile.html"; },1500);
+
   }catch(err){ setVerifyLoading(false); showModal("Network error"); console.error(err); }
 }
 
-/* RESEND OTP */
+/* =========================
+   RESEND OTP
+========================= */
 let resendCooldown=false;
 async function resendOTP(){
   if(resendCooldown){ showModal("Wait before resending OTP"); return; }
-  const userId = localStorage.getItem("userId");
+  const userId = Auth.getTempData("userId");
   if(!userId){ showModal("No user session found"); return; }
 
   resendCooldown=true;
@@ -472,12 +492,14 @@ async function resendOTP(){
   }catch(err){ setResendLoading(false); resendCooldown=false; showModal("Network error"); console.error(err); }
 }
 
-/* UPDATE EMAIL */
+/* =========================
+   UPDATE EMAIL / BACK TO FORM
+========================= */
 function updateEmail(){
   document.getElementById("otp").value="";
   showFormState();
-  localStorage.removeItem("userId");
-  localStorage.removeItem("registerState");
+  Auth.clearTempData("userId");
+  Auth.clearTempData("registerState");
 }
 </script>
 
