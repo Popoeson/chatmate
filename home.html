@@ -221,9 +221,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const avatarEl = document.getElementById("avatarImg");
 
       usernameEl.innerText = user.username || user.email;
-    /*  avatarEl.src = user.avatarUrl || "https://i.pravatar.cc/50"; // fallback avatar*//
-
-avatarEl.src = user.avatarUrl; 
+      avatarEl.src = user.avatarUrl || "https://i.pravatar.cc/50"; // fallback avatar
 
     } catch (err) {
       console.error("Failed to load user:", err);
