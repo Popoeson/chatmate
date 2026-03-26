@@ -152,13 +152,11 @@ body.dark .modal-content { background:#1C1C1E; }
   <img id="previewImg">
 </div>
 
-<script>
+<script type="module">
+import { Auth } from "./session.js"; // 🔥 shared session helper
 const API = "https://chatmate-kbwz.onrender.com/api/auth";
 
 document.addEventListener("DOMContentLoaded", async () => {
-
-  const token = localStorage.getItem("token");
-  if (!token) return window.location.href = "login.html";
 
   const searchInput = document.getElementById("searchInput");
   const resultsDiv = document.getElementById("searchResults");
@@ -179,15 +177,39 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   let currentUserId = null;
 
+  /* ========================= LOAD USER ========================= */
   async function loadUser() {
-    const res = await fetch(`${API}/me`, {
-      headers: { Authorization: `Bearer ${token}` }
-    });
-    const data = await res.json();
-    currentUserId = data.user._id;
+    const token = Auth.getToken(); // 🔥 use shared session helper
+
+    if (!token) {
+      window.location.href = "login.html";
+      return;
+    }
+
+    try {
+      const res = await fetch(`${API}/me`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      if (!res.ok) {
+        Auth.clearToken(); // 🔥 clear both storage if token invalid
+        window.location.href = "login.html";
+        return;
+      }
+
+      const data = await res.json();
+      currentUserId = data.user._id;
+
+    } catch (err) {
+      console.error(err);
+      Auth.clearToken();
+      window.location.href = "login.html";
+    }
   }
 
+  /* ========================= LOAD FRIENDS ========================= */
   async function loadFriends() {
+    const token = Auth.getToken();
     const res = await fetch(`${API}/friends`, {
       headers: { Authorization: `Bearer ${token}` }
     });
@@ -203,6 +225,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     data.receivedRequests.forEach(u => receivedList.appendChild(createCard(u, "received")));
   }
 
+  /* ========================= CREATE CARD ========================= */
   function createCard(user, type) {
     const card = document.createElement("div");
     card.className = "card";
@@ -239,10 +262,12 @@ document.addEventListener("DOMContentLoaded", async () => {
     return card;
   }
 
+  /* ========================= SEARCH USERS ========================= */
   searchInput.addEventListener("input", async () => {
     const query = searchInput.value.trim();
     if (!query) return resultsDiv.innerHTML = "";
 
+    const token = Auth.getToken();
     const res = await fetch(`${API}/users/search?username=${query}`, {
       headers: { Authorization: `Bearer ${token}` }
     });
@@ -288,7 +313,7 @@ document.addEventListener("DOMContentLoaded", async () => {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`
+            Authorization: `Bearer ${Auth.getToken()}`
           },
           body: JSON.stringify({ userId: user._id })
         });
@@ -298,10 +323,12 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
   });
 
+  /* ========================= THEME ========================= */
   themeToggle.onclick = () => {
     document.body.classList.toggle("dark");
   };
 
+  /* ========================= MODALS ========================= */
   window.onclick = (e) => {
     if (e.target === profileModal) profileModal.classList.remove("show");
     if (e.target === imagePreview) imagePreview.classList.remove("show");
@@ -312,6 +339,5 @@ document.addEventListener("DOMContentLoaded", async () => {
 
 });
 </script>
-
 </body>
 </html>
