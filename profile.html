@@ -343,7 +343,8 @@ body:not(.dark) .modal-content {
   </div>
 </div>
 
-<script>
+<script type="module">
+import { Auth } from "./session.js"; // 🔥 shared session helper
 const API = "https://chatmate-kbwz.onrender.com/api/auth";
 
 /* =========================
@@ -436,26 +437,27 @@ function setLoading(isLoading){
    LOAD USER PROFILE
 ========================= */
 async function loadUserProfile(){
-  const token = localStorage.getItem("token");
-
+  const token = Auth.getToken(); // 🔥 unified session helper
   if(!token){
     showModal("Session expired. Please login.", ()=> window.location.href="login.html");
     return;
   }
 
   // Prefill from registration (if exists)
-  const regEmail = localStorage.getItem("userEmail");
-  const regPhone = localStorage.getItem("userPhone");
+  const regEmail = Auth.getTempData("userEmail");
+  const regPhone = Auth.getTempData("userPhone");
   if(regEmail) emailInput.value = regEmail;
   if(regPhone) phoneInput.value = regPhone;
 
   // Fetch full user info from backend
   try {
     const res = await fetch(`${API}/me`, { headers: { "Authorization": `Bearer ${token}` } });
-    if(!res.ok) return;
+    if(!res.ok){
+      Auth.clearToken();
+      return window.location.href="login.html";
+    }
 
     const { user } = await res.json();
-
     phoneInput.value = user.phone || phoneInput.value;
     emailInput.value = user.email || emailInput.value;
     usernameInput.value = user.username || "";
@@ -468,6 +470,8 @@ async function loadUserProfile(){
 
   } catch(err){
     console.error(err);
+    Auth.clearToken();
+    window.location.href="login.html";
   }
 }
 
@@ -493,7 +497,7 @@ document.getElementById("saveProfileBtn").onclick = async () => {
 
   setLoading(true);
 
-  const token = localStorage.getItem("token");
+  const token = Auth.getToken();
   if(!token){
     setLoading(false);
     return showModal("Session expired. Please login.", ()=> window.location.href="login.html");
@@ -520,7 +524,7 @@ document.getElementById("saveProfileBtn").onclick = async () => {
 
     if(res.status === 429){
       return showModal("Too many attempts. Redirecting...", ()=>{
-        localStorage.clear();
+        Auth.clearToken();
         window.location.href="login.html";
       });
     }
@@ -528,13 +532,12 @@ document.getElementById("saveProfileBtn").onclick = async () => {
 
     // Replace old token with new token
     if(data.newToken){
-      localStorage.removeItem("token");
-      localStorage.setItem("token", data.newToken);
+      Auth.setToken(data.newToken);
     }
 
     // Clear temporary registration data
-    localStorage.removeItem("userEmail");
-    localStorage.removeItem("userPhone");
+    Auth.clearTempData("userEmail");
+    Auth.clearTempData("userPhone");
 
     // Success → redirect to homepage
     showModal("Profile updated successfully!", ()=> window.location.href="home.html");
@@ -551,5 +554,6 @@ document.getElementById("saveProfileBtn").onclick = async () => {
 ========================= */
 window.onload = loadUserProfile;
 </script>
+
 </body>
 </html>
