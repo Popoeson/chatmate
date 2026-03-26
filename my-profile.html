@@ -254,43 +254,56 @@ button {
 
 </footer>
 
-<script>
+<script type="module">
+import { Auth } from "./session.js"; // 🔥 shared session helper
 const API = "https://chatmate-kbwz.onrender.com/api/auth";
 
-/* THEME */
+/* ========================= THEME ========================= */
 themeToggle.onclick = () => {
   document.body.classList.toggle("dark");
 };
 
-/* TOKEN */
-const token = localStorage.getItem("token");
-if(!token){
+/* ========================= TOKEN CHECK ========================= */
+const token = Auth.getToken(); // 🔥 get token from session helper
+if (!token) {
   window.location.href = "login.html";
 }
 
-/* LOAD PROFILE */
-async function loadProfile(){
-  const res = await fetch(`${API}/me`, {
-    headers: { Authorization: `Bearer ${token}` }
-  });
+/* ========================= LOAD PROFILE ========================= */
+async function loadProfile() {
+  try {
+    const res = await fetch(`${API}/me`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
 
-  const data = await res.json();
-  if(!data.user) return;
+    if (!res.ok) {
+      Auth.clearToken(); // 🔥 clear invalid token
+      return window.location.href = "login.html";
+    }
 
-  const user = data.user;
+    const data = await res.json();
+    if (!data.user) return;
 
-  username.value = user.username || "";
-  email.value = user.email || "";
-  phone.value = user.phone || "";
-  bio.value = user.bio || "";
+    const user = data.user;
 
-  if(user.avatarUrl){
-    avatarPreview.src = user.avatarUrl;
-    avatarPreview.style.display = "block";
+    username.value = user.username || "";
+    email.value = user.email || "";
+    phone.value = user.phone || "";
+    bio.value = user.bio || "";
+
+    if (user.avatarUrl) {
+      avatarPreview.src = user.avatarUrl;
+      avatarPreview.style.display = "block";
+    }
+
+  } catch (err) {
+    console.error(err);
+    Auth.clearToken();
+    window.location.href = "login.html";
   }
 }
 
-/* EDIT MODE */
+/* ========================= EDIT MODE ========================= */
 let editing = false;
 
 editToggle.onclick = () => {
@@ -313,7 +326,7 @@ cancelBtn.onclick = () => {
   loadProfile();
 };
 
-/* SAVE */
+/* ========================= SAVE PROFILE ========================= */
 saveBtn.onclick = async () => {
   const formData = new FormData();
   formData.append("username", username.value);
@@ -322,26 +335,30 @@ saveBtn.onclick = async () => {
   formData.append("bio", bio.value);
 
   const file = avatarInput.files[0];
-  if(file) formData.append("avatar", file);
+  if (file) formData.append("avatar", file);
 
-  const res = await fetch(`${API}/update-profile`, {
-    method: "POST",
-    headers: { Authorization: `Bearer ${token}` },
-    body: formData
-  });
+  try {
+    const res = await fetch(`${API}/update-profile`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${Auth.getToken()}` }, // 🔥 use session helper
+      body: formData
+    });
 
-  const data = await res.json();
+    const data = await res.json();
 
-  if(data.newToken){
-    localStorage.setItem("token", data.newToken);
+    if (data.newToken) {
+      Auth.setToken(data.newToken); // 🔥 update token in correct storage
+    }
+
+    cancelBtn.onclick(); // exit edit mode
+  } catch (err) {
+    console.error(err);
   }
-
-  cancelBtn.onclick(); // exit edit mode
 };
 
-/* AVATAR PREVIEW + MODAL */
+/* ========================= AVATAR PREVIEW + MODAL ========================= */
 avatarPreview.onclick = () => {
-  if(editing){
+  if (editing) {
     avatarInput.click();
   } else {
     modalImg.src = avatarPreview.src;
@@ -353,10 +370,10 @@ imageModal.onclick = () => {
   imageModal.style.display = "none";
 };
 
-/* FILE PREVIEW */
+/* ========================= FILE INPUT PREVIEW ========================= */
 avatarInput.onchange = e => {
   const file = e.target.files[0];
-  if(file){
+  if (file) {
     const reader = new FileReader();
     reader.onload = () => {
       avatarPreview.src = reader.result;
@@ -366,9 +383,8 @@ avatarInput.onchange = e => {
   }
 };
 
-/* INIT */
+/* ========================= INIT ========================= */
 loadProfile();
 </script>
-
 </body>
 </html>
