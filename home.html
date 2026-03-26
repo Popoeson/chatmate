@@ -83,7 +83,7 @@ body.dark .chat-card { background: #222; }
   margin-right: 10px;
 }
 
-/* ========================= FOOTER ========================= */
+/* ========================= FOOTER ========================= 
 footer {
   position: sticky;
   bottom: 0;
@@ -99,7 +99,32 @@ footer {
   align-items: center;
   cursor: pointer;
 }
+.footer-item.active { color: #4caf50; } */
+
+/* ========================= FOOTER ========================= */
+footer {
+  position: fixed; /* change to fixed for smooth hide/show */
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  display: flex;
+  justify-content: space-around;
+  padding: 10px;
+  background: linear-gradient(to right, #2B2E33, #7B7F85);
+  color: #fff;
+  transition: transform 0.3s ease;
+}
+footer.hide {
+  transform: translateY(100%); /* move footer out of viewport */
+}
+.footer-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  cursor: pointer;
+}
 .footer-item.active { color: #4caf50; }
+
 </style>
 </head>
 
@@ -159,6 +184,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const addFriendBtn = document.getElementById("addFriendBtn");
   const toggle = document.getElementById("themeToggle");
   const encryptionToggle = document.getElementById("encryptionToggle");
+  const footer = document.querySelector("footer");
 
   /* ========================= REDIRECT ========================= */
   addFriendBtn.addEventListener("click", () => {
@@ -205,6 +231,23 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   loadUser();
+
+  /* ========================= FOOTER HIDE/SHOW ON SCROLL ========================= */
+  let lastScroll = 0;
+
+  window.addEventListener("scroll", () => {
+    const currentScroll = window.pageYOffset;
+
+    if (currentScroll > lastScroll && currentScroll > 50) {
+      // scrolling down
+      footer.classList.add("hide");
+    } else {
+      // scrolling up
+      footer.classList.remove("hide");
+    }
+
+    lastScroll = currentScroll;
+  });
 });
 </script>
 
