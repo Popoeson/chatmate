@@ -124,7 +124,9 @@ footer {
   <div class="footer-item"><i class="fa-solid fa-gear"></i><span>Settings</span></div>
 </footer>
 
-<script>
+<script type="module">
+import { Auth } from "./session.js"; // Make sure path is correct
+
 const API = "https://chatmate-kbwz.onrender.com/api/auth";
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -155,7 +157,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   /* ========================= LOAD USER ========================= */
   async function loadUser() {
-    const token = localStorage.getItem("token");
+    const token = Auth.getToken(); // 🔥 Use shared session helper
 
     if (!token) {
       window.location.href = "login.html";
@@ -168,11 +170,21 @@ document.addEventListener("DOMContentLoaded", () => {
       });
 
       if (!res.ok) {
-        localStorage.removeItem("token");
+        Auth.clearToken(); // 🔥 Clear both session/local storage if token invalid
         window.location.href = "login.html";
+        return;
       }
 
-    } catch {
+      const data = await res.json();
+      const user = data.user;
+
+      // Example: display username and avatar
+      document.getElementById("usernameDisplay").innerText = user.username;
+      document.getElementById("avatarImg").src = user.avatarUrl || "default-avatar.png";
+
+    } catch (err) {
+      console.error(err);
+      Auth.clearToken();
       window.location.href = "login.html";
     }
   }
@@ -180,6 +192,5 @@ document.addEventListener("DOMContentLoaded", () => {
   loadUser();
 });
 </script>
-
 </body>
 </html>
