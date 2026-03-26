@@ -29,6 +29,27 @@ header {
   background: linear-gradient(to right, #2B2E33, #7B7F85);
   color: #fff;
 }
+
+.user-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.user-info img {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  object-fit: cover;
+  cursor: pointer;
+}
+
+.user-info span {
+  font-weight: bold;
+  font-size: 16px;
+  color: #fff;
+}
+
 .header-icons {
   display: flex;
   gap: 16px;
@@ -86,7 +107,11 @@ footer {
 
 <!-- HEADER -->
 <header>
-  <div class="logo">ChatMate</div>
+  <div class="user-info" onclick="window.location.href='my-profile.html'">
+    <img id="avatarImg" src="https://i.pravatar.cc/50" alt="Avatar">
+    <span id="usernameDisplay">Username</span>
+  </div>
+
   <div class="header-icons">
     <i id="encryptionToggle" class="fa-solid fa-lock"></i>
     <i id="themeToggle" class="fa-solid fa-moon"></i>
@@ -125,7 +150,7 @@ footer {
 </footer>
 
 <script type="module">
-import { Auth } from "./session.js"; // Make sure path is correct
+import { Auth } from "./session.js"; // Ensure path is correct
 
 const API = "https://chatmate-kbwz.onrender.com/api/auth";
 
@@ -157,34 +182,24 @@ document.addEventListener("DOMContentLoaded", () => {
 
   /* ========================= LOAD USER ========================= */
   async function loadUser() {
-    const token = Auth.getToken(); // 🔥 Use shared session helper
-
-    if (!token) {
-      window.location.href = "login.html";
-      return;
-    }
-
     try {
-      const res = await fetch(`${API}/me`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const user = await Auth.getUser(); // 🔥 shared session helper
 
-      if (!res.ok) {
-        Auth.clearToken(); // 🔥 Clear both session/local storage if token invalid
+      if (!user) {
         window.location.href = "login.html";
         return;
       }
 
-      const data = await res.json();
-      const user = data.user;
+      // Display username and avatar in header
+      const usernameEl = document.getElementById("usernameDisplay");
+      const avatarEl = document.getElementById("avatarImg");
 
-      // Example: display username and avatar
-      document.getElementById("usernameDisplay").innerText = user.username;
-      document.getElementById("avatarImg").src = user.avatarUrl || "default-avatar.png";
+      usernameEl.innerText = user.username || user.email;
+      avatarEl.src = user.avatarUrl || "https://i.pravatar.cc/50"; // fallback avatar
 
     } catch (err) {
-      console.error(err);
-      Auth.clearToken();
+      console.error("Failed to load user:", err);
+      Auth.clearToken(); // clear invalid token
       window.location.href = "login.html";
     }
   }
@@ -192,5 +207,6 @@ document.addEventListener("DOMContentLoaded", () => {
   loadUser();
 });
 </script>
+
 </body>
 </html>
