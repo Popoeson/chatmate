@@ -207,30 +207,34 @@ document.addEventListener("DOMContentLoaded", () => {
   };
 
   /* ========================= LOAD USER ========================= */
-  async function loadUser() {
-    try {
-      const user = await Auth.getUser(); // 🔥 shared session helper
+async function loadUser() {
+  try {
+    const user = await Auth.getUser(); // 🔥 shared session helper
 
-      if (!user) {
-        window.location.href = "login.html";
-        return;
-      }
-
-      // Display username and avatar in header
-      const usernameEl = document.getElementById("usernameDisplay");
-      const avatarEl = document.getElementById("avatarImg");
-
-      usernameEl.innerText = user.username || user.email;
-      avatarEl.src = user.avatarUrl || "https://i.pravatar.cc/50"; // fallback avatar
-
-    } catch (err) {
-      console.error("Failed to load user:", err);
-      Auth.clearToken(); // clear invalid token
+    if (!user) {
+      // No valid session, redirect to login
       window.location.href = "login.html";
+      return;
     }
-  }
 
-  loadUser();
+    // Display username and avatar in header
+    const usernameEl = document.getElementById("usernameDisplay");
+    const avatarEl = document.getElementById("avatarImg");
+
+    usernameEl.innerText = user.username || user.email;
+
+    // Use vector default avatar if no avatarUrl
+    avatarEl.src = user.avatarUrl || 
+      "data:image/svg+xml;base64,PHN2ZyBmaWxsPSIjRkZGIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI1MCIgaGVpZ2h0PSI1MCIgdmlld0JveD0iMCAwIDI0IDI0Ij48Y2lyY2xlIGN4PSIxMiIgY3k9IjgiIHI9IjQiLz48cGF0aCBkPSJNMTIgMTFjLTMuMyAwLTYgMi43LTYgNmgyMGMwLTMuMy0yLjctNi02LTZ6Ii8+PC9zdmc+";
+
+  } catch (err) {
+    console.error("Failed to load user:", err);
+    Auth.clearToken(); // clear invalid token
+    window.location.href = "login.html";
+  }
+}
+
+loadUser();
 
   /* ========================= FOOTER HIDE/SHOW ON SCROLL ========================= */
   let lastScroll = 0;
