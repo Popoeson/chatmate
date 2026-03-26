@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ChatMate - Friends</title>
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+
+<style>
+body {
+  margin: 0;
+  font-family: 'Segoe UI', sans-serif;
+  background: #f9f9f9;
+  color: #111;
+}
+body.dark { background: #111; color: #fff; }
+
+.hidden { display: none; }
+
+/* HEADER */
+header {
+  display: flex;
+  justify-content: space-between;
+  padding: 15px;
+  background: linear-gradient(to right, #2B2E33, #7B7F85);
+  color: #fff;
+}
+
+.header-icons i { cursor: pointer; margin-left: 10px; }
+
+/* SEARCH */
+.search-container { padding: 10px; }
+.search-container input {
+  width: 100%;
+  padding: 12px;
+  border-radius: 10px;
+  border: none;
+}
+
+/* SECTIONS */
+.section-title {
+  padding: 10px;
+  font-weight: bold;
+}
+
+/* CARD */
+.card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: 8px 10px;
+  padding: 12px;
+  background: #fff;
+  border-radius: 12px;
+}
+body.dark .card { background: #222; }
+
+.card-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.card img {
+  width: 45px;
+  height: 45px;
+  border-radius: 50%;
+}
+
+.actions button {
+  margin-left: 5px;
+  padding: 5px 10px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+/* MODALS */
+.modal {
+  position: fixed;
+  top:0; left:0;
+  width:100%; height:100%;
+  background: rgba(0,0,0,0.6);
+  display:flex;
+  justify-content:center;
+  align-items:center;
+}
+
+.modal-content {
+  background:#fff;
+  padding:20px;
+  border-radius:15px;
+  text-align:center;
+  width:90%;
+  max-width:300px;
+}
+body.dark .modal-content { background:#1C1C1E; }
+
+.avatar-large {
+  width:100px;
+  height:100px;
+  border-radius:50%;
+  cursor:pointer;
+}
+
+.preview img {
+  width:80%;
+  max-width:400px;
+}
+</style>
+</head>
+
+<body>
+
+<header>
+  <div>Friends</div>
+  <div class="header-icons">
+    <i id="themeToggle" class="fa-solid fa-moon"></i>
+  </div>
+</header>
+
+<div class="search-container">
+  <input id="searchInput" placeholder="Search username...">
+</div>
+
+<div id="searchResults"></div>
+
+<div class="section-title">Friends</div>
+<div id="friendsList"></div>
+
+<div class="section-title">Sent Requests</div>
+<div id="sentList"></div>
+
+<div class="section-title">Pending Requests</div>
+<div id="receivedList"></div>
+
+<!-- PROFILE MODAL -->
+<div id="profileModal" class="modal hidden">
+  <div class="modal-content">
+    <img id="viewAvatar" class="avatar-large">
+    <h3 id="viewUsername"></h3>
+    <p id="viewBio"></p>
+  </div>
+</div>
+
+<!-- IMAGE PREVIEW -->
+<div id="imagePreview" class="modal hidden preview">
+  <img id="previewImg">
+</div>
+
+<script>
+const API = "https://chatmate-kbwz.onrender.com/api/auth";
+
+document.addEventListener("DOMContentLoaded", async () => {
+
+  const token = localStorage.getItem("token");
+  if (!token) return window.location.href = "login.html";
+
+  const searchInput = document.getElementById("searchInput");
+  const resultsDiv = document.getElementById("searchResults");
+
+  const friendsList = document.getElementById("friendsList");
+  const sentList = document.getElementById("sentList");
+  const receivedList = document.getElementById("receivedList");
+
+  const profileModal = document.getElementById("profileModal");
+  const imagePreview = document.getElementById("imagePreview");
+
+  const viewAvatar = document.getElementById("viewAvatar");
+  const viewUsername = document.getElementById("viewUsername");
+  const viewBio = document.getElementById("viewBio");
+  const previewImg = document.getElementById("previewImg");
+
+  const themeToggle = document.getElementById("themeToggle");
+
+  let currentUserId = null;
+
+  /* LOAD USER */
+  async function loadUser() {
+    const res = await fetch(`${API}/me`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    const data = await res.json();
+    currentUserId = data.user._id;
+  }
+
+  /* LOAD FRIENDS */
+  async function loadFriends() {
+    const res = await fetch(`${API}/friends`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+
+    const data = await res.json();
+
+    friendsList.innerHTML = "";
+    sentList.innerHTML = "";
+    receivedList.innerHTML = "";
+
+    data.friends.forEach(u => friendsList.appendChild(createCard(u, "friend")));
+    data.sentRequests.forEach(u => sentList.appendChild(createCard(u, "sent")));
+    data.receivedRequests.forEach(u => receivedList.appendChild(createCard(u, "received")));
+  }
+
+  /* CREATE CARD */
+  function createCard(user, type) {
+    const card = document.createElement("div");
+    card.className = "card";
+
+    let action = "";
+
+    if (type === "friend") action = `<span style="color:green;">Friend</span>`;
+    if (type === "sent") action = `<span style="color:orange;">Pending</span>`;
+    if (type === "received") action = `<button>Accept</button>`;
+
+    card.innerHTML = `
+      <div class="card-left">
+        <img src="${user.avatarUrl || ''}">
+        <span>${user.username}</span>
+      </div>
+      <div class="actions">
+        <button class="view-btn">View</button>
+        ${action}
+      </div>
+    `;
+
+    card.querySelector(".view-btn").onclick = () => {
+      viewAvatar.src = user.avatarUrl || "";
+      viewUsername.textContent = user.username;
+      viewBio.textContent = user.bio || "";
+      profileModal.classList.remove("hidden");
+    };
+
+    viewAvatar.onclick = () => {
+      previewImg.src = user.avatarUrl || "";
+      imagePreview.classList.remove("hidden");
+    };
+
+    return card;
+  }
+
+  /* SEARCH */
+  searchInput.addEventListener("input", async () => {
+    const query = searchInput.value.trim();
+    if (!query) return resultsDiv.innerHTML = "";
+
+    const res = await fetch(`${API}/users/search?username=${query}`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+
+    const data = await res.json();
+    resultsDiv.innerHTML = "";
+
+    data.users.filter(u => u._id !== currentUserId)
+    .forEach(user => {
+
+      const card = document.createElement("div");
+      card.className = "card";
+
+      card.innerHTML = `
+        <div class="card-left">
+          <img src="${user.avatarUrl || ''}">
+          <span>${user.username}</span>
+        </div>
+        <div class="actions">
+          <button class="view-btn">View</button>
+          <button class="add-btn">Add</button>
+        </div>
+      `;
+
+      card.querySelector(".view-btn").onclick = () => {
+        viewAvatar.src = user.avatarUrl || "";
+        viewUsername.textContent = user.username;
+        viewBio.textContent = user.bio || "";
+        profileModal.classList.remove("hidden");
+      };
+
+      viewAvatar.onclick = () => {
+        previewImg.src = user.avatarUrl || "";
+        imagePreview.classList.remove("hidden");
+      };
+
+      card.querySelector(".add-btn").onclick = async (e) => {
+        const btn = e.target;
+        btn.textContent = "Pending";
+        btn.disabled = true;
+
+        await fetch(`${API}/friends/request`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`
+          },
+          body: JSON.stringify({ userId: user._id })
+        });
+      };
+
+      resultsDiv.appendChild(card);
+    });
+  });
+
+  /* THEME */
+  themeToggle.onclick = () => {
+    document.body.classList.toggle("dark");
+  };
+
+  /* CLOSE MODALS */
+  window.onclick = (e) => {
+    if (e.target === profileModal) profileModal.classList.add("hidden");
+    if (e.target === imagePreview) imagePreview.classList.add("hidden");
+  };
+
+  await loadUser();
+  await loadFriends();
+
+});
+</script>
+
+</body>
+</html>
