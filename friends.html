@@ -370,6 +370,25 @@ document.addEventListener("DOMContentLoaded", async () => {
     return card;
   }
 
+/* ========================= TAB SWITCH ========================= */  
+‎  function setActiveTab(tab) {  
+‎    tabFriends.classList.remove("active");  
+‎    tabSent.classList.remove("active");  
+‎    tabReceived.classList.remove("active");  
+‎    friendsList.classList.remove("active");  
+‎    sentList.classList.remove("active");  
+‎    receivedList.classList.remove("active");  
+‎  
+‎    if(tab==="friends") { tabFriends.classList.add("active"); friendsList.classList.add("active"); }  
+‎    if(tab==="sent") { tabSent.classList.add("active"); sentList.classList.add("active"); }  
+‎    if(tab==="received") { tabReceived.classList.add("active"); receivedList.classList.add("active"); }  
+‎  }  
+‎  
+‎  tabFriends.onclick = () => setActiveTab("friends");  
+‎  tabSent.onclick = () => setActiveTab("sent");  
+‎  tabReceived.onclick = () => setActiveTab("received");  
+‎  
+
   /* ========================= SEARCH USERS ========================= */
   searchInput.addEventListener("input", async () => {
     const query = searchInput.value.trim();
