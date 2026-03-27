@@ -508,11 +508,7 @@ router.post('/friends/request', authenticateJWT, async (req, res) => {
 ========================= */
 router.get('/friends', authenticateJWT, async (req, res) => {
   try {
-    const userId = req.userId;
-
-    if (!userId) {
-      return res.status(401).json({ message: "Unauthorized: No userId" });
-    }
+    const userId = req.userId.toString(); // 🔥 FIX HERE
 
     const requests = await FriendRequest.find({
       $or: [
@@ -542,11 +538,16 @@ router.get('/friends', authenticateJWT, async (req, res) => {
       else if (reqItem.status === "pending") {
         if (requesterId === userId) {
           sent.push(reqItem.recipient);
-        } else if (recipientId === userId) {
+        } 
+        else if (recipientId === userId) {
           received.push(reqItem.requester);
         }
       }
     });
+
+    console.log("USER:", userId);
+    console.log("SENT:", sent.length);
+    console.log("RECEIVED:", received.length);
 
     res.json({
       friends: accepted,
@@ -559,6 +560,5 @@ router.get('/friends', authenticateJWT, async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 });
-
 export default router;
 
