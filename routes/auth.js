@@ -560,5 +560,86 @@ router.get('/friends', authenticateJWT, async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 });
+
+/* =========================
+   ACCEPT REQUEST
+========================= */
+router.post('/friends/request/:userId/accept', authenticateJWT, async (req, res) => {
+  try {
+    const currentUserId = req.userId;
+    const requesterId = req.params.userId;
+
+    const request = await FriendRequest.findOne({
+      requester: requesterId,
+      recipient: currentUserId,
+      status: "pending"
+    });
+
+    if (!request) {
+      return res.status(404).json({ message: "Request not found" });
+    }
+
+    request.status = "accepted";
+    await request.save();
+
+    res.json({ message: "Friend request accepted" });
+
+  } catch (err) {
+    console.error("ACCEPT ERROR:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+/* =========================
+   REJECT REQUEST
+========================= */
+router.post('/friends/request/:userId/reject', authenticateJWT, async (req, res) => {
+  try {
+    const currentUserId = req.userId;
+    const requesterId = req.params.userId;
+
+    const request = await FriendRequest.findOneAndDelete({
+      requester: requesterId,
+      recipient: currentUserId,
+      status: "pending"
+    });
+
+    if (!request) {
+      return res.status(404).json({ message: "Request not found" });
+    }
+
+    res.json({ message: "Friend request rejected" });
+
+  } catch (err) {
+    console.error("REJECT ERROR:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+/* =========================
+   DELETE REQUEST 
+========================= */
+router.delete('/friends/request/:userId', authenticateJWT, async (req, res) => {
+  try {
+    const currentUserId = req.userId;
+    const recipientId = req.params.userId;
+
+    const request = await FriendRequest.findOneAndDelete({
+      requester: currentUserId,
+      recipient: recipientId,
+      status: "pending"
+    });
+
+    if (!request) {
+      return res.status(404).json({ message: "Request not found" });
+    }
+
+    res.json({ message: "Request cancelled" });
+
+  } catch (err) {
+    console.error("DELETE ERROR:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
 export default router;
 
