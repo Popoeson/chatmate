@@ -1,4 +1,4 @@
-/* =========================
+/*=========================
    BUTTON LOADER
 ========================= */
 export function setButtonLoading(button, state) {
@@ -99,13 +99,17 @@ export function setupCloseOnOutside(modal) {
   });
 }
 
+/* =========================
+   DEFAULT UI OBJECT EXPORT
+========================= */
 const UI = {
+  setButtonLoading,
   showPageLoader,
   hidePageLoader,
-  showLoader,
-  hideLoader,
-  toast,
-  getSkeletonCards
+  showSkeleton,
+  showToast,
+  setupImageModal,
+  setupCloseOnOutside
 };
 
 export default UI;
