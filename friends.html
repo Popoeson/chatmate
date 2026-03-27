@@ -382,7 +382,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   /* ========================= LOAD FRIENDS ========================= */
   async function loadFriends() {
     try {
-      UI.showPageLoader(friendsList); // show spinner
+      UI.showPageLoader(friendsList);
       const token = Auth.getToken();
 
       const res = await fetch(`${API}/friends`, {
@@ -396,131 +396,129 @@ document.addEventListener("DOMContentLoaded", async () => {
       sentData = data.sentRequests || [];
       receivedData = data.receivedRequests || [];
 
-      // Clear lists first
+      // Clear lists
       friendsList.innerHTML = "";
       sentList.innerHTML = "";
       receivedList.innerHTML = "";
 
       // FRIENDS
-      if (!friendsData.length) UI.showSkeleton(friendsList, 3);
+      if (!friendsData.length) friendsList.innerHTML = "<p>No friends yet</p>";
       else friendsData.forEach(u => friendsList.appendChild(createCard(u, "friend")));
 
       // SENT
-      if (!sentData.length) UI.showSkeleton(sentList, 2);
+      if (!sentData.length) sentList.innerHTML = "<p>No sent requests</p>";
       else sentData.forEach(u => sentList.appendChild(createCard(u, "sent")));
 
       // RECEIVED
-      if (!receivedData.length) UI.showSkeleton(receivedList, 2);
+      if (!receivedData.length) receivedList.innerHTML = "<p>No received requests</p>";
       else receivedData.forEach(u => receivedList.appendChild(createCard(u, "received")));
 
     } catch (err) {
       console.error("loadFriends error:", err);
       UI.showToast("Failed to load friends", "error");
     } finally {
-      UI.hidePageLoader(friendsList); // hide spinner
+      UI.hidePageLoader(friendsList);
     }
   }
 
   /* ========================= RELATIONSHIP HELPER ========================= */
   function getRelationship(userId) {
-    if (friendsData.some(u => u._id === userId)) return "friend";
-    if (sentData.some(u => u._id === userId)) return "sent";
-    if (receivedData.some(u => u._id === userId)) return "received";
+    const uid = userId.toString();
+    if (friendsData.some(u => u._id.toString() === uid)) return "friend";
+    if (sentData.some(u => u._id.toString() === uid)) return "sent";
+    if (receivedData.some(u => u._id.toString() === uid)) return "received";
     return "none";
   }
 
   /* ========================= CREATE CARD ========================= */
-    function createCard(user, type) {
-  const card = document.createElement("div");
-  card.className = "card";
+  function createCard(user, type) {
+    const card = document.createElement("div");
+    card.className = "card";
 
-  const avatarHTML = user.avatarUrl
-    ? `<img src="${user.avatarUrl}">`
-    : `<span style="width:45px;height:45px;">${DEFAULT_AVATAR}</span>`;
+    const avatarHTML = user.avatarUrl
+      ? `<img src="${user.avatarUrl}">`
+      : `<span style="width:45px;height:45px;">${DEFAULT_AVATAR}</span>`;
 
-  let actionsHTML = "";
+    let actionsHTML = "";
+    if (type === "friend") actionsHTML = `<span style="color:green;">Friend</span>`;
+    if (type === "sent") actionsHTML = `<button class="delete-btn">Delete</button>`;
+    if (type === "received") actionsHTML = `<button class="accept-btn">Accept</button><button class="reject-btn">Reject</button>`;
+    if (type === "none") actionsHTML = `<button class="add-btn">Add</button>`;
 
-  if (type === "friend") actionsHTML = `<span style="color:green;">Friend</span>`;
-  if (type === "sent") actionsHTML = `<button class="delete-btn">Delete</button>`;
-  if (type === "received") actionsHTML = `<button class="accept-btn">Accept</button><button class="reject-btn">Reject</button>`;
-  if (type === "none") actionsHTML = `<button class="add-btn">Add</button>`;
+    card.innerHTML = `
+      <div class="card-left">
+        ${avatarHTML}
+        <span>${user.username}</span>
+      </div>
+      <div class="actions">
+        <button class="view-btn">View</button>
+        ${actionsHTML}
+      </div>
+    `;
 
-  card.innerHTML = `
-    <div class="card-left">
-      ${avatarHTML}
-      <span>${user.username}</span>
-    </div>
-    <div class="actions">
-      <button class="view-btn">View</button>
-      ${actionsHTML}
-    </div>
-  `;
-
-  // VIEW
-  card.querySelector(".view-btn").onclick = () => {
-    viewAvatar.src = user.avatarUrl || "";
-    viewUsername.textContent = user.username;
-    viewBio.textContent = user.bio || "";
-    profileModal.classList.add("show");
-  };
-
-  // ACTIONS
-  if (type === "sent") {
-    card.querySelector(".delete-btn").onclick = async () => {
-      await fetch(`${API}/friends/request/${user._id}`, {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${Auth.getToken()}` }
-      });
-      UI.showToast("Request deleted", "info");
-      loadFriends();
-    };
-  }
-
-  if (type === "received") {
-    card.querySelector(".accept-btn").onclick = async () => {
-      await fetch(`${API}/friends/request/${user._id}/accept`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${Auth.getToken()}` }
-      });
-      UI.showToast("Request accepted", "success");
-      loadFriends();
+    // VIEW
+    card.querySelector(".view-btn").onclick = () => {
+      viewAvatar.src = user.avatarUrl || "";
+      viewUsername.textContent = user.username;
+      viewBio.textContent = user.bio || "";
+      profileModal.classList.add("show");
     };
 
-    card.querySelector(".reject-btn").onclick = async () => {
-      await fetch(`${API}/friends/request/${user._id}/reject`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${Auth.getToken()}` }
-      });
-      UI.showToast("Request rejected", "error");
-      loadFriends();
-    };
-  }
-
-if (type === "none") {
-  card.querySelector(".add-btn").onclick = async () => {
-    try {
-      const res = await fetch(`${API}/friends/request`, { // no trailing slash needed
-        method: "POST",
-        headers: { 
-          "Authorization": `Bearer ${Auth.getToken()}`,
-          "Content-Type": "application/json" 
-        },
-        body: JSON.stringify({ userId: user._id }) // send target user ID
-      });
-
-      if (!res.ok) throw new Error("Failed to send friend request");
-
-      UI.showToast("Friend request sent", "success");
-      loadFriends(); // refresh friends, sent, received lists
-    } catch (err) {
-      console.error(err);
-      UI.showToast("Could not send request", "error");
+    // ACTIONS
+    if (type === "sent") {
+      card.querySelector(".delete-btn").onclick = async () => {
+        await fetch(`${API}/friends/request/${user._id}`, {
+          method: "DELETE",
+          headers: { Authorization: `Bearer ${Auth.getToken()}` }
+        });
+        UI.showToast("Request deleted", "info");
+        loadFriends();
+      };
     }
-  };
-}
 
-  return card;
-}
+    if (type === "received") {
+      card.querySelector(".accept-btn").onclick = async () => {
+        await fetch(`${API}/friends/request/${user._id}/accept`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${Auth.getToken()}` }
+        });
+        UI.showToast("Request accepted", "success");
+        loadFriends();
+      };
+
+      card.querySelector(".reject-btn").onclick = async () => {
+        await fetch(`${API}/friends/request/${user._id}/reject`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${Auth.getToken()}` }
+        });
+        UI.showToast("Request rejected", "error");
+        loadFriends();
+      };
+    }
+
+    if (type === "none") {
+      card.querySelector(".add-btn").onclick = async () => {
+        try {
+          const res = await fetch(`${API}/friends/request`, {
+            method: "POST",
+            headers: { 
+              "Authorization": `Bearer ${Auth.getToken()}`,
+              "Content-Type": "application/json" 
+            },
+            body: JSON.stringify({ userId: user._id })
+          });
+          if (!res.ok) throw new Error("Failed to send friend request");
+          UI.showToast("Friend request sent", "success");
+          loadFriends();
+        } catch (err) {
+          console.error(err);
+          UI.showToast("Could not send request", "error");
+        }
+      };
+    }
+
+    return card;
+  }
 
   /* ========================= TAB SWITCH ========================= */
   function setActiveTab(tab) {
@@ -558,7 +556,7 @@ if (type === "none") {
       return;
     }
 
-    UI.showSkeleton(resultsDiv, 3); // show inline skeleton
+    UI.showSkeleton(resultsDiv, 3);
     const token = Auth.getToken();
 
     try {
@@ -568,7 +566,6 @@ if (type === "none") {
       const data = await res.json();
 
       resultsDiv.innerHTML = "";
-
       if (!data.users.length) resultsDiv.innerHTML = `<p>No results found</p>`;
       else data.users
         .filter(u => u._id !== currentUserId)
@@ -582,9 +579,9 @@ if (type === "none") {
   /* ========================= INIT ========================= */
   await loadUser();
   await loadFriends();
+  setActiveTab("friends"); // <--- ensure friends tab is active on load
 
   /* ========================= MODALS ========================= */
-
   UI.setupCloseOnOutside(profileModal);
   UI.setupImageModal(imagePreview, previewImg);
 
