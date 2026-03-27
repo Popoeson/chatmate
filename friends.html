@@ -380,9 +380,9 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   /* ========================= LOAD FRIENDS ========================= */
-  async function loadFriends() {
+async function loadFriends() {
   try {
-    UI.showPageLoader(friendsList);
+    UI.showPageLoader(friendsList); // show loader
     const token = Auth.getToken();
 
     const res = await fetch(`${API}/friends`, {
@@ -391,28 +391,14 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     if (!res.ok) throw new Error("Failed to fetch friends");
 
-    const requests = await res.json(); // array of friend requests
+    const data = await res.json(); 
+    // backend returns: { friends: [], sentRequests: [], receivedRequests: [] }
 
-    friendsData = [];
-    sentData = [];
-    receivedData = [];
+    friendsData = data.friends || [];
+    sentData = data.sentRequests || [];
+    receivedData = data.receivedRequests || [];
 
-    // Process requests
-    requests.forEach(req => {
-      const isRequester = req.requester._id === currentUserId;
-      const isRecipient = req.recipient._id === currentUserId;
-
-      if (req.status === "accepted") {
-        // add the other user as friend
-        const friend = isRequester ? req.recipient : req.requester;
-        friendsData.push(friend);
-      } else if (req.status === "pending") {
-        if (isRequester) sentData.push(req.recipient);
-        if (isRecipient) receivedData.push(req.requester);
-      }
-    });
-
-    // Clear lists
+    // Clear existing lists
     friendsList.innerHTML = "";
     sentList.innerHTML = "";
     receivedList.innerHTML = "";
@@ -421,11 +407,11 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (!friendsData.length) friendsList.innerHTML = "<p>No friends yet</p>";
     else friendsData.forEach(u => friendsList.appendChild(createCard(u, "friend")));
 
-    // SENT
+    // SENT REQUESTS
     if (!sentData.length) sentList.innerHTML = "<p>No sent requests</p>";
     else sentData.forEach(u => sentList.appendChild(createCard(u, "sent")));
 
-    // RECEIVED
+    // RECEIVED REQUESTS
     if (!receivedData.length) receivedList.innerHTML = "<p>No received requests</p>";
     else receivedData.forEach(u => receivedList.appendChild(createCard(u, "received")));
 
@@ -433,7 +419,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     console.error("loadFriends error:", err);
     UI.showToast("Failed to load friends", "error");
   } finally {
-    UI.hidePageLoader(friendsList);
+    UI.hidePageLoader(friendsList); // hide loader
   }
 }
 
