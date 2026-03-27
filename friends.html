@@ -430,73 +430,91 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   /* ========================= CREATE CARD ========================= */
-  function createCard(user, type) {
-    const card = document.createElement("div");
-    card.className = "card";
+    function createCard(user, type) {
+  const card = document.createElement("div");
+  card.className = "card";
 
-    const avatarHTML = user.avatarUrl
-      ? `<img src="${user.avatarUrl}">`
-      : `<span style="width:45px;height:45px;">${DEFAULT_AVATAR}</span>`;
+  const avatarHTML = user.avatarUrl
+    ? `<img src="${user.avatarUrl}">`
+    : `<span style="width:45px;height:45px;">${DEFAULT_AVATAR}</span>`;
 
-    let actionsHTML = "";
+  let actionsHTML = "";
 
-    if (type === "friend") actionsHTML = `<span style="color:green;">Friend</span>`;
-    if (type === "sent") actionsHTML = `<button class="delete-btn">Delete</button>`;
-    if (type === "received") actionsHTML = `<button class="accept-btn">Accept</button><button class="reject-btn">Reject</button>`;
+  if (type === "friend") actionsHTML = `<span style="color:green;">Friend</span>`;
+  if (type === "sent") actionsHTML = `<button class="delete-btn">Delete</button>`;
+  if (type === "received") actionsHTML = `<button class="accept-btn">Accept</button><button class="reject-btn">Reject</button>`;
+  if (type === "none") actionsHTML = `<button class="add-btn">Add</button>`;
 
-    card.innerHTML = `
-      <div class="card-left">
-        ${avatarHTML}
-        <span>${user.username}</span>
-      </div>
-      <div class="actions">
-        <button class="view-btn">View</button>
-        ${actionsHTML}
-      </div>
-    `;
+  card.innerHTML = `
+    <div class="card-left">
+      ${avatarHTML}
+      <span>${user.username}</span>
+    </div>
+    <div class="actions">
+      <button class="view-btn">View</button>
+      ${actionsHTML}
+    </div>
+  `;
 
-    // VIEW
-    card.querySelector(".view-btn").onclick = () => {
-      viewAvatar.src = user.avatarUrl || "";
-      viewUsername.textContent = user.username;
-      viewBio.textContent = user.bio || "";
-      profileModal.classList.add("show");
+  // VIEW
+  card.querySelector(".view-btn").onclick = () => {
+    viewAvatar.src = user.avatarUrl || "";
+    viewUsername.textContent = user.username;
+    viewBio.textContent = user.bio || "";
+    profileModal.classList.add("show");
+  };
+
+  // ACTIONS
+  if (type === "sent") {
+    card.querySelector(".delete-btn").onclick = async () => {
+      await fetch(`${API}/friends/request/${user._id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${Auth.getToken()}` }
+      });
+      UI.showToast("Request deleted", "info");
+      loadFriends();
+    };
+  }
+
+  if (type === "received") {
+    card.querySelector(".accept-btn").onclick = async () => {
+      await fetch(`${API}/friends/request/${user._id}/accept`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${Auth.getToken()}` }
+      });
+      UI.showToast("Request accepted", "success");
+      loadFriends();
     };
 
-    // ACTIONS
-    if (type === "sent") {
-      card.querySelector(".delete-btn").onclick = async () => {
-        await fetch(`${API}/friends/request/${user._id}`, {
-          method: "DELETE",
-          headers: { Authorization: `Bearer ${Auth.getToken()}` }
-        });
-        UI.showToast("Request deleted", "info");
-        loadFriends();
-      };
-    }
-
-    if (type === "received") {
-      card.querySelector(".accept-btn").onclick = async () => {
-        await fetch(`${API}/friends/request/${user._id}/accept`, {
-          method: "POST",
-          headers: { Authorization: `Bearer ${Auth.getToken()}` }
-        });
-        UI.showToast("Request accepted", "success");
-        loadFriends();
-      };
-
-      card.querySelector(".reject-btn").onclick = async () => {
-        await fetch(`${API}/friends/request/${user._id}/reject`, {
-          method: "POST",
-          headers: { Authorization: `Bearer ${Auth.getToken()}` }
-        });
-        UI.showToast("Request rejected", "error");
-        loadFriends();
-      };
-    }
-
-    return card;
+    card.querySelector(".reject-btn").onclick = async () => {
+      await fetch(`${API}/friends/request/${user._id}/reject`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${Auth.getToken()}` }
+      });
+      UI.showToast("Request rejected", "error");
+      loadFriends();
+    };
   }
+
+  if (type === "none") {
+    card.querySelector(".add-btn").onclick = async () => {
+      try {
+        const res = await fetch(`${API}/friends/request/${user._id}`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${Auth.getToken()}` }
+        });
+        if (!res.ok) throw new Error("Failed to send friend request");
+        UI.showToast("Friend request sent", "success");
+        loadFriends(); // refresh lists
+      } catch (err) {
+        console.error(err);
+        UI.showToast("Could not send request", "error");
+      }
+    };
+  }
+
+  return card;
+}
 
   /* ========================= TAB SWITCH ========================= */
   function setActiveTab(tab) {
