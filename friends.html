@@ -505,6 +505,24 @@ tabReceived.onclick = () => setActiveTab("received");
   await loadFriends();
 
 });
+
+/* ========================= MODALS ========================= */
+
+// PROFILE MODAL
+profileModal.addEventListener("click", (e) => {
+  if (e.target === profileModal) {
+    profileModal.classList.remove("show");
+  }
+});
+
+// IMAGE PREVIEW MODAL
+imagePreview.addEventListener("click", (e) => {
+  if (e.target === imagePreview) {
+    imagePreview.classList.remove("show");
+    previewImg.src = ""; // ✅ clear image
+  }
+});
+
 </script>
 
 </body>
