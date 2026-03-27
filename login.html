@@ -350,6 +350,14 @@ body:not(.dark) .modal-content { background: #fff; }
   </div>
 </div>
 
+<!-- MODAL 
+<div id="modal" class="modal">
+  <div class="modal-content">
+    <p id="modalMessage"></p>
+    <button onclick="closeModal()">OK</button>
+  </div>
+</div> -->
+
 <!-- MODAL -->
 <div id="modal" class="modal">
   <div class="modal-content">
@@ -384,14 +392,23 @@ togglePassword.onclick = () => {
   togglePassword.classList.toggle("fa-eye-slash");
 };
 
-/* MODAL */
+/* MODAL 
 function showModal(msg){
   document.getElementById("modalMessage").innerText = msg;
   document.getElementById("modal").style.display = "flex";
 }
 function closeModal(){
   document.getElementById("modal").style.display = "none";
-}
+} */
+
+/* =========================
+   MODAL HELPERS
+========================= */
+const showModal = (msg) => {
+  document.getElementById("modalMessage").innerText = msg;
+  document.getElementById("modal").style.display = "flex";
+};
+const closeModal = () => document.getElementById("modal").style.display = "none";
 
 /* LOADING */
 function setLoading(state){
