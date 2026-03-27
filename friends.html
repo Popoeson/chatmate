@@ -144,6 +144,8 @@ body.dark .modal-content { background:#1C1C1E; }
   <input id="searchInput" placeholder="Search username...">
 </div>
 
+<div id="searchResults"></div>
+
 <!-- TAB BUTTONS -->
 <div class="tabs">
   <div id="tabFriends" class="tab-btn active"><i class="fa-solid fa-user-group"></i> Friends</div>
@@ -220,27 +222,53 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   /* ========================= LOAD FRIENDS ========================= */
   async function loadFriends() {
+  try {
     const token = Auth.getToken();
-    const res = await fetch(`${API}/friends`, { headers: { Authorization: `Bearer ${token}` }});
+
+    const res = await fetch(`${API}/friends`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+
+    if (!res.ok) {
+      console.error("Failed to fetch friends");
+      return;
+    }
+
     const data = await res.json();
 
-    // clear all lists
+    const friends = data.friends || [];
+    const sent = data.sentRequests || [];
+    const received = data.receivedRequests || [];
+
     friendsList.innerHTML = "";
     sentList.innerHTML = "";
     receivedList.innerHTML = "";
 
     // FRIENDS
-    if(data.friends.length === 0) friendsList.innerHTML = `<p>No friends yet. Add friends to start chatting!</p>`;
-    data.friends.forEach(u => friendsList.appendChild(createCard(u, "friend")));
+    if (friends.length === 0) {
+      friendsList.innerHTML = `<p>No friends yet. Add friends to start chatting!</p>`;
+    } else {
+      friends.forEach(u => friendsList.appendChild(createCard(u, "friend")));
+    }
 
     // SENT
-    if(data.sentRequests.length === 0) sentList.innerHTML = `<p>No sent requests.</p>`;
-    data.sentRequests.forEach(u => sentList.appendChild(createCard(u, "sent")));
+    if (sent.length === 0) {
+      sentList.innerHTML = `<p>No sent requests.</p>`;
+    } else {
+      sent.forEach(u => sentList.appendChild(createCard(u, "sent")));
+    }
 
     // RECEIVED
-    if(data.receivedRequests.length === 0) receivedList.innerHTML = `<p>No received requests.</p>`;
-    data.receivedRequests.forEach(u => receivedList.appendChild(createCard(u, "received")));
+    if (received.length === 0) {
+      receivedList.innerHTML = `<p>No received requests.</p>`;
+    } else {
+      received.forEach(u => receivedList.appendChild(createCard(u, "received")));
+    }
+
+  } catch (err) {
+    console.error("loadFriends error:", err);
   }
+}
 
   /* ========================= CREATE CARD ========================= */
   function createCard(user, type) {
