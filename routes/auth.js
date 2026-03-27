@@ -506,16 +506,18 @@ router.post('/friends/request', authenticateJWT, async (req, res) => {
 /* =========================
    GET FRIENDS LIST
 ========================= */
-
 router.get('/friends', authenticateJWT, async (req, res) => {
   try {
-    const userIdStr = req.userId.toString();
-    const userObjectId = new mongoose.Types.ObjectId(userIdStr);
+    const userId = req.userId;
+
+    if (!userId) {
+      return res.status(401).json({ message: "Unauthorized: No userId" });
+    }
 
     const requests = await FriendRequest.find({
       $or: [
-        { requester: userObjectId },
-        { recipient: userObjectId }
+        { requester: userId },
+        { recipient: userId }
       ]
     })
     .populate("requester", "username avatarUrl")
@@ -526,25 +528,24 @@ router.get('/friends', authenticateJWT, async (req, res) => {
     const received = [];
 
     requests.forEach(reqItem => {
+      const requesterId = reqItem.requester._id.toString();
+      const recipientId = reqItem.recipient._id.toString();
 
       if (reqItem.status === "accepted") {
-        const friend =
-          reqItem.requester._id.toString() === userIdStr
-            ? reqItem.recipient
-            : reqItem.requester;
+        const friend = requesterId === userId
+          ? reqItem.recipient
+          : reqItem.requester;
 
         accepted.push(friend);
       }
 
       else if (reqItem.status === "pending") {
-
-        if (reqItem.requester._id.toString() === userIdStr) {
+        if (requesterId === userId) {
           sent.push(reqItem.recipient);
-        } else if (reqItem.recipient._id.toString() === userIdStr) {
+        } else if (recipientId === userId) {
           received.push(reqItem.requester);
         }
       }
-
     });
 
     res.json({
@@ -554,7 +555,7 @@ router.get('/friends', authenticateJWT, async (req, res) => {
     });
 
   } catch (err) {
-    console.error(err);
+    console.error("FRIENDS ERROR:", err);
     res.status(500).json({ message: "Server error" });
   }
 });
