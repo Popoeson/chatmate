@@ -496,22 +496,28 @@ document.addEventListener("DOMContentLoaded", async () => {
     };
   }
 
-  if (type === "none") {
-    card.querySelector(".add-btn").onclick = async () => {
-      try {
-        const res = await fetch(`${API}/friends/request/`, {
-          method: "POST",
-          headers: { Authorization: `Bearer ${Auth.getToken()}` }
-        });
-        if (!res.ok) throw new Error("Failed to send friend request");
-        UI.showToast("Friend request sent", "success");
-        loadFriends(); // refresh lists
-      } catch (err) {
-        console.error(err);
-        UI.showToast("Could not send request", "error");
-      }
-    };
-  }
+if (type === "none") {
+  card.querySelector(".add-btn").onclick = async () => {
+    try {
+      const res = await fetch(`${API}/friends/request`, { // no trailing slash needed
+        method: "POST",
+        headers: { 
+          "Authorization": `Bearer ${Auth.getToken()}`,
+          "Content-Type": "application/json" 
+        },
+        body: JSON.stringify({ userId: user._id }) // send target user ID
+      });
+
+      if (!res.ok) throw new Error("Failed to send friend request");
+
+      UI.showToast("Friend request sent", "success");
+      loadFriends(); // refresh friends, sent, received lists
+    } catch (err) {
+      console.error(err);
+      UI.showToast("Could not send request", "error");
+    }
+  };
+}
 
   return card;
 }
