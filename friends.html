@@ -128,6 +128,16 @@ body.dark .modal-content { background:#1C1C1E; }
   width:80%;
   max-width:400px;
 }
+
+.badge {
+  padding: 4px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+}
+
+.badge.friend { background: #4caf50; color: #fff; }
+.badge.pending { background: orange; color: #fff; }
+
 </style>
 </head>
 
@@ -186,6 +196,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   const friendsList = document.getElementById("friendsList");
   const sentList = document.getElementById("sentList");
   const receivedList = document.getElementById("receivedList");
+  const resultsDiv = document.getElementById("searchResults");
 
   const profileModal = document.getElementById("profileModal");
   const imagePreview = document.getElementById("imagePreview");
@@ -201,6 +212,11 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   let currentUserId = null;
 
+  // ✅ GLOBAL RELATIONSHIP STATE
+  let friendsData = [];
+  let sentData = [];
+  let receivedData = [];
+
   const DEFAULT_AVATAR = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="#888"><path d="M12 12c2.7 0 5-2.3 5-5s-2.3-5-5-5-5 2.3-5 5 2.3 5 5 5zm0 2c-3.3 0-10 1.7-10 5v3h20v-3c0-3.3-6.7-5-10-5z"/></svg>`;
 
   /* ========================= LOAD USER ========================= */
@@ -209,81 +225,99 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (!token) { window.location.href = "login.html"; return; }
 
     try {
-      const res = await fetch(`${API}/me`, { headers: { Authorization: `Bearer ${token}` }});
-      if (!res.ok) { Auth.clearToken(); window.location.href="login.html"; return; }
+      const res = await fetch(`${API}/me`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      if (!res.ok) {
+        Auth.clearToken();
+        window.location.href = "login.html";
+        return;
+      }
+
       const data = await res.json();
       currentUserId = data.user._id;
+
     } catch (err) {
       console.error(err);
       Auth.clearToken();
-      window.location.href="login.html";
+      window.location.href = "login.html";
     }
   }
 
   /* ========================= LOAD FRIENDS ========================= */
   async function loadFriends() {
-  try {
-    const token = Auth.getToken();
+    try {
+      const token = Auth.getToken();
 
-    const res = await fetch(`${API}/friends`, {
-      headers: { Authorization: `Bearer ${token}` }
-    });
+      const res = await fetch(`${API}/friends`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
 
-    if (!res.ok) {
-      console.error("Failed to fetch friends");
-      return;
+      if (!res.ok) {
+        console.error("Failed to fetch friends");
+        return;
+      }
+
+      const data = await res.json();
+
+      // ✅ STORE GLOBALLY
+      friendsData = data.friends || [];
+      sentData = data.sentRequests || [];
+      receivedData = data.receivedRequests || [];
+
+      friendsList.innerHTML = "";
+      sentList.innerHTML = "";
+      receivedList.innerHTML = "";
+
+      // FRIENDS
+      if (friendsData.length === 0) {
+        friendsList.innerHTML = `<p>No friends yet.</p>`;
+      } else {
+        friendsData.forEach(u => friendsList.appendChild(createCard(u, "friend")));
+      }
+
+      // SENT
+      if (sentData.length === 0) {
+        sentList.innerHTML = `<p>No sent requests.</p>`;
+      } else {
+        sentData.forEach(u => sentList.appendChild(createCard(u, "sent")));
+      }
+
+      // RECEIVED
+      if (receivedData.length === 0) {
+        receivedList.innerHTML = `<p>No received requests.</p>`;
+      } else {
+        receivedData.forEach(u => receivedList.appendChild(createCard(u, "received")));
+      }
+
+    } catch (err) {
+      console.error("loadFriends error:", err);
     }
-
-    const data = await res.json();
-
-    const friends = data.friends || [];
-    const sent = data.sentRequests || [];
-    const received = data.receivedRequests || [];
-
-    friendsList.innerHTML = "";
-    sentList.innerHTML = "";
-    receivedList.innerHTML = "";
-
-    // FRIENDS
-    if (friends.length === 0) {
-      friendsList.innerHTML = `<p>No friends yet. Add friends to start chatting!</p>`;
-    } else {
-      friends.forEach(u => friendsList.appendChild(createCard(u, "friend")));
-    }
-
-    // SENT
-    if (sent.length === 0) {
-      sentList.innerHTML = `<p>No sent requests.</p>`;
-    } else {
-      sent.forEach(u => sentList.appendChild(createCard(u, "sent")));
-    }
-
-    // RECEIVED
-    if (received.length === 0) {
-      receivedList.innerHTML = `<p>No received requests.</p>`;
-    } else {
-      received.forEach(u => receivedList.appendChild(createCard(u, "received")));
-    }
-
-  } catch (err) {
-    console.error("loadFriends error:", err);
   }
-}
+
+  /* ========================= RELATIONSHIP HELPER ========================= */
+  function getRelationship(userId) {
+    if (friendsData.some(u => u._id === userId)) return "friend";
+    if (sentData.some(u => u._id === userId)) return "sent";
+    if (receivedData.some(u => u._id === userId)) return "received";
+    return "none";
+  }
 
   /* ========================= CREATE CARD ========================= */
   function createCard(user, type) {
     const card = document.createElement("div");
     card.className = "card";
 
-    const avatarHTML = user.avatarUrl 
-      ? `<img src="${user.avatarUrl}">` 
-      : `<span style="width:45px;height:45px;display:inline-block;">${DEFAULT_AVATAR}</span>`;
+    const avatarHTML = user.avatarUrl
+      ? `<img src="${user.avatarUrl}">`
+      : `<span style="width:45px;height:45px;">${DEFAULT_AVATAR}</span>`;
 
     let actionsHTML = "";
 
-    if(type==="friend") actionsHTML = `<span style="color:green;">Friend</span>`;
-    if(type==="sent") actionsHTML = `<button class="delete-btn">Delete</button>`;
-    if(type==="received") actionsHTML = `<button class="accept-btn">Accept</button><button class="reject-btn">Reject</button>`;
+    if (type === "friend") actionsHTML = `<span style="color:green;">Friend</span>`;
+    if (type === "sent") actionsHTML = `<button class="delete-btn">Delete</button>`;
+    if (type === "received") actionsHTML = `<button class="accept-btn">Accept</button><button class="reject-btn">Reject</button>`;
 
     card.innerHTML = `
       <div class="card-left">
@@ -296,45 +330,38 @@ document.addEventListener("DOMContentLoaded", async () => {
       </div>
     `;
 
-    // VIEW PROFILE
+    // VIEW
     card.querySelector(".view-btn").onclick = () => {
-      if(user.avatarUrl) viewAvatar.src = user.avatarUrl;
-      else viewAvatar.src = "";
+      viewAvatar.src = user.avatarUrl || "";
       viewUsername.textContent = user.username;
       viewBio.textContent = user.bio || "";
       profileModal.classList.add("show");
     };
 
-    // IMAGE PREVIEW
-    const imgEl = card.querySelector("img");
-    if(imgEl) imgEl.onclick = () => {
-      previewImg.src = user.avatarUrl || "";
-      imagePreview.classList.add("show");
-    };
-
-    // ACTION BUTTONS
-    if(type==="sent") {
+    // ACTIONS
+    if (type === "sent") {
       card.querySelector(".delete-btn").onclick = async () => {
         await fetch(`${API}/friends/request/${user._id}`, {
-          method:"DELETE",
-          headers:{ Authorization:`Bearer ${Auth.getToken()}` }
+          method: "DELETE",
+          headers: { Authorization: `Bearer ${Auth.getToken()}` }
         });
         loadFriends();
       };
     }
 
-    if(type==="received") {
+    if (type === "received") {
       card.querySelector(".accept-btn").onclick = async () => {
         await fetch(`${API}/friends/request/${user._id}/accept`, {
-          method:"POST",
-          headers:{ Authorization:`Bearer ${Auth.getToken()}` }
+          method: "POST",
+          headers: { Authorization: `Bearer ${Auth.getToken()}` }
         });
         loadFriends();
       };
+
       card.querySelector(".reject-btn").onclick = async () => {
         await fetch(`${API}/friends/request/${user._id}/reject`, {
-          method:"POST",
-          headers:{ Authorization:`Bearer ${Auth.getToken()}` }
+          method: "POST",
+          headers: { Authorization: `Bearer ${Auth.getToken()}` }
         });
         loadFriends();
       };
@@ -343,92 +370,112 @@ document.addEventListener("DOMContentLoaded", async () => {
     return card;
   }
 
-  /* ========================= TAB SWITCH ========================= */
-  function setActiveTab(tab) {
-    tabFriends.classList.remove("active");
-    tabSent.classList.remove("active");
-    tabReceived.classList.remove("active");
-    friendsList.classList.remove("active");
-    sentList.classList.remove("active");
-    receivedList.classList.remove("active");
-
-    if(tab==="friends") { tabFriends.classList.add("active"); friendsList.classList.add("active"); }
-    if(tab==="sent") { tabSent.classList.add("active"); sentList.classList.add("active"); }
-    if(tab==="received") { tabReceived.classList.add("active"); receivedList.classList.add("active"); }
-  }
-
-  tabFriends.onclick = () => setActiveTab("friends");
-  tabSent.onclick = () => setActiveTab("sent");
-  tabReceived.onclick = () => setActiveTab("received");
-
   /* ========================= SEARCH USERS ========================= */
   searchInput.addEventListener("input", async () => {
     const query = searchInput.value.trim();
-    if(!query) return;
+    if (!query) {
+      resultsDiv.innerHTML = "";
+      return;
+    }
 
     const token = Auth.getToken();
     const res = await fetch(`${API}/users/search?username=${query}`, {
-      headers:{ Authorization:`Bearer ${token}` }
+      headers: { Authorization: `Bearer ${token}` }
     });
+
     const data = await res.json();
-    const resultsDiv = document.getElementById("searchResults");
     resultsDiv.innerHTML = "";
 
-    data.users.filter(u=>u._id!==currentUserId).forEach(user=>{
-      const card = document.createElement("div");
-      card.className="card";
-      const avatarHTML = user.avatarUrl 
-        ? `<img src="${user.avatarUrl}">` 
-        : `<span style="width:45px;height:45px;display:inline-block;">${DEFAULT_AVATAR}</span>`;
+    data.users
+      .filter(u => u._id !== currentUserId)
+      .forEach(user => {
 
-      card.innerHTML=`
-        <div class="card-left">${avatarHTML}<span>${user.username}</span></div>
-        <div class="actions">
-          <button class="view-btn">View</button>
-          <button class="add-btn">Add</button>
-        </div>
-      `;
+        const relationship = getRelationship(user._id);
 
-      card.querySelector(".view-btn").onclick=()=>{
-        if(user.avatarUrl) viewAvatar.src = user.avatarUrl; else viewAvatar.src="";
-        viewUsername.textContent=user.username;
-        viewBio.textContent=user.bio||"";
-        profileModal.classList.add("show");
-      };
+        const card = document.createElement("div");
+        card.className = "card";
 
-      const imgEl = card.querySelector("img");
-      if(imgEl) imgEl.onclick=()=>{ previewImg.src=user.avatarUrl||""; imagePreview.classList.add("show"); };
+        let actionsHTML = "";
 
-      card.querySelector(".add-btn").onclick=async (e)=>{
-        const btn = e.target; btn.textContent="Pending"; btn.disabled=true;
-        await fetch(`${API}/friends/request`,{
-          method:"POST",
-          headers:{
-            "Content-Type":"application/json",
-            Authorization:`Bearer ${Auth.getToken()}`
-          },
-          body:JSON.stringify({ userId:user._id })
-        });
-        loadFriends();
-      };
+        if (relationship === "friend") {
+          actionsHTML = `<span style="color:green;">✔ Friend</span>`;
+        } 
+        else if (relationship === "sent") {
+          actionsHTML = `<span style="color:orange;">⏳ Pending</span>`;
+        } 
+        else if (relationship === "received") {
+          actionsHTML = `
+            <button class="accept-btn">Accept</button>
+            <button class="reject-btn">Reject</button>
+          `;
+        } 
+        else {
+          actionsHTML = `<button class="add-btn">Add</button>`;
+        }
 
-      resultsDiv.appendChild(card);
-    });
+        card.innerHTML = `
+          <div class="card-left">
+            ${user.avatarUrl ? `<img src="${user.avatarUrl}">` : DEFAULT_AVATAR}
+            <span>${user.username}</span>
+          </div>
+          <div class="actions">
+            <button class="view-btn">View</button>
+            ${actionsHTML}
+          </div>
+        `;
+
+        // VIEW
+        card.querySelector(".view-btn").onclick = () => {
+          viewAvatar.src = user.avatarUrl || "";
+          viewUsername.textContent = user.username;
+          viewBio.textContent = user.bio || "";
+          profileModal.classList.add("show");
+        };
+
+        // ADD
+        if (relationship === "none") {
+          card.querySelector(".add-btn").onclick = async () => {
+            await fetch(`${API}/friends/request`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${token}`
+              },
+              body: JSON.stringify({ userId: user._id })
+            });
+            loadFriends();
+          };
+        }
+
+        // ACCEPT / REJECT
+        if (relationship === "received") {
+          card.querySelector(".accept-btn").onclick = async () => {
+            await fetch(`${API}/friends/request/${user._id}/accept`, {
+              method: "POST",
+              headers: { Authorization: `Bearer ${token}` }
+            });
+            loadFriends();
+          };
+
+          card.querySelector(".reject-btn").onclick = async () => {
+            await fetch(`${API}/friends/request/${user._id}/reject`, {
+              method: "POST",
+              headers: { Authorization: `Bearer ${token}` }
+            });
+            loadFriends();
+          };
+        }
+
+        resultsDiv.appendChild(card);
+      });
   });
 
-  /* ========================= THEME ========================= */
-  themeToggle.onclick=()=>{ document.body.classList.toggle("dark"); };
-
-  /* ========================= MODALS ========================= */
-  window.onclick=(e)=>{
-    if(e.target===profileModal) profileModal.classList.remove("show");
-    if(e.target===imagePreview) imagePreview.classList.remove("show");
-  };
-
+  /* ========================= INIT ========================= */
   await loadUser();
   await loadFriends();
 
 });
 </script>
+
 </body>
 </html>
