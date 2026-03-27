@@ -321,12 +321,11 @@ body:not(.dark) .toast { background: #f0f0f0; color: #111; }
 
 <script type="module">
 import { Auth } from "./session.js";
-import { UI } from "./utils/ui.js"; // ← utilities for loaders, skeletons, toasts
+import UI from "./utils/ui.js"; // ← default import
 
 const API = "https://chatmate-kbwz.onrender.com/api/auth";
 
 document.addEventListener("DOMContentLoaded", async () => {
-
   const searchInput = document.getElementById("searchInput");
   const friendsList = document.getElementById("friendsList");
   const sentList = document.getElementById("sentList");
@@ -383,7 +382,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   /* ========================= LOAD FRIENDS ========================= */
   async function loadFriends() {
     try {
-      UI.showPageLoader(); // show page spinner
+      UI.showPageLoader(friendsList); // show spinner
       const token = Auth.getToken();
 
       const res = await fetch(`${API}/friends`, {
@@ -403,22 +402,22 @@ document.addEventListener("DOMContentLoaded", async () => {
       receivedList.innerHTML = "";
 
       // FRIENDS
-      if (!friendsData.length) friendsList.innerHTML = UI.getSkeletonCards(3);
+      if (!friendsData.length) UI.showSkeleton(friendsList, 3);
       else friendsData.forEach(u => friendsList.appendChild(createCard(u, "friend")));
 
       // SENT
-      if (!sentData.length) sentList.innerHTML = UI.getSkeletonCards(2);
+      if (!sentData.length) UI.showSkeleton(sentList, 2);
       else sentData.forEach(u => sentList.appendChild(createCard(u, "sent")));
 
       // RECEIVED
-      if (!receivedData.length) receivedList.innerHTML = UI.getSkeletonCards(2);
+      if (!receivedData.length) UI.showSkeleton(receivedList, 2);
       else receivedData.forEach(u => receivedList.appendChild(createCard(u, "received")));
 
     } catch (err) {
       console.error("loadFriends error:", err);
-      UI.toast("Failed to load friends", "error");
+      UI.showToast("Failed to load friends", "error");
     } finally {
-      UI.hidePageLoader(); // hide spinner
+      UI.hidePageLoader(friendsList); // hide spinner
     }
   }
 
@@ -471,7 +470,7 @@ document.addEventListener("DOMContentLoaded", async () => {
           method: "DELETE",
           headers: { Authorization: `Bearer ${Auth.getToken()}` }
         });
-        UI.toast("Request deleted", "info");
+        UI.showToast("Request deleted", "info");
         loadFriends();
       };
     }
@@ -482,7 +481,7 @@ document.addEventListener("DOMContentLoaded", async () => {
           method: "POST",
           headers: { Authorization: `Bearer ${Auth.getToken()}` }
         });
-        UI.toast("Request accepted", "success");
+        UI.showToast("Request accepted", "success");
         loadFriends();
       };
 
@@ -491,7 +490,7 @@ document.addEventListener("DOMContentLoaded", async () => {
           method: "POST",
           headers: { Authorization: `Bearer ${Auth.getToken()}` }
         });
-        UI.toast("Request rejected", "error");
+        UI.showToast("Request rejected", "error");
         loadFriends();
       };
     }
@@ -535,7 +534,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       return;
     }
 
-    UI.showLoader(resultsDiv); // show inline loader
+    UI.showSkeleton(resultsDiv, 3); // show inline skeleton
     const token = Auth.getToken();
 
     try {
@@ -547,16 +546,12 @@ document.addEventListener("DOMContentLoaded", async () => {
       resultsDiv.innerHTML = "";
 
       if (!data.users.length) resultsDiv.innerHTML = `<p>No results found</p>`;
-      else {
-        data.users
-          .filter(u => u._id !== currentUserId)
-          .forEach(user => resultsDiv.appendChild(createCard(user, getRelationship(user._id))));
-      }
+      else data.users
+        .filter(u => u._id !== currentUserId)
+        .forEach(user => resultsDiv.appendChild(createCard(user, getRelationship(user._id))));
     } catch (err) {
       console.error(err);
-      UI.toast("Search failed", "error");
-    } finally {
-      UI.hideLoader(resultsDiv); // hide inline loader
+      UI.showToast("Search failed", "error");
     }
   });
 
@@ -566,18 +561,8 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   /* ========================= MODALS ========================= */
 
-  // PROFILE MODAL
-  profileModal.addEventListener("click", (e) => {
-    if (e.target === profileModal) profileModal.classList.remove("show");
-  });
-
-  // IMAGE PREVIEW MODAL
-  imagePreview.addEventListener("click", (e) => {
-    if (e.target === imagePreview) {
-      imagePreview.classList.remove("show");
-      previewImg.src = "";
-    }
-  });
+  UI.setupCloseOnOutside(profileModal);
+  UI.setupImageModal(imagePreview, previewImg);
 
 });
 </script>
