@@ -646,7 +646,7 @@ router.delete('/friends/request/:userId', authenticateJWT, async (req, res) => {
 /* =========================
    HEALTH CHECK
 ========================= */
-app.get("/api/health", (req, res) => {
+router.get("/api/health", (req, res) => {
   res.send("Server is awake");
 });
 
