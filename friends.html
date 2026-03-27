@@ -381,45 +381,61 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   /* ========================= LOAD FRIENDS ========================= */
   async function loadFriends() {
-    try {
-      UI.showPageLoader(friendsList);
-      const token = Auth.getToken();
+  try {
+    UI.showPageLoader(friendsList);
+    const token = Auth.getToken();
 
-      const res = await fetch(`${API}/friends`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+    const res = await fetch(`${API}/friends`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
 
-      if (!res.ok) throw new Error("Failed to fetch friends");
+    if (!res.ok) throw new Error("Failed to fetch friends");
 
-      const data = await res.json();
-      friendsData = data.friends || [];
-      sentData = data.sentRequests || [];
-      receivedData = data.receivedRequests || [];
+    const requests = await res.json(); // array of friend requests
 
-      // Clear lists
-      friendsList.innerHTML = "";
-      sentList.innerHTML = "";
-      receivedList.innerHTML = "";
+    friendsData = [];
+    sentData = [];
+    receivedData = [];
 
-      // FRIENDS
-      if (!friendsData.length) friendsList.innerHTML = "<p>No friends yet</p>";
-      else friendsData.forEach(u => friendsList.appendChild(createCard(u, "friend")));
+    // Process requests
+    requests.forEach(req => {
+      const isRequester = req.requester._id === currentUserId;
+      const isRecipient = req.recipient._id === currentUserId;
 
-      // SENT
-      if (!sentData.length) sentList.innerHTML = "<p>No sent requests</p>";
-      else sentData.forEach(u => sentList.appendChild(createCard(u, "sent")));
+      if (req.status === "accepted") {
+        // add the other user as friend
+        const friend = isRequester ? req.recipient : req.requester;
+        friendsData.push(friend);
+      } else if (req.status === "pending") {
+        if (isRequester) sentData.push(req.recipient);
+        if (isRecipient) receivedData.push(req.requester);
+      }
+    });
 
-      // RECEIVED
-      if (!receivedData.length) receivedList.innerHTML = "<p>No received requests</p>";
-      else receivedData.forEach(u => receivedList.appendChild(createCard(u, "received")));
+    // Clear lists
+    friendsList.innerHTML = "";
+    sentList.innerHTML = "";
+    receivedList.innerHTML = "";
 
-    } catch (err) {
-      console.error("loadFriends error:", err);
-      UI.showToast("Failed to load friends", "error");
-    } finally {
-      UI.hidePageLoader(friendsList);
-    }
+    // FRIENDS
+    if (!friendsData.length) friendsList.innerHTML = "<p>No friends yet</p>";
+    else friendsData.forEach(u => friendsList.appendChild(createCard(u, "friend")));
+
+    // SENT
+    if (!sentData.length) sentList.innerHTML = "<p>No sent requests</p>";
+    else sentData.forEach(u => sentList.appendChild(createCard(u, "sent")));
+
+    // RECEIVED
+    if (!receivedData.length) receivedList.innerHTML = "<p>No received requests</p>";
+    else receivedData.forEach(u => receivedList.appendChild(createCard(u, "received")));
+
+  } catch (err) {
+    console.error("loadFriends error:", err);
+    UI.showToast("Failed to load friends", "error");
+  } finally {
+    UI.hidePageLoader(friendsList);
   }
+}
 
   /* ========================= RELATIONSHIP HELPER ========================= */
   function getRelationship(userId) {
