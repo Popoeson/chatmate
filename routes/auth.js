@@ -641,5 +641,14 @@ router.delete('/friends/request/:userId', authenticateJWT, async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 });
+
+
+/* =========================
+   HEALTH CHECK
+========================= */
+app.get("/api/health", (req, res) => {
+  res.send("Server is awake");
+});
+
 export default router;
 
