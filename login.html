@@ -354,7 +354,7 @@ body:not(.dark) .modal-content { background: #fff; }
 <div id="modal" class="modal">
   <div class="modal-content">
     <p id="modalMessage"></p>
-    <button onclick="closeModal()">OK</button>
+    <button id="modalOkBtn">OK</button>
   </div>
 </div> -->
 
@@ -408,7 +408,13 @@ const showModal = (msg) => {
   document.getElementById("modalMessage").innerText = msg;
   document.getElementById("modal").style.display = "flex";
 };
-const closeModal = () => document.getElementById("modal").style.display = "none";
+
+const closeModal = () => {
+  document.getElementById("modal").style.display = "none";
+};
+
+// ✅ attach event properly
+document.getElementById("modalOkBtn").onclick = closeModal;
 
 /* LOADING */
 function setLoading(state){
