@@ -98,3 +98,14 @@ export function setupCloseOnOutside(modal) {
     }
   });
 }
+
+const UI = {
+  showPageLoader,
+  hidePageLoader,
+  showLoader,
+  hideLoader,
+  toast,
+  getSkeletonCards
+};
+
+export default UI;
