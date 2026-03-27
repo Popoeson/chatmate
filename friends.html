@@ -499,7 +499,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   if (type === "none") {
     card.querySelector(".add-btn").onclick = async () => {
       try {
-        const res = await fetch(`${API}/friends/request/${user._id}`, {
+        const res = await fetch(`${API}/friends/request/`, {
           method: "POST",
           headers: { Authorization: `Bearer ${Auth.getToken()}` }
         });
