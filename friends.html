@@ -138,6 +138,139 @@ body.dark .modal-content { background:#1C1C1E; }
 .badge.friend { background: #4caf50; color: #fff; }
 .badge.pending { background: orange; color: #fff; }
 
+/* =========================
+   LOADER (BUTTON / INLINE)
+========================= */
+body.dark .loader span {
+  background: #fff; /* white in dark mode */
+}
+body:not(.dark) .loader span {
+  background: #000; /* black in light mode */
+}
+
+.loader {
+  display: none;
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.loader.active { display: inline-flex; }
+
+.loader span {
+  width: 6px;
+  height: 6px;
+  margin: 0 2px;
+  border-radius: 50%;
+  animation: bounce 1s infinite;
+}
+
+.loader span:nth-child(2){ animation-delay: 0.2s; }
+.loader span:nth-child(3){ animation-delay: 0.4s; }
+
+@keyframes bounce {
+  0%,80%,100%{ transform: scale(0); }
+  40%{ transform: scale(1); }
+}
+
+/* =========================
+   PAGE SPINNER
+========================= */
+.page-loader {
+  display: flex;
+  justify-content: center;
+  padding: 30px;
+}
+
+body.dark .spinner {
+  border: 3px solid #555;
+  border-top: 3px solid #0f0; /* example accent */
+}
+body:not(.dark) .spinner {
+  border: 3px solid #ccc;
+  border-top: 3px solid #28a745; /* example accent */
+}
+
+.spinner {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* =========================
+   SKELETON CARDS
+========================= */
+.skeleton-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px;
+  margin-bottom: 10px;
+  border-radius: 12px;
+  animation: pulse 1.2s infinite;
+}
+
+.skeleton-avatar {
+  width: 45px;
+  height: 45px;
+  border-radius: 50%;
+}
+
+.skeleton-text {
+  width: 120px;
+  height: 12px;
+  border-radius: 6px;
+}
+
+body.dark .skeleton-card { background: rgba(255,255,255,0.05); }
+body:not(.dark) .skeleton-card { background: rgba(0,0,0,0.05); }
+
+body.dark .skeleton-avatar { background: #444; }
+body:not(.dark) .skeleton-avatar { background: #ddd; }
+
+body.dark .skeleton-text { background: #555; }
+body:not(.dark) .skeleton-text { background: #ccc; }
+
+@keyframes pulse {
+  0% { opacity: 0.6; }
+  50% { opacity: 1; }
+  100% { opacity: 0.6; }
+}
+
+/* =========================
+   TOAST NOTIFICATIONS
+========================= */
+.toast {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%) translateY(20px);
+  padding: 12px 18px;
+  border-radius: 999px;
+  font-size: 14px;
+  opacity: 0;
+  transition: 0.3s;
+  z-index: 9999;
+  color: #fff;
+}
+
+body.dark .toast { background: #1c1c1e; }
+body:not(.dark) .toast { background: #f0f0f0; color: #111; }
+
+.toast.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+.toast.success { background: #28a745; }
+.toast.error { background: #dc3545; }
+.toast.info { background: #007bff; }
+
 </style>
 </head>
 
