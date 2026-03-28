@@ -11,6 +11,7 @@ import jwt from "jsonwebtoken";
 import multer from "multer";
 import { v2 as cloudinary } from "cloudinary";
 import { CloudinaryStorage } from "multer-storage-cloudinary";
+import { io, onlineUsers } from "../server.js";
 
 const router = express.Router();
 const rateLimitMap = new Map(); // key: userId, value: { count, firstRequestTime }
@@ -461,12 +462,14 @@ router.get('/users/search', authenticateJWT, async (req, res) => {
   }
 });
 
+
+
 /* =========================
    FRIEND REQUEST
 ========================= */
 router.post('/friends/request', authenticateJWT, async (req, res) => {
   try {
-    const requesterId = req.userId; // <-- FIXED
+    const requesterId = req.userId;
     const { userId } = req.body;
 
     if (!userId) return res.status(400).json({ message: 'Recipient userId required' });
@@ -495,8 +498,18 @@ router.post('/friends/request', authenticateJWT, async (req, res) => {
     });
 
     await newRequest.save();
-    res.json({ message: 'Friend request sent' });
 
+    // 🔔 SOCKET: Notify recipient if online
+    const recipientSocketId = onlineUsers.get(userId);
+    if (recipientSocketId) {
+      const requester = await User.findById(requesterId).select("username");
+      io.to(recipientSocketId).emit("friend_request_received", {
+        from: requesterId,
+        username: requester.username
+      });
+    }
+
+    res.json({ message: 'Friend request sent' });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Server error' });
@@ -508,7 +521,7 @@ router.post('/friends/request', authenticateJWT, async (req, res) => {
 ========================= */
 router.get('/friends', authenticateJWT, async (req, res) => {
   try {
-    const userId = req.userId.toString(); // 🔥 FIX HERE
+    const userId = req.userId.toString();
 
     const requests = await FriendRequest.find({
       $or: [
@@ -524,38 +537,28 @@ router.get('/friends', authenticateJWT, async (req, res) => {
     const received = [];
 
     requests.forEach(reqItem => {
-  if (!reqItem.requester || !reqItem.recipient) return;
+      if (!reqItem.requester || !reqItem.recipient) return;
 
-  const requesterId = reqItem.requester._id.toString();
-  const recipientId = reqItem.recipient._id.toString();
+      const requesterId = reqItem.requester._id.toString();
+      const recipientId = reqItem.recipient._id.toString();
 
-  // ✅ FIX: use == not === (handles ObjectId/string mismatch)
-  const isRequester = requesterId == userId;
-  const isRecipient = recipientId == userId;
+      const isRequester = requesterId == userId;
+      const isRecipient = recipientId == userId;
 
-  if (reqItem.status === "accepted") {
-    const friend = isRequester ? reqItem.recipient : reqItem.requester;
-
-    if (friend) accepted.push(friend);
-  }
-
-  else if (reqItem.status === "pending") {
-    if (isRequester) sent.push(reqItem.recipient);
-    if (isRecipient) received.push(reqItem.requester);
-  }
-});
-
-    console.log("USER:", userId);
-    console.log("ACCEPTED", accepted.length);
-    console.log("SENT:", sent.length);
-    console.log("RECEIVED:", received.length);
+      if (reqItem.status === "accepted") {
+        const friend = isRequester ? reqItem.recipient : reqItem.requester;
+        if (friend) accepted.push(friend);
+      } else if (reqItem.status === "pending") {
+        if (isRequester) sent.push(reqItem.recipient);
+        if (isRecipient) received.push(reqItem.requester);
+      }
+    });
 
     res.json({
       friends: accepted,
       sentRequests: sent,
       receivedRequests: received
     });
-
   } catch (err) {
     console.error("FRIENDS ERROR:", err);
     res.status(500).json({ message: "Server error" });
@@ -576,15 +579,22 @@ router.post('/friends/request/:userId/accept', authenticateJWT, async (req, res)
       status: "pending"
     });
 
-    if (!request) {
-      return res.status(404).json({ message: "Request not found" });
-    }
+    if (!request) return res.status(404).json({ message: "Request not found" });
 
     request.status = "accepted";
     await request.save();
 
-    res.json({ message: "Friend request accepted" });
+    // 🔔 SOCKET: Notify requester
+    const requesterSocketId = onlineUsers.get(requesterId);
+    if (requesterSocketId) {
+      const currentUser = await User.findById(currentUserId).select("username");
+      io.to(requesterSocketId).emit("friend_request_accepted", {
+        by: currentUserId,
+        username: currentUser.username
+      });
+    }
 
+    res.json({ message: "Friend request accepted" });
   } catch (err) {
     console.error("ACCEPT ERROR:", err);
     res.status(500).json({ message: "Server error" });
@@ -605,12 +615,19 @@ router.post('/friends/request/:userId/reject', authenticateJWT, async (req, res)
       status: "pending"
     });
 
-    if (!request) {
-      return res.status(404).json({ message: "Request not found" });
+    if (!request) return res.status(404).json({ message: "Request not found" });
+
+    // 🔔 SOCKET: Notify requester
+    const requesterSocketId = onlineUsers.get(requesterId);
+    if (requesterSocketId) {
+      const currentUser = await User.findById(currentUserId).select("username");
+      io.to(requesterSocketId).emit("friend_request_rejected", {
+        by: currentUserId,
+        username: currentUser.username
+      });
     }
 
     res.json({ message: "Friend request rejected" });
-
   } catch (err) {
     console.error("REJECT ERROR:", err);
     res.status(500).json({ message: "Server error" });
@@ -618,7 +635,7 @@ router.post('/friends/request/:userId/reject', authenticateJWT, async (req, res)
 });
 
 /* =========================
-   DELETE REQUEST 
+   DELETE REQUEST
 ========================= */
 router.delete('/friends/request/:userId', authenticateJWT, async (req, res) => {
   try {
@@ -631,18 +648,24 @@ router.delete('/friends/request/:userId', authenticateJWT, async (req, res) => {
       status: "pending"
     });
 
-    if (!request) {
-      return res.status(404).json({ message: "Request not found" });
+    if (!request) return res.status(404).json({ message: "Request not found" });
+
+    // 🔔 SOCKET: Notify recipient
+    const recipientSocketId = onlineUsers.get(recipientId);
+    if (recipientSocketId) {
+      const currentUser = await User.findById(currentUserId).select("username");
+      io.to(recipientSocketId).emit("friend_request_deleted", {
+        by: currentUserId,
+        username: currentUser.username
+      });
     }
 
     res.json({ message: "Request cancelled" });
-
   } catch (err) {
     console.error("DELETE ERROR:", err);
     res.status(500).json({ message: "Server error" });
   }
 });
-
 
 /* =========================
    HEALTH CHECK
