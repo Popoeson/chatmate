@@ -179,17 +179,14 @@ footer.hide {
 </footer>
 
 <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
-
 <script type="module">
 import { Auth } from "./session.js";
 
 const API = "https://chatmate-kbwz.onrender.com/api/auth";
 
 document.addEventListener("DOMContentLoaded", async () => {
-
   const addFriendBtn = document.getElementById("addFriendBtn");
   const badge = document.getElementById("friendBadge");
-
   const toggle = document.getElementById("themeToggle");
   const encryptionToggle = document.getElementById("encryptionToggle");
   const footer = document.querySelector("footer");
@@ -200,19 +197,14 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   /* ========================= BADGE ========================= */
   function updateBadge() {
-    if (notificationCount > 0) {
-      badge.style.display = "inline-block";
-      badge.textContent = notificationCount;
-    } else {
-      badge.style.display = "none";
-    }
+    badge.style.display = notificationCount > 0 ? "inline-block" : "none";
+    badge.textContent = notificationCount || "";
   }
 
   /* ========================= REDIRECT ========================= */
   addFriendBtn.addEventListener("click", () => {
-    notificationCount = 0; // 🔥 clear badge
+    notificationCount = 0;
     updateBadge();
-
     window.location.href = "friends.html";
   });
 
@@ -233,36 +225,32 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   /* ========================= LOAD USER ========================= */
   async function loadUser() {
-    try {
-      const user = await Auth.getUser();
+    const user = await Auth.getUser();
 
-      if (!user) {
-        window.location.href = "login.html";
-        return;
-      }
-
-      currentUserId = user._id;
-
-      // Display user
-      document.getElementById("usernameDisplay").innerText =
-        user.username || user.email;
-
-      document.getElementById("avatarImg").src =
-        user.avatarUrl ||
-        "data:image/svg+xml;base64,PHN2ZyBmaWxsPSIjRkZGIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI1MCIgaGVpZ2h0PSI1MCIgdmlld0JveD0iMCAwIDI0IDI0Ij48Y2lyY2xlIGN4PSIxMiIgY3k9IjgiIHI9IjQiLz48cGF0aCBkPSJNMTIgMTFjLTMuMyAwLTYgMi43LTYgNmgyMGMwLTMuMy0yLjctNi02LTZ6Ii8+PC9zdmc+";
-
-      // 🔥 start socket after user loads
-      initSocket();
-
-    } catch (err) {
-      console.error("Failed to load user:", err);
-      Auth.clearToken();
+    if (!user) {
+      // token missing/invalid → redirect
       window.location.href = "login.html";
+      return;
     }
+
+    currentUserId = user._id;
+
+    // Display username and avatar
+    document.getElementById("usernameDisplay").innerText =
+      user.username || user.email;
+
+    document.getElementById("avatarImg").src =
+      user.avatarUrl ||
+      "data:image/svg+xml;base64,PHN2ZyBmaWxsPSIjRkZGIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI1MCIgaGVpZ2h0PSI1MCIgdmlld0JveD0iMCAwIDI0IDI0Ij48Y2lyY2xlIGN4PSIxMiIgY3k9IjgiIHI9IjQiLz48cGF0aCBkPSJNMTIgMTFjLTMuMyAwLTYgMi43LTYgNmgyMGMwLTMuMy0yLjctNi02LTZ6Ii8+PC9zdmc+";
+
+    // 🔥 Start socket after user loads
+    initSocket();
   }
 
   /* ========================= SOCKET.IO ========================= */
   function initSocket() {
+    if (!currentUserId) return;
+
     socket = io("https://chatmate-kbwz.onrender.com");
 
     // join personal room
@@ -270,51 +258,23 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     console.log("Socket connected for user:", currentUserId);
 
-    /* ===== REAL-TIME EVENTS ===== */
-
-    // 🔔 New incoming request
-    socket.on("friend:new-request", () => {
-      console.log("New friend request received");
-      notificationCount++;
-      updateBadge();
-    });
-
-    // 🔔 Request accepted
-    socket.on("friend:accepted", () => {
-      console.log("Friend request accepted");
-      notificationCount++;
-      updateBadge();
-    });
-
-    // 🔔 General sync (fallback)
-    socket.on("friend:update", () => {
-      console.log("Friend update event");
-      notificationCount++;
-      updateBadge();
-    });
+    // Friend notifications
+    socket.on("friend:new-request", () => { notificationCount++; updateBadge(); });
+    socket.on("friend:accepted", () => { notificationCount++; updateBadge(); });
+    socket.on("friend:update", () => { notificationCount++; updateBadge(); });
   }
 
   /* ========================= FOOTER HIDE/SHOW ========================= */
   let lastScroll = 0;
-
   window.addEventListener("scroll", () => {
     const currentScroll = window.pageYOffset;
-
-    if (currentScroll > lastScroll && currentScroll > 50) {
-      footer.classList.add("hide");
-    } else {
-      footer.classList.remove("hide");
-    }
-
+    footer.classList.toggle("hide", currentScroll > lastScroll && currentScroll > 50);
     lastScroll = currentScroll;
   });
 
   /* ========================= INIT ========================= */
-  await loadUser();
-
+  loadUser(); // no await needed, DOM ready
 });
-
 </script>
-
 </body>
 </html>
