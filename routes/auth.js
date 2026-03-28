@@ -669,11 +669,16 @@ router.delete('/friends/request/:userId', authenticateJWT, async (req, res) => {
 /* =========================
    UPDATE PENDING FRINED FOR HOME
 ========================= */
+// GET pending friend requests count
 router.get("/pending", authenticateJWT, async (req, res) => {
   try {
-    const count = await Friend.countDocuments({ to: req.userId, status: "pending" });
+    const count = await FriendRequest.countDocuments({
+      recipient: req.userId,
+      status: "pending"
+    });
     res.status(200).json({ count });
   } catch (err) {
+    console.error("PENDING FRIENDS ERROR:", err);
     res.status(500).json({ message: "Server error" });
   }
 });
