@@ -524,26 +524,26 @@ router.get('/friends', authenticateJWT, async (req, res) => {
     const received = [];
 
     requests.forEach(reqItem => {
-      const requesterId = reqItem.requester._id.toString();
-      const recipientId = reqItem.recipient._id.toString();
+  if (!reqItem.requester || !reqItem.recipient) return;
 
-      if (reqItem.status === "accepted") {
-        const friend = requesterId === userId
-          ? reqItem.recipient
-          : reqItem.requester;
+  const requesterId = reqItem.requester._id.toString();
+  const recipientId = reqItem.recipient._id.toString();
 
-        accepted.push(friend);
-      }
+  // ✅ FIX: use == not === (handles ObjectId/string mismatch)
+  const isRequester = requesterId == userId;
+  const isRecipient = recipientId == userId;
 
-      else if (reqItem.status === "pending") {
-        if (requesterId === userId) {
-          sent.push(reqItem.recipient);
-        } 
-        else if (recipientId === userId) {
-          received.push(reqItem.requester);
-        }
-      }
-    });
+  if (reqItem.status === "accepted") {
+    const friend = isRequester ? reqItem.recipient : reqItem.requester;
+
+    if (friend) accepted.push(friend);
+  }
+
+  else if (reqItem.status === "pending") {
+    if (isRequester) sent.push(reqItem.recipient);
+    if (isRecipient) received.push(reqItem.requester);
+  }
+});
 
     console.log("USER:", userId);
     console.log("SENT:", sent.length);
