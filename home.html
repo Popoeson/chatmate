@@ -181,7 +181,6 @@ footer.hide {
 <script type="module">
 import { Auth } from "./session.js";
 
-const API = "https://chatmate-kbwz.onrender.com/api/auth";
 const FRIEND_API = "https://chatmate-kbwz.onrender.com/api/friends";
 
 document.addEventListener("DOMContentLoaded", async () => {
@@ -193,7 +192,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   const encryptionToggle = document.getElementById("encryptionToggle");
   const footer = document.querySelector("footer");
 
-  // DEBUG PANEL
+  // ========================= DEBUG PANEL =========================
   const debugPanel = document.createElement("div");
   debugPanel.style.position = "fixed";
   debugPanel.style.bottom = "60px";
@@ -222,6 +221,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     badge.textContent = notificationCount || "";
   }
 
+  // ========================= BUTTONS =========================
   addFriendBtn.addEventListener("click", () => {
     notificationCount = 0;
     updateBadge();
@@ -241,33 +241,17 @@ document.addEventListener("DOMContentLoaded", async () => {
     encryptionToggle.classList.toggle("fa-lock-open", !encrypted);
   };
 
-  // ========================= LOAD USER & NOTIFICATIONS =========================
+  // ========================= LOAD USER =========================
   async function loadUser() {
     try {
-      const token = Auth.getToken();
-      logDebug("Token: " + (token || "null"));
+      const user = await Auth.getUser(); // ✅ Use Auth.getUser()
+      logDebug("Auth.getUser() returned: " + JSON.stringify(user));
 
-      if (!token) {
-        logDebug("No token found, redirecting to login...");
+      if (!user) {
+        logDebug("No user found, redirecting to login...");
         window.location.href = "login.html";
         return;
       }
-
-      const userRes = await fetch(`${API}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      logDebug("User fetch status: " + userRes.status);
-
-      if (!userRes.ok) {
-        const errText = await userRes.text();
-        logDebug("User fetch error: " + errText);
-        Auth.clearToken();
-        window.location.href = "login.html";
-        return;
-      }
-
-      const user = await userRes.json();
-      logDebug("User data loaded: " + JSON.stringify(user));
 
       currentUserId = user._id;
 
@@ -275,22 +259,26 @@ document.addEventListener("DOMContentLoaded", async () => {
       document.getElementById("usernameDisplay").innerText = user.username || user.email;
       document.getElementById("avatarImg").src = user.avatarUrl || "https://i.pravatar.cc/50";
 
-      // Fetch pending friend notifications
-      const res = await fetch(`${FRIEND_API}/pending`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      if (res.ok) {
-        const data = await res.json();
-        notificationCount = data.count || 0;
-        updateBadge();
-        logDebug("Pending friend count: " + notificationCount);
-      } else {
-        logDebug("Friend fetch error: " + res.status);
+      // ========================= FETCH FRIEND NOTIFICATIONS =========================
+      try {
+        const res = await fetch(`${FRIEND_API}/pending`, {
+          headers: { Authorization: `Bearer ${Auth.getToken()}` },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          notificationCount = data.count || 0;
+          updateBadge();
+          logDebug("Pending friend count: " + notificationCount);
+        } else {
+          logDebug("Friend fetch failed with status: " + res.status);
+        }
+      } catch (notifErr) {
+        logDebug("Could not fetch notifications: " + notifErr.message);
       }
 
-      // Initialize socket after user loads
+      // ========================= INITIALIZE SOCKET =========================
       initSocket();
+
     } catch (err) {
       logDebug("Error loading user: " + err.message);
       Auth.clearToken();
@@ -298,6 +286,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
   }
 
+  // ========================= SOCKET.IO =========================
   function initSocket() {
     if (!currentUserId) return;
 
@@ -320,6 +309,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     socket.on("connect_error", (err) => logDebug("Socket connect error: " + err.message));
   }
 
+  // ========================= FOOTER HIDE/SHOW =========================
   let lastScroll = 0;
   window.addEventListener("scroll", () => {
     const currentScroll = window.pageYOffset;
