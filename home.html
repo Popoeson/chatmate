@@ -242,57 +242,77 @@ document.addEventListener("DOMContentLoaded", async () => {
     encryptionToggle.classList.toggle("fa-lock-open", !encrypted);
   };
 
-  // ========================= LOAD USER =========================
-  async function loadUser() {
+  // ========================= SAFE GET USER =========================
+  async function safeGetUser() {
+    const token = Auth.getToken();
+    if (!token) {
+      logDebug("No token found in storage.");
+      return null;
+    }
+    logDebug("Token found: " + token);
+
     try {
-      const user = await Auth.getUser();
+      const res = await fetch("https://chatmate-kbwz.onrender.com/api/auth/me", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
 
-      // Safe logging
-      try {
-        logDebug("Auth.getUser() returned: " + (user ? JSON.stringify(user) : "null"));
-      } catch (e) {
-        logDebug("Could not stringify user: " + e.message);
+      if (res.status === 401 || res.status === 403) {
+        logDebug("Token invalid/expired. Clearing token...");
+        Auth.clearToken();
+        return null;
       }
 
-      if (!user) {
-        logDebug("No user found, redirecting to login...");
-        window.location.href = "login.html";
-        return;
+      if (!res.ok) {
+        logDebug("Failed to fetch user. Status: " + res.status);
+        return null; // keep token, don't logout yet
       }
 
-      currentUserId = user._id;
-
-      // Display user info
-      const usernameEl = document.getElementById("usernameDisplay");
-      const avatarEl = document.getElementById("avatarImg");
-      if (usernameEl) usernameEl.innerText = user.username || user.email;
-      if (avatarEl) avatarEl.src = user.avatarUrl || "https://i.pravatar.cc/50";
-
-      // ========================= FETCH FRIEND NOTIFICATIONS =========================
-      try {
-        const res = await fetch(`${FRIEND_API}/pending`, {
-          headers: { Authorization: `Bearer ${Auth.getToken()}` },
-        });
-        if (res.ok) {
-          const data = await res.json();
-          notificationCount = data.count || 0;
-          updateBadge();
-          logDebug("Pending friend count: " + notificationCount);
-        } else {
-          logDebug("Friend fetch failed with status: " + res.status);
-        }
-      } catch (notifErr) {
-        logDebug("Could not fetch notifications: " + notifErr.message);
-      }
-
-      // ========================= INITIALIZE SOCKET =========================
-      initSocket();
+      const data = await res.json();
+      logDebug("User fetched successfully: " + JSON.stringify(data.user));
+      return data.user || null;
 
     } catch (err) {
-      logDebug("Error loading user: " + err.message);
-      Auth.clearToken();
-      window.location.href = "login.html";
+      logDebug("Network error fetching user: " + err.message);
+      return null; // don't clear token on network error
     }
+  }
+
+  // ========================= LOAD USER =========================
+  async function loadUser() {
+    const user = await safeGetUser();
+
+    if (!user) {
+      logDebug("Redirecting to login page...");
+      window.location.href = "login.html";
+      return;
+    }
+
+    currentUserId = user._id;
+
+    const usernameEl = document.getElementById("usernameDisplay");
+    const avatarEl = document.getElementById("avatarImg");
+    if (usernameEl) usernameEl.innerText = user.username || user.email;
+    if (avatarEl) avatarEl.src = user.avatarUrl || "https://i.pravatar.cc/50";
+
+    // ========================= FETCH FRIEND NOTIFICATIONS =========================
+    try {
+      const res = await fetch(`${FRIEND_API}/pending`, {
+        headers: { Authorization: `Bearer ${Auth.getToken()}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        notificationCount = data.count || 0;
+        updateBadge();
+        logDebug("Pending friend count: " + notificationCount);
+      } else {
+        logDebug("Friend fetch failed with status: " + res.status);
+      }
+    } catch (notifErr) {
+      logDebug("Could not fetch notifications: " + notifErr.message);
+    }
+
+    // ========================= INITIALIZE SOCKET.IO =========================
+    initSocket();
   }
 
   // ========================= SOCKET.IO =========================
@@ -330,5 +350,6 @@ document.addEventListener("DOMContentLoaded", async () => {
   loadUser();
 });
 </script>
+
 </body>
 </html>
