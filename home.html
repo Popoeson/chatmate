@@ -58,6 +58,11 @@ header {
   cursor: pointer;
 }
 
+.icon-wrapper {
+  position: relative;
+  display: inline-block;
+}
+
 .badge {
   position: absolute;
   top: -5px;
@@ -68,6 +73,7 @@ header {
   padding: 2px 6px;
   border-radius: 50%;
   font-weight: bold;
+  display: none; /* hidden by default */
 }
 
 /* ========================= CHAT LIST ========================= */
@@ -132,10 +138,14 @@ footer.hide {
 </div>
 
   <div class="header-icons">
-    <i id="encryptionToggle" class="fa-solid fa-lock"></i>
-    <i id="themeToggle" class="fa-solid fa-moon"></i>
+  <i id="encryptionToggle" class="fa-solid fa-lock"></i>
+  <i id="themeToggle" class="fa-solid fa-moon"></i>
+
+  <div class="icon-wrapper">
     <i id="addFriendBtn" class="fa-solid fa-plus"></i>
+    <span id="friendBadge" class="badge">0</span>
   </div>
+</div>
 </header>
 
 <!-- CHAT LIST -->
@@ -168,6 +178,8 @@ footer.hide {
   <div class="footer-item"><i class="fa-solid fa-gear"></i><span>Settings</span></div>
 </footer>
 
+<script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+<script>
 import { Auth } from "./session.js";
 
 const API = "https://chatmate-kbwz.onrender.com/api/auth";
@@ -300,6 +312,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   await loadUser();
 
 });
+
+</script>
 
 </body>
 </html>
