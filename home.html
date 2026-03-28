@@ -183,8 +183,11 @@ footer.hide {
 import { Auth } from "./session.js";
 
 const API = "https://chatmate-kbwz.onrender.com/api/auth";
+const FRIEND_API = "https://chatmate-kbwz.onrender.com/api/friends";
 
 document.addEventListener("DOMContentLoaded", async () => {
+
+  // ========================= ELEMENTS =========================
   const addFriendBtn = document.getElementById("addFriendBtn");
   const badge = document.getElementById("friendBadge");
   const toggle = document.getElementById("themeToggle");
@@ -195,27 +198,27 @@ document.addEventListener("DOMContentLoaded", async () => {
   let socket = null;
   let currentUserId = null;
 
-  /* ========================= BADGE ========================= */
+  // ========================= BADGE =========================
   function updateBadge() {
     badge.style.display = notificationCount > 0 ? "inline-block" : "none";
     badge.textContent = notificationCount || "";
   }
 
-  /* ========================= REDIRECT ========================= */
+  // ========================= REDIRECT =========================
   addFriendBtn.addEventListener("click", () => {
     notificationCount = 0;
     updateBadge();
     window.location.href = "friends.html";
   });
 
-  /* ========================= THEME ========================= */
+  // ========================= THEME =========================
   toggle.onclick = () => {
     document.body.classList.toggle("dark");
     toggle.classList.toggle("fa-sun");
     toggle.classList.toggle("fa-moon");
   };
 
-  /* ========================= ENCRYPTION ========================= */
+  // ========================= ENCRYPTION =========================
   let encrypted = true;
   encryptionToggle.onclick = () => {
     encrypted = !encrypted;
@@ -223,48 +226,65 @@ document.addEventListener("DOMContentLoaded", async () => {
     encryptionToggle.classList.toggle("fa-lock-open", !encrypted);
   };
 
-  /* ========================= LOAD USER ========================= */
+  // ========================= LOAD USER & NOTIFICATIONS =========================
   async function loadUser() {
-    const user = await Auth.getUser();
+    try {
+      const user = await Auth.getUser();
+      if (!user) {
+        window.location.href = "login.html";
+        return;
+      }
 
-    if (!user) {
-      // token missing/invalid → redirect
+      currentUserId = user._id;
+
+      // Display user info
+      document.getElementById("usernameDisplay").innerText = user.username || user.email;
+      document.getElementById("avatarImg").src = user.avatarUrl || "data:image/svg+xml;base64,PHN2ZyBmaWxsPSIjRkZGIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI1MCIgaGVpZ2h0PSI1MCIgdmlld0JveD0iMCAwIDI0IDI0Ij48Y2lyY2xlIGN4PSIxMiIgY3k9IjgiIHI9IjQiLz48cGF0aCBkPSJNMTIgMTFjLTMuMyAwLTYgMi43LTYgNmgyMGMwLTMuMy0yLjctNi02LTZ6Ii8+PC9zdmc+";
+
+      // Fetch pending friend notifications
+      const res = await fetch(`${FRIEND_API}/pending`, {
+        headers: { Authorization: `Bearer ${Auth.getToken()}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        notificationCount = data.count || 0;
+        updateBadge();
+      }
+
+      // Initialize socket after user loads
+      initSocket();
+    } catch (err) {
+      console.error("Error loading user:", err);
+      Auth.clearToken();
       window.location.href = "login.html";
-      return;
     }
-
-    currentUserId = user._id;
-
-    // Display username and avatar
-    document.getElementById("usernameDisplay").innerText =
-      user.username || user.email;
-
-    document.getElementById("avatarImg").src =
-      user.avatarUrl ||
-      "data:image/svg+xml;base64,PHN2ZyBmaWxsPSIjRkZGIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI1MCIgaGVpZ2h0PSI1MCIgdmlld0JveD0iMCAwIDI0IDI0Ij48Y2lyY2xlIGN4PSIxMiIgY3k9IjgiIHI9IjQiLz48cGF0aCBkPSJNMTIgMTFjLTMuMyAwLTYgMi43LTYgNmgyMGMwLTMuMy0yLjctNi02LTZ6Ii8+PC9zdmc+";
-
-    // 🔥 Start socket after user loads
-    initSocket();
   }
 
-  /* ========================= SOCKET.IO ========================= */
+  // ========================= SOCKET.IO =========================
   function initSocket() {
     if (!currentUserId) return;
 
-    socket = io("https://chatmate-kbwz.onrender.com");
+    // Send JWT in socket auth
+    socket = io("https://chatmate-kbwz.onrender.com", {
+      auth: { token: Auth.getToken() }
+    });
 
-    // join personal room
-    socket.emit("join", currentUserId);
-
-    console.log("Socket connected for user:", currentUserId);
+    socket.on("connect", () => {
+      console.log("Socket connected for user:", currentUserId);
+      socket.emit("join", currentUserId);
+    });
 
     // Friend notifications
     socket.on("friend:new-request", () => { notificationCount++; updateBadge(); });
     socket.on("friend:accepted", () => { notificationCount++; updateBadge(); });
     socket.on("friend:update", () => { notificationCount++; updateBadge(); });
+
+    // Handle disconnect/reconnect
+    socket.on("disconnect", (reason) => console.log("Socket disconnected:", reason));
+    socket.on("connect_error", (err) => console.error("Socket connect error:", err));
   }
 
-  /* ========================= FOOTER HIDE/SHOW ========================= */
+  // ========================= FOOTER HIDE/SHOW =========================
   let lastScroll = 0;
   window.addEventListener("scroll", () => {
     const currentScroll = window.pageYOffset;
@@ -272,8 +292,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     lastScroll = currentScroll;
   });
 
-  /* ========================= INIT ========================= */
-  loadUser(); // no await needed, DOM ready
+  // ========================= INIT =========================
+  loadUser();
+
 });
 </script>
 </body>
