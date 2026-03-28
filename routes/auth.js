@@ -54,6 +54,18 @@ router.get("/me", authenticateJWT, async (req, res)=>{
 
 
 /* =========================
+   UPDATE PENDING FRINED FOR HOME
+========================= */
+router.get("/pending", authenticateJWT, async (req, res) => {
+  try {
+    const count = await Friend.countDocuments({ to: req.userId, status: "pending" });
+    res.status(200).json({ count });
+  } catch (err) {
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+/* =========================
    UPDATE PROFILE
 ========================= */
 router.post("/update-profile", authenticateJWT, upload.single("avatar"), async (req,res)=>{
