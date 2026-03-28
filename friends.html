@@ -407,16 +407,24 @@ async function loadFriends() {
     friendsList.innerHTML = "";
     sentList.innerHTML = "";
     receivedList.innerHTML = "";
+  
+       // FRIENDS
+friendsList.innerHTML = ""; // clear ONCE
 
-    // FRIENDS
-    if (friendsData.length === 0) {
-      friendsList.innerHTML = "<p>No friends yet</p>";
-    } else {
-      friendsData.forEach(u => {
-        console.log("Rendering friend:", u); // 🔍 debug
-        friendsList.appendChild(createCard(u, "friend"));
-      });
-    }
+if (friendsData.length === 0) {
+  const p = document.createElement("p");
+  p.textContent = "No friends yet";
+  friendsList.appendChild(p);
+} else {
+  const fragment = document.createDocumentFragment();
+
+  friendsData.forEach(u => {
+    const card = createCard(u, "friend");
+    fragment.appendChild(card);
+  });
+
+  friendsList.appendChild(fragment);
+}
 
     // SENT
     if (sentData.length === 0) {
