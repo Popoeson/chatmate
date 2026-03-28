@@ -178,149 +178,128 @@ footer.hide {
   <div class="footer-item"><i class="fa-solid fa-gear"></i><span>Settings</span></div>
 </footer>
 
-<script type="module">
-import { Auth } from "./session.js";
+<script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script> 
+ <script type="module">      
 
+import { Auth } from "./session.js";   
+
+   const API = "https://chatmate-kbwz.onrender.com/api/auth";
 const FRIEND_API = "https://chatmate-kbwz.onrender.com/api/friends";
 
 document.addEventListener("DOMContentLoaded", async () => {
 
-  // ========================= ELEMENTS =========================
-  const addFriendBtn = document.getElementById("addFriendBtn");
-  const badge = document.getElementById("friendBadge");
-  const toggle = document.getElementById("themeToggle");
-  const encryptionToggle = document.getElementById("encryptionToggle");
-  const footer = document.querySelector("footer");
+// ========================= ELEMENTS =========================
+const addFriendBtn = document.getElementById("addFriendBtn");
+const badge = document.getElementById("friendBadge");
+const toggle = document.getElementById("themeToggle");
+const encryptionToggle = document.getElementById("encryptionToggle");
+const footer = document.querySelector("footer");
 
-  // ========================= DEBUG PANEL =========================
-  const debugPanel = document.createElement("div");
-  debugPanel.style.position = "fixed";
-  debugPanel.style.bottom = "60px";
-  debugPanel.style.right = "10px";
-  debugPanel.style.padding = "10px";
-  debugPanel.style.background = "rgba(0,0,0,0.7)";
-  debugPanel.style.color = "#fff";
-  debugPanel.style.fontSize = "12px";
-  debugPanel.style.zIndex = "9999";
-  debugPanel.style.maxHeight = "200px";
-  debugPanel.style.overflowY = "auto";
-  debugPanel.innerHTML = "<b>Debug Panel:</b><br>";
-  document.body.appendChild(debugPanel);
+let notificationCount = 0;
+let socket = null;
+let currentUserId = null;
 
-  function logDebug(msg) {
-    console.log(msg);
-    debugPanel.innerHTML += msg + "<br>";
-  }
+// ========================= BADGE =========================
+function updateBadge() {
+badge.style.display = notificationCount > 0 ? "inline-block" : "none";
+badge.textContent = notificationCount || "";
+}
 
-  let notificationCount = 0;
-  let socket = null;
-  let currentUserId = null;
-
-  function updateBadge() {
-    badge.style.display = notificationCount > 0 ? "inline-block" : "none";
-    badge.textContent = notificationCount || "";
-  }
-
-  // ========================= BUTTONS =========================
-  addFriendBtn.addEventListener("click", () => {
-    notificationCount = 0;
-    updateBadge();
-    window.location.href = "friends.html";
-  });
-
-  toggle.onclick = () => {
-    document.body.classList.toggle("dark");
-    toggle.classList.toggle("fa-sun");
-    toggle.classList.toggle("fa-moon");
-  };
-
-  let encrypted = true;
-  encryptionToggle.onclick = () => {
-    encrypted = !encrypted;
-    encryptionToggle.classList.toggle("fa-lock", encrypted);
-    encryptionToggle.classList.toggle("fa-lock-open", !encrypted);
-  };
-
-  // ========================= LOAD USER =========================
-  async function loadUser() {
-    try {
-      const user = await Auth.getUser(); // ✅ Use Auth.getUser()
-      logDebug("Auth.getUser() returned: " + JSON.stringify(user));
-
-      if (!user) {
-        logDebug("No user found, redirecting to login...");
-        window.location.href = "login.html";
-        return;
-      }
-
-      currentUserId = user._id;
-
-      // Display user info
-      document.getElementById("usernameDisplay").innerText = user.username || user.email;
-      document.getElementById("avatarImg").src = user.avatarUrl || "https://i.pravatar.cc/50";
-
-      // ========================= FETCH FRIEND NOTIFICATIONS =========================
-      try {
-        const res = await fetch(`${FRIEND_API}/pending`, {
-          headers: { Authorization: `Bearer ${Auth.getToken()}` },
-        });
-        if (res.ok) {
-          const data = await res.json();
-          notificationCount = data.count || 0;
-          updateBadge();
-          logDebug("Pending friend count: " + notificationCount);
-        } else {
-          logDebug("Friend fetch failed with status: " + res.status);
-        }
-      } catch (notifErr) {
-        logDebug("Could not fetch notifications: " + notifErr.message);
-      }
-
-      // ========================= INITIALIZE SOCKET =========================
-      initSocket();
-
-    } catch (err) {
-      logDebug("Error loading user: " + err.message);
-      Auth.clearToken();
-      window.location.href = "login.html";
-    }
-  }
-
-  // ========================= SOCKET.IO =========================
-  function initSocket() {
-    if (!currentUserId) return;
-
-    logDebug("Initializing Socket.IO...");
-
-    socket = io("https://chatmate-kbwz.onrender.com", {
-      auth: { token: Auth.getToken() }
-    });
-
-    socket.on("connect", () => {
-      logDebug("Socket connected for user: " + currentUserId);
-      socket.emit("join", currentUserId);
-    });
-
-    socket.on("friend:new-request", () => { notificationCount++; updateBadge(); });
-    socket.on("friend:accepted", () => { notificationCount++; updateBadge(); });
-    socket.on("friend:update", () => { notificationCount++; updateBadge(); });
-
-    socket.on("disconnect", (reason) => logDebug("Socket disconnected: " + reason));
-    socket.on("connect_error", (err) => logDebug("Socket connect error: " + err.message));
-  }
-
-  // ========================= FOOTER HIDE/SHOW =========================
-  let lastScroll = 0;
-  window.addEventListener("scroll", () => {
-    const currentScroll = window.pageYOffset;
-    footer.classList.toggle("hide", currentScroll > lastScroll && currentScroll > 50);
-    lastScroll = currentScroll;
-  });
-
-  // ========================= INIT =========================
-  loadUser();
+// ========================= REDIRECT =========================
+addFriendBtn.addEventListener("click", () => {
+notificationCount = 0;
+updateBadge();
+window.location.href = "friends.html";
 });
-</script>
+
+// ========================= THEME =========================
+toggle.onclick = () => {
+document.body.classList.toggle("dark");
+toggle.classList.toggle("fa-sun");
+toggle.classList.toggle("fa-moon");
+};
+
+// ========================= ENCRYPTION =========================
+let encrypted = true;
+encryptionToggle.onclick = () => {
+encrypted = !encrypted;
+encryptionToggle.classList.toggle("fa-lock", encrypted);
+encryptionToggle.classList.toggle("fa-lock-open", !encrypted);
+};
+
+// ========================= LOAD USER & NOTIFICATIONS =========================
+async function loadUser() {
+try {
+const user = await Auth.getUser();
+if (!user) {
+window.location.href = "login.html";
+return;
+}
+
+currentUserId = user._id;      
+  
+  // Display user info      
+  document.getElementById("usernameDisplay").innerText = user.username || user.email;      
+  document.getElementById("avatarImg").src = user.avatarUrl || "data:image/svg+xml;base64,PHN2ZyBmaWxsPSIjRkZGIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI1MCIgaGVpZ2h0PSI1MCIgdmlld0JveD0iMCAwIDI0IDI0Ij48Y2lyY2xlIGN4PSIxMiIgY3k9IjgiIHI9IjQiLz48cGF0aCBkPSJNMTIgMTFjLTMuMyAwLTYgMi43LTYgNmgyMGMwLTMuMy0yLjctNi02LTZ6Ii8+PC9zdmc+";      
+  
+  // Fetch pending friend notifications      
+  const res = await fetch(`${FRIEND_API}/pending`, {      
+    headers: { Authorization: `Bearer ${Auth.getToken()}` },      
+  });      
+  if (res.ok) {      
+    const data = await res.json();      
+    notificationCount = data.count || 0;      
+    updateBadge();      
+  }      
+  
+  // Initialize socket after user loads      
+  initSocket();      
+} catch (err) {      
+  console.error("Error loading user:", err);      
+  Auth.clearToken();      
+  window.location.href = "login.html";      
+}
+
+}
+
+// ========================= SOCKET.IO =========================
+function initSocket() {
+if (!currentUserId) return;
+
+// Send JWT in socket auth      
+socket = io("https://chatmate-kbwz.onrender.com", {      
+  auth: { token: Auth.getToken() }      
+});      
+  
+socket.on("connect", () => {      
+  console.log("Socket connected for user:", currentUserId);      
+  socket.emit("join", currentUserId);      
+});      
+  
+// Friend notifications      
+socket.on("friend:new-request", () => { notificationCount++; updateBadge(); });      
+socket.on("friend:accepted", () => { notificationCount++; updateBadge(); });      
+socket.on("friend:update", () => { notificationCount++; updateBadge(); });      
+  
+// Handle disconnect/reconnect      
+socket.on("disconnect", (reason) => console.log("Socket disconnected:", reason));      
+socket.on("connect_error", (err) => console.error("Socket connect error:", err));
+
+}
+
+// ========================= FOOTER HIDE/SHOW =========================
+let lastScroll = 0;
+window.addEventListener("scroll", () => {
+const currentScroll = window.pageYOffset;
+footer.classList.toggle("hide", currentScroll > lastScroll && currentScroll > 50);
+lastScroll = currentScroll;
+});
+
+// ========================= INIT =========================
+loadUser();
+
+});
+</script>  
 
 </body>
 </html>
