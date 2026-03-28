@@ -18,7 +18,7 @@ const server = http.createServer(app);
 /* =========================
    SOCKET.IO SETUP
 ========================= */
-const io = new Server(server, {
+export const io = new Server(server, {
   cors: {
     origin: "*", // 🔥 change to your frontend URL in production
     methods: ["GET", "POST"]
@@ -29,7 +29,7 @@ const io = new Server(server, {
    STORE CONNECTED USERS
 ========================= */
 // userId → socketId
-const onlineUsers = new Map();
+export const onlineUsers = new Map();
 
 /* =========================
    SOCKET CONNECTION
@@ -55,12 +55,6 @@ io.on("connection", (socket) => {
     }
   });
 });
-
-/* =========================
-   MAKE IO ACCESSIBLE IN ROUTES
-========================= */
-app.set("io", io);
-app.set("onlineUsers", onlineUsers);
 
 /* =========================
    MIDDLEWARE
