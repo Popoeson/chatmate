@@ -52,19 +52,6 @@ router.get("/me", authenticateJWT, async (req, res)=>{
   }
 });
 
-
-/* =========================
-   UPDATE PENDING FRINED FOR HOME
-========================= */
-router.get("/pending", authenticateJWT, async (req, res) => {
-  try {
-    const count = await Friend.countDocuments({ to: req.userId, status: "pending" });
-    res.status(200).json({ count });
-  } catch (err) {
-    res.status(500).json({ message: "Server error" });
-  }
-});
-
 /* =========================
    UPDATE PROFILE
 ========================= */
@@ -675,6 +662,18 @@ router.delete('/friends/request/:userId', authenticateJWT, async (req, res) => {
     res.json({ message: "Request cancelled" });
   } catch (err) {
     console.error("DELETE ERROR:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+/* =========================
+   UPDATE PENDING FRINED FOR HOME
+========================= */
+router.get("/pending", authenticateJWT, async (req, res) => {
+  try {
+    const count = await Friend.countDocuments({ to: req.userId, status: "pending" });
+    res.status(200).json({ count });
+  } catch (err) {
     res.status(500).json({ message: "Server error" });
   }
 });
