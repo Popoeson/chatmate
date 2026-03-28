@@ -265,7 +265,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
       if (!res.ok) {
         logDebug("Failed to fetch user. Status: " + res.status);
-        return null; // keep token, don't logout yet
+        return null; 
       }
 
       const data = await res.json();
@@ -274,7 +274,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     } catch (err) {
       logDebug("Network error fetching user: " + err.message);
-      return null; // don't clear token on network error
+      return null;
     }
   }
 
@@ -295,25 +295,31 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (usernameEl) usernameEl.innerText = user.username || user.email;
     if (avatarEl) avatarEl.src = user.avatarUrl || "https://i.pravatar.cc/50";
 
-    // ========================= FETCH FRIEND NOTIFICATIONS =========================
+    // ========================= FETCH PENDING FRIEND REQUESTS =========================
+    await fetchPendingCount();
+
+    // ========================= INITIALIZE SOCKET.IO =========================
+    initSocket();
+  }
+
+  // ========================= FETCH PENDING COUNT =========================
+  async function fetchPendingCount() {
     try {
       const res = await fetch(`${FRIEND_API}/pending`, {
         headers: { Authorization: `Bearer ${Auth.getToken()}` },
       });
+
       if (res.ok) {
         const data = await res.json();
         notificationCount = data.count || 0;
         updateBadge();
-        logDebug("Pending friend count: " + notificationCount);
+        logDebug("Pending friend requests: " + notificationCount);
       } else {
-        logDebug("Friend fetch failed with status: " + res.status);
+        logDebug("Failed to fetch pending friends. Status: " + res.status);
       }
-    } catch (notifErr) {
-      logDebug("Could not fetch notifications: " + notifErr.message);
+    } catch (err) {
+      logDebug("Error fetching pending friends: " + err.message);
     }
-
-    // ========================= INITIALIZE SOCKET.IO =========================
-    initSocket();
   }
 
   // ========================= SOCKET.IO =========================
@@ -331,9 +337,10 @@ document.addEventListener("DOMContentLoaded", async () => {
       socket.emit("join", currentUserId);
     });
 
+    // Friend request events
     socket.on("friend:new-request", () => { notificationCount++; updateBadge(); });
-    socket.on("friend:accepted", () => { notificationCount++; updateBadge(); });
-    socket.on("friend:update", () => { notificationCount++; updateBadge(); });
+    socket.on("friend:accepted", () => { notificationCount--; updateBadge(); });
+    socket.on("friend:update", () => { fetchPendingCount(); });
 
     socket.on("disconnect", (reason) => logDebug("Socket disconnected: " + reason));
     socket.on("connect_error", (err) => logDebug("Socket connect error: " + err.message));
