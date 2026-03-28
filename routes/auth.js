@@ -546,6 +546,7 @@ router.get('/friends', authenticateJWT, async (req, res) => {
 });
 
     console.log("USER:", userId);
+    console.log("ACCEPTED", accepted.length);
     console.log("SENT:", sent.length);
     console.log("RECEIVED:", received.length);
 
