@@ -479,117 +479,143 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   // ========================= CREATE CARD =========================
   function createCard(user, type) {
-    const card = document.createElement("div");
-    card.className = "card";
+  const card = document.createElement("div");
+  card.className = "card";
 
-    const avatarHTML = user.avatarUrl ? `<img src="${user.avatarUrl}">` : `<span style="width:45px;height:45px;">${DEFAULT_AVATAR}</span>`;
+  const avatarHTML = user.avatarUrl
+    ? `<img src="${user.avatarUrl}">`
+    : `<span style="width:45px;height:45px;">${DEFAULT_AVATAR}</span>`;
 
-    let actionsHTML = "";
-    if (type === "friend") actionsHTML = `
-      <button class="view-btn">View</button>
-      <button class="block-btn">Block</button>
+  let actionsHTML = "";
+
+  if (type === "friend") {
+    // Add "Block" button for friends
+    actionsHTML = `
       <span style="color:green;">Friend</span>
+      <button class="block-btn">Block</button>
     `;
-    if (type === "sent") actionsHTML = `
+  } else if (type === "sent") {
+    actionsHTML = `
       <button class="delete-btn">Delete</button>
       <span style="color:orange;"><i class="fa-solid fa-spinner fa-spin"></i> Pending</span>
     `;
-    if (type === "received") actionsHTML = `<button class="accept-btn">Accept</button><button class="reject-btn">Reject</button>`;
-    if (type === "none") actionsHTML = `<button class="add-btn">Add</button>`;
-    if (type === "blocked") actionsHTML = `<span style="color:red;">Blocked</span><button class="unblock-btn">Unblock</button>`;
-
-    card.innerHTML = `
-      <div class="card-left">
-        ${avatarHTML}
-        <span>${user.username}</span>
-      </div>
-      <div class="actions">
-        ${actionsHTML}
-      </div>
+  } else if (type === "received") {
+    actionsHTML = `<button class="accept-btn">Accept</button><button class="reject-btn">Reject</button>`;
+  } else if (type === "blocked") {
+    // Custom blocked state
+    actionsHTML = `
+      <span style="color:red;">Blocked</span>
+      <button class="unblock-btn">Unblock</button>
     `;
+  } else if (type === "none") {
+    actionsHTML = `<button class="add-btn">Add</button>`;
+  }
 
-    // VIEW
-    const viewBtn = card.querySelector(".view-btn");
-    if (viewBtn) viewBtn.onclick = () => {
-      viewAvatar.src = user.avatarUrl || "";
-      viewUsername.textContent = user.username;
-      viewBio.textContent = user.bio || "";
-      profileModal.classList.add("show");
-    };
+  card.innerHTML = `
+    <div class="card-left">
+      ${avatarHTML}
+      <span>${user.username}</span>
+    </div>
+    <div class="actions">
+      <button class="view-btn">View</button>
+      ${actionsHTML}
+    </div>
+  `;
 
-    // BLOCK
-    const blockBtn = card.querySelector(".block-btn");
-    if (blockBtn) blockBtn.onclick = async () => {
-      try {
-        await fetch(`${API}/friends/block/${user._id}`, {
-          method: "POST",
-          headers: { Authorization: `Bearer ${Auth.getToken()}` }
-        });
-        UI.showToast("User blocked", "error");
-        loadFriends();
-        socket.emit("user_blocked", { blockedId: user._id });
-      } catch {
-        UI.showToast("Could not block user", "error");
-      }
-    };
+  // VIEW PROFILE
+  card.querySelector(".view-btn").onclick = () => {
+    viewAvatar.src = user.avatarUrl || "";
+    viewUsername.textContent = user.username;
+    viewBio.textContent = user.bio || "";
+    profileModal.classList.add("show");
+  };
 
-    // UNBLOCK
-    const unblockBtn = card.querySelector(".unblock-btn");
-    if (unblockBtn) unblockBtn.onclick = async () => {
-      try {
-        await fetch(`${API}/friends/unblock/${user._id}`, {
-          method: "POST",
-          headers: { Authorization: `Bearer ${Auth.getToken()}` }
-        });
-        UI.showToast("User unblocked", "success");
-        loadFriends();
-      } catch {
-        UI.showToast("Could not unblock user", "error");
-      }
-    };
-
-    // SENT
-    const deleteBtn = card.querySelector(".delete-btn");
-    if (deleteBtn) deleteBtn.onclick = async () => {
+  // ACTIONS
+  if (type === "sent") {
+    card.querySelector(".delete-btn").onclick = async () => {
       await fetch(`${API}/friends/request/${user._id}`, {
-        method: "DELETE", headers: { Authorization: `Bearer ${Auth.getToken()}` }
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${Auth.getToken()}` }
       });
       UI.showToast("Request deleted", "info");
       loadFriends();
     };
+  }
 
-    // RECEIVED
-    const acceptBtn = card.querySelector(".accept-btn");
-    if (acceptBtn) acceptBtn.onclick = async () => {
-      await fetch(`${API}/friends/request/${user._id}/accept`, { method: "POST", headers: { Authorization: `Bearer ${Auth.getToken()}` } });
-      UI.showToast("Request accepted", "success");
-      loadFriends();
-    };
-    const rejectBtn = card.querySelector(".reject-btn");
-    if (rejectBtn) rejectBtn.onclick = async () => {
-      await fetch(`${API}/friends/request/${user._id}/reject`, { method: "POST", headers: { Authorization: `Bearer ${Auth.getToken()}` } });
-      UI.showToast("Request rejected", "error");
+  if (type === "received") {
+    card.querySelector(".accept-btn").onclick = async () => {
+      await fetch(`${API}/friends/request/${user._id}/accept`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${Auth.getToken()}` }
+      });
+      UI.showToast("Friend request accepted", "success");
       loadFriends();
     };
 
-    // NONE
-    const addBtn = card.querySelector(".add-btn");
-    if (addBtn) addBtn.onclick = async () => {
+    card.querySelector(".reject-btn").onclick = async () => {
+      await fetch(`${API}/friends/request/${user._id}/reject`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${Auth.getToken()}` }
+      });
+      UI.showToast("Friend request rejected", "error");
+      loadFriends();
+    };
+  }
+
+  if (type === "friend") {
+    card.querySelector(".block-btn").onclick = async () => {
       try {
-        await fetch(`${API}/friends/request`, {
+        const res = await fetch(`${API}/friends/request/${user._id}/block`, {
           method: "POST",
-          headers: { Authorization: `Bearer ${Auth.getToken()}`, "Content-Type": "application/json" },
+          headers: { Authorization: `Bearer ${Auth.getToken()}` }
+        });
+        if (!res.ok) throw new Error();
+        UI.showToast("User blocked", "error");
+        loadFriends();
+      } catch {
+        UI.showToast("Failed to block user", "error");
+      }
+    };
+  }
+
+  if (type === "blocked") {
+    card.querySelector(".unblock-btn").onclick = async () => {
+      try {
+        const res = await fetch(`${API}/friends/request/${user._id}/unblock`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${Auth.getToken()}` }
+        });
+        if (!res.ok) throw new Error();
+        UI.showToast("User unblocked", "success");
+        loadFriends();
+      } catch {
+        UI.showToast("Failed to unblock user", "error");
+      }
+    };
+  }
+
+  if (type === "none") {
+    card.querySelector(".add-btn").onclick = async () => {
+      try {
+        const res = await fetch(`${API}/friends/request`, {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${Auth.getToken()}`,
+            "Content-Type": "application/json"
+          },
           body: JSON.stringify({ userId: user._id })
         });
+        if (!res.ok) throw new Error();
         UI.showToast("Friend request sent", "success");
         loadFriends();
       } catch {
         UI.showToast("Could not send request", "error");
       }
     };
-
-    return card;
   }
+
+  return card;
+}
 
   // ========================= TABS =========================
   function setActiveTab(tab) {
