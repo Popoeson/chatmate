@@ -550,7 +550,12 @@ function initSocket() {
 
     let actionsHTML = "";
     if (type === "friend") actionsHTML = `<span style="color:green;">Friend</span>`;
-    if (type === "sent") actionsHTML = `<button class="delete-btn">Delete</button>`;
+    if (type === "sent") {
+  actionsHTML = `
+    <span style="color:orange;">Pending</span>
+    <button class="delete-btn">Cancel</button>
+  `;
+}
     if (type === "received") actionsHTML = `<button class="accept-btn">Accept</button><button class="reject-btn">Reject</button>`;
     if (type === "none") actionsHTML = `<button class="add-btn">Add</button>`;
 
