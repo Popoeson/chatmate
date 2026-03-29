@@ -513,6 +513,18 @@ document.addEventListener("DOMContentLoaded", async () => {
       <div class="actions"><button class="view-btn">View</button>${actionsHTML}</div>
     `;
 
+// ================= CLICK TO OPEN CHAT =================
+if (type === "friend") {
+  card.style.cursor = "pointer";
+
+  card.addEventListener("click", (e) => {
+    // 🚫 Prevent redirect if a button was clicked
+    if (e.target.closest("button")) return;
+
+    window.location.href = `chat.html?userId=${user._id}`;
+  });
+}
+
     // --- VIEW PROFILE ---
     card.querySelector(".view-btn").onclick = () => {
       viewAvatar.src = user.avatarUrl || "";
