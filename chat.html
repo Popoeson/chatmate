@@ -1,13 +1,19 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta charset="UTF-8" />
-<title>Chat</title>
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
-<script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
 
+<!-- ✅ VERY IMPORTANT FOR RESPONSIVENESS -->
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Chat</title>
+
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+
+<!-- ✅ FIXED ICONS -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+
+<script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
 
 <style>
 
@@ -51,7 +57,7 @@ body {
 /* ========================= WRAPPER ========================= */
 .chat-wrapper {
   width: 100%;
-  max-width: 500px; /* ✅ nice on desktop */
+  max-width: 500px;
 
   display: flex;
   flex-direction: column;
@@ -78,7 +84,6 @@ body.dark .chat-header {
   background: rgba(0,0,0,0.3);
 }
 
-/* Avatar */
 .chat-header img {
   width: 38px;
   height: 38px;
@@ -86,7 +91,6 @@ body.dark .chat-header {
   object-fit: cover;
 }
 
-/* Username */
 .chat-header span {
   font-weight: 600;
   font-size: 15px;
@@ -95,7 +99,6 @@ body.dark .chat-header {
 /* ========================= MESSAGES ========================= */
 .messages {
   flex: 1;
-
   overflow-y: auto;
   overflow-x: hidden;
 
@@ -116,23 +119,17 @@ body.dark .chat-header {
   line-height: 1.4;
 
   word-wrap: break-word;
-
-  box-shadow: 0 2px 6px rgba(0,0,0,0.05);
 }
 
-/* My message */
 .me {
   align-self: flex-end;
   background: var(--primary);
   color: var(--bg);
-  border-bottom-right-radius: 4px;
 }
 
-/* Their message */
 .them {
   align-self: flex-start;
   background: var(--white);
-  border-bottom-left-radius: 4px;
 }
 
 body.dark .them {
@@ -151,14 +148,12 @@ body.dark .them {
 
   backdrop-filter: blur(15px);
   background: rgba(255,255,255,0.15);
-  border-top: 1px solid rgba(0,0,0,0.05);
 }
 
 body.dark .chat-input {
   background: rgba(0,0,0,0.3);
 }
 
-/* Input field */
 .chat-input input {
   flex: 1;
 
@@ -173,7 +168,6 @@ body.dark .chat-input {
   outline: none;
 }
 
-/* Send button */
 .chat-input button {
   width: 42px;
   height: 42px;
@@ -186,97 +180,44 @@ body.dark .chat-input {
   display: flex;
   align-items: center;
   justify-content: center;
-
-  cursor: pointer;
 }
 
-/* Ensure icon shows */
 .chat-input button i {
   font-size: 16px;
-  color: inherit;
-}
-
-/* ========================= THEME TOGGLE ========================= */
-#themeToggle {
-  margin-left: auto;
-  cursor: pointer;
-}
-
-/* ========================= SCROLLBAR CLEAN ========================= */
-.messages::-webkit-scrollbar {
-  width: 4px;
-}
-
-.messages::-webkit-scrollbar-thumb {
-  background: rgba(0,0,0,0.2);
-  border-radius: 10px;
-}
-
-body.dark .messages::-webkit-scrollbar-thumb {
-  background: rgba(255,255,255,0.2);
 }
 
 /* ========================= MOBILE ========================= */
 @media (max-width: 480px) {
-  .chat-wrapper {
-    max-width: 100%;
-  }
-
-  .chat-header {
-    padding: 10px;
-  }
-
-  .chat-header span {
-    font-size: 14px;
-  }
-
-  .messages {
-    padding: 10px;
-    gap: 8px;
-  }
-
   .msg {
     max-width: 85%;
     font-size: 13px;
-    padding: 8px 10px;
-  }
-
-  .chat-input {
-    padding: 8px 10px;
-  }
-
-  .chat-input input {
-    font-size: 13px;
-    padding: 8px 10px;
-  }
-
-  .chat-input button {
-    width: 38px;
-    height: 38px;
   }
 }
-</style>
 
+</style>
 </head>
 
 <body>
 
-<div class="chat-wrapper>
-<!-- HEADER -->
-<div class="chat-header">
-  <img id="chatAvatar" />
-  <span id="chatUsername">Loading...</span>
-  <i id="themeToggle" class="fa-solid fa-moon"></i>
-</div>
+<div class="chat-wrapper">
 
-<!-- MESSAGES -->
-<div id="messages" class="messages"></div>
+  <!-- HEADER -->
+  <div class="chat-header">
+    <img id="chatAvatar" />
+    <span id="chatUsername">Loading...</span>
+    <i id="themeToggle" class="fa-solid fa-moon"></i>
+  </div>
 
-<!-- INPUT -->
-<div class="chat-input">
-  <input id="messageInput" placeholder="Type message..." />
-  <button id="sendBtn"><i class="fa-solid fa-paper-plane"></i></button>
-</div>
+  <!-- MESSAGES -->
+  <div id="messages" class="messages"></div>
+
+  <!-- INPUT -->
+  <div class="chat-input">
+    <input id="messageInput" placeholder="Type message..." />
+    <button id="sendBtn">
+      <i class="fa-solid fa-paper-plane"></i>
+    </button>
+  </div>
 
 </div>
 
