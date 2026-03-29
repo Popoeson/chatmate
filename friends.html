@@ -341,82 +341,88 @@ body:not(.dark) .toast { background: #f0f0f0; color: #111; }
 </div>
 
 
-<script type="module">  
-import { Auth } from "./session.js";  
-import UI from "./utils/ui.js"; // ← default import  
-  
-const API = "https://chatmate-kbwz.onrender.com/api/auth";  
-  
-document.addEventListener("DOMContentLoaded", async () => {  
-  const searchInput = document.getElementById("searchInput");  
-  const friendsList = document.getElementById("friendsList");  
-  const sentList = document.getElementById("sentList");  
-  const receivedList = document.getElementById("receivedList");  
-  const resultsDiv = document.getElementById("searchResults");  
-  
-  const profileModal = document.getElementById("profileModal");  
-  const imagePreview = document.getElementById("imagePreview");  
-  const viewAvatar = document.getElementById("viewAvatar");  
-  const viewUsername = document.getElementById("viewUsername");  
-  const viewBio = document.getElementById("viewBio");  
-  const previewImg = document.getElementById("previewImg");  
-  const themeToggle = document.getElementById("themeToggle");  
-  
-  const tabFriends = document.getElementById("tabFriends");  
-  const tabSent = document.getElementById("tabSent");  
-  const tabReceived = document.getElementById("tabReceived");  
-  
-  let currentUserId = null;  
-  
-/* THEME */  
-const toggle = document.getElementById("themeToggle");  
-const icon = toggle.querySelector("i");  
-  
-toggle.onclick = () => {  
-  document.body.classList.toggle("dark");  
-  icon.classList.toggle("fa-sun");  
-  icon.classList.toggle("fa-moon");  
-};  
-  
-  // ✅ GLOBAL RELATIONSHIP STATE  
-  let friendsData = [];  
-  let sentData = [];  
-  let receivedData = [];  
-  
-  const DEFAULT_AVATAR = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="#888"><path d="M12 12c2.7 0 5-2.3 5-5s-2.3-5-5-5-5 2.3-5 5 2.3 5 5 5zm0 2c-3.3 0-10 1.7-10 5v3h20v-3c0-3.3-6.7-5-10-5z"/></svg>`;  
-  
-/* ========================= LOAD CURRENT USER ========================= */  
-async function loadUser() {  
-  const token = Auth.getToken();  
-  if (!token) {  
-    window.location.href = "login.html";  
-    return;  
-  }  
-  
-  try {  
-    const res = await fetch(`${API}/me`, {  
-      headers: { Authorization: `Bearer ${token}` }  
-    });  
-  
-    if (!res.ok) {  
-      Auth.clearToken();  
-      window.location.href = "login.html";  
-      return;  
-    }  
-  
-    const data = await res.json();  
-    currentUserId = data.user._id;  
-  
-  } catch (err) {  
-    console.error("loadUser error:", err);  
-    Auth.clearToken();  
-    window.location.href = "login.html";  
-  }  
-}  
+<script type="module">
+import { Auth } from "./session.js";
+import UI from "./utils/ui.js";
+
+const API = "https://chatmate-kbwz.onrender.com/api/auth";
+
+document.addEventListener("DOMContentLoaded", async () => {
+
+  // ========================= ELEMENTS =========================
+  const searchInput = document.getElementById("searchInput");
+  const friendsList = document.getElementById("friendsList");
+  const sentList = document.getElementById("sentList");
+  const receivedList = document.getElementById("receivedList");
+  const resultsDiv = document.getElementById("searchResults");
+
+  const profileModal = document.getElementById("profileModal");
+  const imagePreview = document.getElementById("imagePreview");
+  const viewAvatar = document.getElementById("viewAvatar");
+  const viewUsername = document.getElementById("viewUsername");
+  const viewBio = document.getElementById("viewBio");
+  const previewImg = document.getElementById("previewImg");
+
+  const tabFriends = document.getElementById("tabFriends");
+  const tabSent = document.getElementById("tabSent");
+  const tabReceived = document.getElementById("tabReceived");
+
+  // ✅ BADGE ELEMENTS
+  const friendsCountEl = document.getElementById("friendsBadge");
+  const sentCountEl = document.getElementById("sentBadge");
+  const receivedCountEl = document.getElementById("receivedBadge");
+
+  // ========================= THEME =========================
+  const toggle = document.getElementById("themeToggle");
+  const icon = toggle.querySelector("i");
+
+  toggle.onclick = () => {
+    document.body.classList.toggle("dark");
+    icon.classList.toggle("fa-sun");
+    icon.classList.toggle("fa-moon");
+  };
+
+  // ========================= STATE =========================
+  let currentUserId = null;
+  let friendsData = [];
+  let sentData = [];
+  let receivedData = [];
+
+  const DEFAULT_AVATAR = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="#888"><path d="M12 12c2.7 0 5-2.3 5-5s-2.3-5-5-5-5 2.3-5 5 2.3 5 5 5zm0 2c-3.3 0-10 1.7-10 5v3h20v-3c0-3.3-6.7-5-10-5z"/></svg>`;
+
+  // ========================= LOAD USER =========================
+  async function loadUser() {
+    const token = Auth.getToken();
+    if (!token) {
+      window.location.href = "login.html";
+      return;
+    }
+
+    try {
+      const res = await fetch(`${API}/me`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      if (!res.ok) {
+        Auth.clearToken();
+        window.location.href = "login.html";
+        return;
+      }
+
+      const data = await res.json();
+      currentUserId = data.user._id;
+
+    } catch {
+      Auth.clearToken();
+      window.location.href = "login.html";
+    }
+  }
 
   // ========================= TAB BADGES =========================
   function updateTabBadges() {
     const update = (el, count) => {
+      if (!el) return;
+
       if (count > 0) {
         el.style.display = "inline-block";
         el.textContent = count;
@@ -429,232 +435,228 @@ async function loadUser() {
     update(sentCountEl, sentData.length);
     update(receivedCountEl, receivedData.length);
   }
-  
-  /* ========================= LOAD FRIENDS ========================= */  
-async function loadFriends() {  
-  try {  
-    const token = Auth.getToken();  
-  
-    const res = await fetch(`${API}/friends`, {  
-      headers: { Authorization: `Bearer ${token}` }  
-    });  
-  
-    if (!res.ok) throw new Error("Failed to fetch friends");  
-  
-    const data = await res.json();  
-  
-    friendsData = Array.isArray(data.friends) ? data.friends : [];  
-    sentData = Array.isArray(data.sentRequests) ? data.sentRequests : [];  
-    receivedData = Array.isArray(data.receivedRequests) ? data.receivedRequests : [];  
-  
-    console.log("FRIENDS DATA:", friendsData);  
-  
-    // ✅ CLEAR ONCE  
-    friendsList.innerHTML = "";  
-    sentList.innerHTML = "";  
-    receivedList.innerHTML = "";  
-  
-    /* ================= FRIENDS ================= */  
-    if (friendsData.length === 0) {  
-      friendsList.innerHTML = "<p>No friends yet</p>";  
-    } else {  
-      friendsData.forEach(u => {  
-        console.log("Rendering friend:", u);  
-        const card = createCard(u, "friend");  
-        friendsList.appendChild(card);  
-      });  
-    }  
-  
-    /* ================= SENT ================= */  
-    if (sentData.length === 0) {  
-      sentList.innerHTML = "<p>No sent requests</p>";  
-    } else {  
-      sentData.forEach(u => {  
-        sentList.appendChild(createCard(u, "sent"));  
-      });  
-    }  
-  
-    /* ================= RECEIVED ================= */  
-    if (receivedData.length === 0) {  
-      receivedList.innerHTML = "<p>No received requests</p>";  
-    } else {  
-      receivedData.forEach(u => {  
-        receivedList.appendChild(createCard(u, "received"));  
-      });  
-    }  
-  
-  } catch (err) {  
-    console.error("loadFriends error:", err);  
-    UI.showToast("Failed to load friends", "error");  
-  }  
-}  
-  
-  /* ========================= RELATIONSHIP HELPER ========================= */  
-  function getRelationship(userId) {  
-    const uid = userId.toString();  
-    if (friendsData.some(u => u._id.toString() === uid)) return "friend";  
-    if (sentData.some(u => u._id.toString() === uid)) return "sent";  
-    if (receivedData.some(u => u._id.toString() === uid)) return "received";  
-    return "none";  
-  }  
-  
-  /* ========================= CREATE CARD ========================= */  
-  function createCard(user, type) {  
-    const card = document.createElement("div");  
-    card.className = "card";  
-  
-    const avatarHTML = user.avatarUrl  
-      ? `<img src="${user.avatarUrl}">`  
-      : `<span style="width:45px;height:45px;">${DEFAULT_AVATAR}</span>`;  
-  
-    let actionsHTML = "";  
-    if (type === "friend") actionsHTML = `<span style="color:green;">Friend</span>`;  
-    if (type === "sent") actionsHTML = `<button class="delete-btn">Delete</button>`;  
-    if (type === "received") actionsHTML = `<button class="accept-btn">Accept</button><button class="reject-btn">Reject</button>`;  
-    if (type === "none") actionsHTML = `<button class="add-btn">Add</button>`;  
-  
-    card.innerHTML = `  
-      <div class="card-left">  
-        ${avatarHTML}  
-        <span>${user.username}</span>  
-      </div>  
-      <div class="actions">  
-        <button class="view-btn">View</button>  
-        ${actionsHTML}  
-      </div>  
-    `;  
-  
-    // VIEW  
-    card.querySelector(".view-btn").onclick = () => {  
-      viewAvatar.src = user.avatarUrl || "";  
-      viewUsername.textContent = user.username;  
-      viewBio.textContent = user.bio || "";  
-      profileModal.classList.add("show");  
-    };  
-  
-    // ACTIONS  
-    if (type === "sent") {  
-      card.querySelector(".delete-btn").onclick = async () => {  
-        await fetch(`${API}/friends/request/${user._id}`, {  
-          method: "DELETE",  
-          headers: { Authorization: `Bearer ${Auth.getToken()}` }  
-        });  
-        UI.showToast("Request deleted", "info");  
-        loadFriends();  
-      };  
-    }  
-  
-    if (type === "received") {  
-      card.querySelector(".accept-btn").onclick = async () => {  
-        await fetch(`${API}/friends/request/${user._id}/accept`, {  
-          method: "POST",  
-          headers: { Authorization: `Bearer ${Auth.getToken()}` }  
-        });  
-        UI.showToast("Request accepted", "success");  
-        loadFriends();  
-      };  
-  
-      card.querySelector(".reject-btn").onclick = async () => {  
-        await fetch(`${API}/friends/request/${user._id}/reject`, {  
-          method: "POST",  
-          headers: { Authorization: `Bearer ${Auth.getToken()}` }  
-        });  
-        UI.showToast("Request rejected", "error");  
-        loadFriends();  
-      };  
-    }  
-  
-    if (type === "none") {  
-      card.querySelector(".add-btn").onclick = async () => {  
-        try {  
-          const res = await fetch(`${API}/friends/request`, {  
-            method: "POST",  
-            headers: {   
-              "Authorization": `Bearer ${Auth.getToken()}`,  
-              "Content-Type": "application/json"   
-            },  
-            body: JSON.stringify({ userId: user._id })  
-          });  
-          if (!res.ok) throw new Error("Failed to send friend request");  
-          UI.showToast("Friend request sent", "success");  
-          loadFriends();  
-        } catch (err) {  
-          console.error(err);  
-          UI.showToast("Could not send request", "error");  
-        }  
-      };  
-    }  
-  
-    return card;  
-  }  
-  
-  /* ========================= TAB SWITCH ========================= */  
-  function setActiveTab(tab) {  
-    tabFriends.classList.remove("active");  
-    tabSent.classList.remove("active");  
-    tabReceived.classList.remove("active");  
-  
-    friendsList.classList.remove("active");  
-    sentList.classList.remove("active");  
-    receivedList.classList.remove("active");  
-  
-    if (tab === "friends") {  
-      tabFriends.classList.add("active");  
-      friendsList.classList.add("active");  
-    }  
-    if (tab === "sent") {  
-      tabSent.classList.add("active");  
-      sentList.classList.add("active");  
-    }  
-    if (tab === "received") {  
-      tabReceived.classList.add("active");  
-      receivedList.classList.add("active");  
-    }  
-  }  
-  
-  tabFriends.onclick = () => setActiveTab("friends");  
-  tabSent.onclick = () => setActiveTab("sent");  
-  tabReceived.onclick = () => setActiveTab("received");  
-  
-  /* ========================= SEARCH USERS ========================= */  
-  searchInput.addEventListener("input", async () => {  
-    const query = searchInput.value.trim();  
-    if (!query) {  
-      resultsDiv.innerHTML = "";  
-      return;  
-    }  
-  
-    UI.showSkeleton(resultsDiv, 3);  
-    const token = Auth.getToken();  
-  
-    try {  
-      const res = await fetch(`${API}/users/search?username=${query}`, {  
-        headers: { Authorization: `Bearer ${token}` }  
-      });  
-      const data = await res.json();  
-  
-      resultsDiv.innerHTML = "";  
-      if (!data.users.length) resultsDiv.innerHTML = `<p>No results found</p>`;  
-      else data.users  
-        .filter(u => u._id !== currentUserId)  
-        .forEach(user => resultsDiv.appendChild(createCard(user, getRelationship(user._id))));  
-    } catch (err) {  
-      console.error(err);  
-      UI.showToast("Search failed", "error");  
-    }  
-  });  
-  
-  /* ========================= INIT ========================= */  
-  await loadUser();  
-  await loadFriends();  
-  setActiveTab("friends"); // <--- ensure friends tab is active on load  
-  
-  /* ========================= MODALS ========================= */  
-  UI.setupCloseOnOutside(profileModal);  
-  UI.setupImageModal(imagePreview, previewImg);  
-  
-});  
-</script>
 
+  // ========================= LOAD FRIENDS =========================
+  async function loadFriends() {
+    try {
+      const res = await fetch(`${API}/friends`, {
+        headers: { Authorization: `Bearer ${Auth.getToken()}` }
+      });
+
+      if (!res.ok) throw new Error();
+
+      const data = await res.json();
+
+      friendsData = Array.isArray(data.friends) ? data.friends : [];
+      sentData = Array.isArray(data.sentRequests) ? data.sentRequests : [];
+      receivedData = Array.isArray(data.receivedRequests) ? data.receivedRequests : [];
+
+      // ✅ UPDATE BADGES
+      updateTabBadges();
+
+      // CLEAR
+      friendsList.innerHTML = "";
+      sentList.innerHTML = "";
+      receivedList.innerHTML = "";
+
+      // FRIENDS
+      if (!friendsData.length) {
+        friendsList.innerHTML = "<p>No friends yet</p>";
+      } else {
+        friendsData.forEach(u => friendsList.appendChild(createCard(u, "friend")));
+      }
+
+      // SENT
+      if (!sentData.length) {
+        sentList.innerHTML = "<p>No sent requests</p>";
+      } else {
+        sentData.forEach(u => sentList.appendChild(createCard(u, "sent")));
+      }
+
+      // RECEIVED
+      if (!receivedData.length) {
+        receivedList.innerHTML = "<p>No received requests</p>";
+      } else {
+        receivedData.forEach(u => receivedList.appendChild(createCard(u, "received")));
+      }
+
+    } catch {
+      UI.showToast("Failed to load friends", "error");
+    }
+  }
+
+  // ========================= RELATIONSHIP =========================
+  function getRelationship(userId) {
+    const uid = userId.toString();
+    if (friendsData.some(u => u._id === uid)) return "friend";
+    if (sentData.some(u => u._id === uid)) return "sent";
+    if (receivedData.some(u => u._id === uid)) return "received";
+    return "none";
+  }
+
+  // ========================= CREATE CARD =========================
+  function createCard(user, type) {
+    const card = document.createElement("div");
+    card.className = "card";
+
+    const avatarHTML = user.avatarUrl
+      ? `<img src="${user.avatarUrl}">`
+      : `<span style="width:45px;height:45px;">${DEFAULT_AVATAR}</span>`;
+
+    let actionsHTML = "";
+    if (type === "friend") actionsHTML = `<span style="color:green;">Friend</span>`;
+    if (type === "sent") actionsHTML = `<button class="delete-btn">Delete</button>`;
+    if (type === "received") actionsHTML = `<button class="accept-btn">Accept</button><button class="reject-btn">Reject</button>`;
+    if (type === "none") actionsHTML = `<button class="add-btn">Add</button>`;
+
+    card.innerHTML = `
+      <div class="card-left">
+        ${avatarHTML}
+        <span>${user.username}</span>
+      </div>
+      <div class="actions">
+        <button class="view-btn">View</button>
+        ${actionsHTML}
+      </div>
+    `;
+
+    // VIEW
+    card.querySelector(".view-btn").onclick = () => {
+      viewAvatar.src = user.avatarUrl || "";
+      viewUsername.textContent = user.username;
+      viewBio.textContent = user.bio || "";
+      profileModal.classList.add("show");
+    };
+
+    // ACTIONS
+    if (type === "sent") {
+      card.querySelector(".delete-btn").onclick = async () => {
+        await fetch(`${API}/friends/request/${user._id}`, {
+          method: "DELETE",
+          headers: { Authorization: `Bearer ${Auth.getToken()}` }
+        });
+        UI.showToast("Request deleted", "info");
+        loadFriends();
+      };
+    }
+
+    if (type === "received") {
+      card.querySelector(".accept-btn").onclick = async () => {
+        await fetch(`${API}/friends/request/${user._id}/accept`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${Auth.getToken()}` }
+        });
+        UI.showToast("Request accepted", "success");
+        loadFriends();
+      };
+
+      card.querySelector(".reject-btn").onclick = async () => {
+        await fetch(`${API}/friends/request/${user._id}/reject`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${Auth.getToken()}` }
+        });
+        UI.showToast("Request rejected", "error");
+        loadFriends();
+      };
+    }
+
+    if (type === "none") {
+      card.querySelector(".add-btn").onclick = async () => {
+        try {
+          const res = await fetch(`${API}/friends/request`, {
+            method: "POST",
+            headers: {
+              "Authorization": `Bearer ${Auth.getToken()}`,
+              "Content-Type": "application/json"
+            },
+            body: JSON.stringify({ userId: user._id })
+          });
+
+          if (!res.ok) throw new Error();
+
+          UI.showToast("Friend request sent", "success");
+          loadFriends();
+
+        } catch {
+          UI.showToast("Could not send request", "error");
+        }
+      };
+    }
+
+    return card;
+  }
+
+  // ========================= TABS =========================
+  function setActiveTab(tab) {
+    tabFriends.classList.remove("active");
+    tabSent.classList.remove("active");
+    tabReceived.classList.remove("active");
+
+    friendsList.classList.remove("active");
+    sentList.classList.remove("active");
+    receivedList.classList.remove("active");
+
+    if (tab === "friends") {
+      tabFriends.classList.add("active");
+      friendsList.classList.add("active");
+    }
+    if (tab === "sent") {
+      tabSent.classList.add("active");
+      sentList.classList.add("active");
+    }
+    if (tab === "received") {
+      tabReceived.classList.add("active");
+      receivedList.classList.add("active");
+    }
+  }
+
+  tabFriends.onclick = () => setActiveTab("friends");
+  tabSent.onclick = () => setActiveTab("sent");
+  tabReceived.onclick = () => setActiveTab("received");
+
+  // ========================= SEARCH =========================
+  searchInput.addEventListener("input", async () => {
+    const query = searchInput.value.trim();
+    if (!query) {
+      resultsDiv.innerHTML = "";
+      return;
+    }
+
+    UI.showSkeleton(resultsDiv, 3);
+
+    try {
+      const res = await fetch(`${API}/users/search?username=${query}`, {
+        headers: { Authorization: `Bearer ${Auth.getToken()}` }
+      });
+
+      const data = await res.json();
+
+      resultsDiv.innerHTML = "";
+
+      if (!data.users.length) {
+        resultsDiv.innerHTML = `<p>No results found</p>`;
+      } else {
+        data.users
+          .filter(u => u._id !== currentUserId)
+          .forEach(user => {
+            resultsDiv.appendChild(createCard(user, getRelationship(user._id)));
+          });
+      }
+
+    } catch {
+      UI.showToast("Search failed", "error");
+    }
+  });
+
+  // ========================= INIT =========================
+  await loadUser();
+  await loadFriends();
+  setActiveTab("friends");
+
+  UI.setupCloseOnOutside(profileModal);
+  UI.setupImageModal(imagePreview, previewImg);
+
+});
+</script>
 </body>
 </html>
