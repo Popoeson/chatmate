@@ -552,8 +552,8 @@ function initSocket() {
     if (type === "friend") actionsHTML = `<span style="color:green;">Friend</span>`;
     if (type === "sent") {
   actionsHTML = `
-    <span style="color:orange;">Pending</span>
-    <button class="delete-btn">Cancel</button>
+    <button class="delete-btn">Delete</button>
+    <span style="color:orange;">⏳</span>
   `;
 }
     if (type === "received") actionsHTML = `<button class="accept-btn">Accept</button><button class="reject-btn">Reject</button>`;
