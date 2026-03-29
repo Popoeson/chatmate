@@ -339,10 +339,32 @@ document.addEventListener("DOMContentLoaded", async () => {
       socket.emit("join", currentUserId);
     });
 
-    // Friend request events
-    socket.on("friend:new-request", () => { notificationCount++; updateBadge(); });
-    socket.on("friend:accepted", () => { notificationCount--; updateBadge(); });
-    socket.on("friend:update", () => { fetchPendingCount(); });
+    // NEW FRIEND REQUEST RECEIVED
+socket.on("friend_request_received", () => {
+  notificationCount++;
+  updateBadge();
+  logDebug("New friend request received (real-time)");
+});
+
+// REQUEST ACCEPTED
+socket.on("friend_request_accepted", () => {
+  notificationCount++;
+  updateBadge();
+  logDebug("Friend request accepted (real-time)");
+});
+
+// REQUEST REJECTED / DELETED (optional)
+socket.on("friend_request_rejected", () => {
+  notificationCount = Math.max(0, notificationCount - 1);
+  updateBadge();
+  logDebug("Friend request rejected");
+});
+
+socket.on("friend_request_deleted", () => {
+  notificationCount = Math.max(0, notificationCount - 1);
+  updateBadge();
+  logDebug("Friend request deleted");
+});
 
     socket.on("disconnect", (reason) => logDebug("Socket disconnected: " + reason));
     socket.on("connect_error", (err) => logDebug("Socket connect error: " + err.message));
