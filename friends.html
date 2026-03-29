@@ -367,10 +367,9 @@ document.addEventListener("DOMContentLoaded", async () => {
   const tabSent = document.getElementById("tabSent");
   const tabReceived = document.getElementById("tabReceived");
 
+  let socket = null;
 
-let socket = null;
-
-  // ✅ BADGE ELEMENTS
+  // ========================= BADGES =========================
   const friendsCountEl = document.getElementById("friendsBadge");
   const sentCountEl = document.getElementById("sentBadge");
   const receivedCountEl = document.getElementById("receivedBadge");
@@ -378,7 +377,6 @@ let socket = null;
   // ========================= THEME =========================
   const toggle = document.getElementById("themeToggle");
   const icon = toggle.querySelector("i");
-
   toggle.onclick = () => {
     document.body.classList.toggle("dark");
     icon.classList.toggle("fa-sun");
@@ -390,34 +388,22 @@ let socket = null;
   let friendsData = [];
   let sentData = [];
   let receivedData = [];
+  let blockedData = []; // NEW: track users blocked by current user
 
   const DEFAULT_AVATAR = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="#888"><path d="M12 12c2.7 0 5-2.3 5-5s-2.3-5-5-5-5 2.3-5 5 2.3 5 5 5zm0 2c-3.3 0-10 1.7-10 5v3h20v-3c0-3.3-6.7-5-10-5z"/></svg>`;
 
-  // ========================= LOAD USER =========================
+  // ========================= LOAD CURRENT USER =========================
   async function loadUser() {
     const token = Auth.getToken();
-    if (!token) {
-      window.location.href = "login.html";
-      return;
-    }
+    if (!token) { window.location.href = "login.html"; return; }
 
     try {
-      const res = await fetch(`${API}/me`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-
-      if (!res.ok) {
-        Auth.clearToken();
-        window.location.href = "login.html";
-        return;
-      }
-
+      const res = await fetch(`${API}/me`, { headers: { Authorization: `Bearer ${token}` } });
+      if (!res.ok) { Auth.clearToken(); window.location.href = "login.html"; return; }
       const data = await res.json();
       currentUserId = data.user._id;
-
     } catch {
-      Auth.clearToken();
-      window.location.href = "login.html";
+      Auth.clearToken(); window.location.href = "login.html";
     }
   }
 
@@ -425,15 +411,9 @@ let socket = null;
   function updateTabBadges() {
     const update = (el, count) => {
       if (!el) return;
-
-      if (count > 0) {
-        el.style.display = "inline-block";
-        el.textContent = count;
-      } else {
-        el.style.display = "none";
-      }
+      if (count > 0) { el.style.display = "inline-block"; el.textContent = count; } 
+      else el.style.display = "none";
     };
-
     update(friendsCountEl, friendsData.length);
     update(sentCountEl, sentData.length);
     update(receivedCountEl, receivedData.length);
@@ -442,19 +422,15 @@ let socket = null;
   // ========================= LOAD FRIENDS =========================
   async function loadFriends() {
     try {
-      const res = await fetch(`${API}/friends`, {
-        headers: { Authorization: `Bearer ${Auth.getToken()}` }
-      });
-
+      const res = await fetch(`${API}/friends`, { headers: { Authorization: `Bearer ${Auth.getToken()}` } });
       if (!res.ok) throw new Error();
 
       const data = await res.json();
-
       friendsData = Array.isArray(data.friends) ? data.friends : [];
       sentData = Array.isArray(data.sentRequests) ? data.sentRequests : [];
       receivedData = Array.isArray(data.receivedRequests) ? data.receivedRequests : [];
+      blockedData = Array.isArray(data.blocked) ? data.blocked : [];
 
-      // ✅ UPDATE BADGES
       updateTabBadges();
 
       // CLEAR
@@ -463,76 +439,38 @@ let socket = null;
       receivedList.innerHTML = "";
 
       // FRIENDS
-      if (!friendsData.length) {
-        friendsList.innerHTML = "<p>No friends yet</p>";
-      } else {
-        friendsData.forEach(u => friendsList.appendChild(createCard(u, "friend")));
-      }
+      if (!friendsData.length) { friendsList.innerHTML = "<p>No friends yet</p>"; } 
+      else { friendsData.forEach(u => friendsList.appendChild(createCard(u, "friend"))); }
 
       // SENT
-      if (!sentData.length) {
-        sentList.innerHTML = "<p>No sent requests</p>";
-      } else {
-        sentData.forEach(u => sentList.appendChild(createCard(u, "sent")));
-      }
+      if (!sentData.length) { sentList.innerHTML = "<p>No sent requests</p>"; } 
+      else { sentData.forEach(u => sentList.appendChild(createCard(u, "sent"))); }
 
       // RECEIVED
-      if (!receivedData.length) {
-        receivedList.innerHTML = "<p>No received requests</p>";
-      } else {
-        receivedData.forEach(u => receivedList.appendChild(createCard(u, "received")));
-      }
+      if (!receivedData.length) { receivedList.innerHTML = "<p>No received requests</p>"; } 
+      else { receivedData.forEach(u => receivedList.appendChild(createCard(u, "received"))); }
 
     } catch {
       UI.showToast("Failed to load friends", "error");
     }
   }
 
-// ========================= SOCKET INTEGRATION =========================
+  // ========================= SOCKET =========================
+  function initSocket() {
+    socket = io("https://chatmate-kbwz.onrender.com", { auth: { token: Auth.getToken() } });
+    socket.on("connect", () => { socket.emit("register", currentUserId); });
 
-function initSocket() {
-  socket = io("https://chatmate-kbwz.onrender.com", {
-    auth: { token: Auth.getToken() }
-  });
-
-  socket.on("connect", () => {
-    // Register user for targeting
-    socket.emit("register", currentUserId);
-  });
-
-  // ================= REALTIME EVENTS =================
-
-  socket.on("friend_request_received", () => {
-    UI.showToast("New friend request", "info");
-    loadFriends();
-  });
-
-  socket.on("friend_request_accepted", () => {
-    UI.showToast("Friend request accepted", "success");
-    loadFriends();
-  });
-
-  socket.on("friend_request_rejected", () => {
-    UI.showToast("Friend request rejected", "error");
-    loadFriends();
-  });
-
-  socket.on("friend_request_deleted", () => {
-    loadFriends();
-  });
-
-  socket.on("disconnect", () => {
-    // optional: silent reconnect
-  });
-
-  socket.on("connect_error", () => {
-    // optional: handle error silently
-  });
-}
+    socket.on("friend_request_received", () => { UI.showToast("New friend request", "info"); loadFriends(); });
+    socket.on("friend_request_accepted", () => { UI.showToast("Friend request accepted", "success"); loadFriends(); });
+    socket.on("friend_request_rejected", () => { UI.showToast("Friend request rejected", "error"); loadFriends(); });
+    socket.on("friend_request_deleted", () => { loadFriends(); });
+    socket.on("user_blocked", () => { loadFriends(); });
+  }
 
   // ========================= RELATIONSHIP =========================
   function getRelationship(userId) {
     const uid = userId.toString();
+    if (blockedData.some(u => u._id === uid)) return "blocked";
     if (friendsData.some(u => u._id === uid)) return "friend";
     if (sentData.some(u => u._id === uid)) return "sent";
     if (receivedData.some(u => u._id === uid)) return "received";
@@ -544,20 +482,21 @@ function initSocket() {
     const card = document.createElement("div");
     card.className = "card";
 
-    const avatarHTML = user.avatarUrl
-      ? `<img src="${user.avatarUrl}">`
-      : `<span style="width:45px;height:45px;">${DEFAULT_AVATAR}</span>`;
+    const avatarHTML = user.avatarUrl ? `<img src="${user.avatarUrl}">` : `<span style="width:45px;height:45px;">${DEFAULT_AVATAR}</span>`;
 
     let actionsHTML = "";
-    if (type === "friend") actionsHTML = `<span style="color:green;">Friend</span>`;
-    if (type === "sent") {
-  actionsHTML = `
-    <button class="delete-btn">Delete</button>
-        <span style="color:orange;"><i class="fa-solid fa-spinner fa-spin"></i> Pending</span>
-  `;
-}
+    if (type === "friend") actionsHTML = `
+      <button class="view-btn">View</button>
+      <button class="block-btn">Block</button>
+      <span style="color:green;">Friend</span>
+    `;
+    if (type === "sent") actionsHTML = `
+      <button class="delete-btn">Delete</button>
+      <span style="color:orange;"><i class="fa-solid fa-spinner fa-spin"></i> Pending</span>
+    `;
     if (type === "received") actionsHTML = `<button class="accept-btn">Accept</button><button class="reject-btn">Reject</button>`;
     if (type === "none") actionsHTML = `<button class="add-btn">Add</button>`;
+    if (type === "blocked") actionsHTML = `<span style="color:red;">Blocked</span><button class="unblock-btn">Unblock</button>`;
 
     card.innerHTML = `
       <div class="card-left">
@@ -565,73 +504,89 @@ function initSocket() {
         <span>${user.username}</span>
       </div>
       <div class="actions">
-        <button class="view-btn">View</button>
         ${actionsHTML}
       </div>
     `;
 
     // VIEW
-    card.querySelector(".view-btn").onclick = () => {
+    const viewBtn = card.querySelector(".view-btn");
+    if (viewBtn) viewBtn.onclick = () => {
       viewAvatar.src = user.avatarUrl || "";
       viewUsername.textContent = user.username;
       viewBio.textContent = user.bio || "";
       profileModal.classList.add("show");
     };
 
-    // ACTIONS
-    if (type === "sent") {
-      card.querySelector(".delete-btn").onclick = async () => {
-        await fetch(`${API}/friends/request/${user._id}`, {
-          method: "DELETE",
-          headers: { Authorization: `Bearer ${Auth.getToken()}` }
-        });
-        UI.showToast("Request deleted", "info");
-        loadFriends();
-      };
-    }
-
-    if (type === "received") {
-      card.querySelector(".accept-btn").onclick = async () => {
-        await fetch(`${API}/friends/request/${user._id}/accept`, {
+    // BLOCK
+    const blockBtn = card.querySelector(".block-btn");
+    if (blockBtn) blockBtn.onclick = async () => {
+      try {
+        await fetch(`${API}/friends/block/${user._id}`, {
           method: "POST",
           headers: { Authorization: `Bearer ${Auth.getToken()}` }
         });
-        UI.showToast("Request accepted", "success");
+        UI.showToast("User blocked", "error");
         loadFriends();
-      };
+        socket.emit("user_blocked", { blockedId: user._id });
+      } catch {
+        UI.showToast("Could not block user", "error");
+      }
+    };
 
-      card.querySelector(".reject-btn").onclick = async () => {
-        await fetch(`${API}/friends/request/${user._id}/reject`, {
+    // UNBLOCK
+    const unblockBtn = card.querySelector(".unblock-btn");
+    if (unblockBtn) unblockBtn.onclick = async () => {
+      try {
+        await fetch(`${API}/friends/unblock/${user._id}`, {
           method: "POST",
           headers: { Authorization: `Bearer ${Auth.getToken()}` }
         });
-        UI.showToast("Request rejected", "error");
+        UI.showToast("User unblocked", "success");
         loadFriends();
-      };
-    }
+      } catch {
+        UI.showToast("Could not unblock user", "error");
+      }
+    };
 
-    if (type === "none") {
-      card.querySelector(".add-btn").onclick = async () => {
-        try {
-          const res = await fetch(`${API}/friends/request`, {
-            method: "POST",
-            headers: {
-              "Authorization": `Bearer ${Auth.getToken()}`,
-              "Content-Type": "application/json"
-            },
-            body: JSON.stringify({ userId: user._id })
-          });
+    // SENT
+    const deleteBtn = card.querySelector(".delete-btn");
+    if (deleteBtn) deleteBtn.onclick = async () => {
+      await fetch(`${API}/friends/request/${user._id}`, {
+        method: "DELETE", headers: { Authorization: `Bearer ${Auth.getToken()}` }
+      });
+      UI.showToast("Request deleted", "info");
+      loadFriends();
+    };
 
-          if (!res.ok) throw new Error();
+    // RECEIVED
+    const acceptBtn = card.querySelector(".accept-btn");
+    if (acceptBtn) acceptBtn.onclick = async () => {
+      await fetch(`${API}/friends/request/${user._id}/accept`, { method: "POST", headers: { Authorization: `Bearer ${Auth.getToken()}` } });
+      UI.showToast("Request accepted", "success");
+      loadFriends();
+    };
+    const rejectBtn = card.querySelector(".reject-btn");
+    if (rejectBtn) rejectBtn.onclick = async () => {
+      await fetch(`${API}/friends/request/${user._id}/reject`, { method: "POST", headers: { Authorization: `Bearer ${Auth.getToken()}` } });
+      UI.showToast("Request rejected", "error");
+      loadFriends();
+    };
 
-          UI.showToast("Friend request sent", "success");
-          loadFriends();
-
-        } catch {
-          UI.showToast("Could not send request", "error");
-        }
-      };
-    }
+    // NONE
+    const addBtn = card.querySelector(".add-btn");
+    if (addBtn) addBtn.onclick = async () => {
+      try {
+        await fetch(`${API}/friends/request`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${Auth.getToken()}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ userId: user._id })
+        });
+        UI.showToast("Friend request sent", "success");
+        loadFriends();
+      } catch {
+        UI.showToast("Could not send request", "error");
+      }
+    };
 
     return card;
   }
@@ -646,18 +601,9 @@ function initSocket() {
     sentList.classList.remove("active");
     receivedList.classList.remove("active");
 
-    if (tab === "friends") {
-      tabFriends.classList.add("active");
-      friendsList.classList.add("active");
-    }
-    if (tab === "sent") {
-      tabSent.classList.add("active");
-      sentList.classList.add("active");
-    }
-    if (tab === "received") {
-      tabReceived.classList.add("active");
-      receivedList.classList.add("active");
-    }
+    if (tab === "friends") { tabFriends.classList.add("active"); friendsList.classList.add("active"); }
+    if (tab === "sent") { tabSent.classList.add("active"); sentList.classList.add("active"); }
+    if (tab === "received") { tabReceived.classList.add("active"); receivedList.classList.add("active"); }
   }
 
   tabFriends.onclick = () => setActiveTab("friends");
@@ -667,10 +613,7 @@ function initSocket() {
   // ========================= SEARCH =========================
   searchInput.addEventListener("input", async () => {
     const query = searchInput.value.trim();
-    if (!query) {
-      resultsDiv.innerHTML = "";
-      return;
-    }
+    if (!query) { resultsDiv.innerHTML = ""; return; }
 
     UI.showSkeleton(resultsDiv, 3);
 
@@ -678,16 +621,15 @@ function initSocket() {
       const res = await fetch(`${API}/users/search?username=${query}`, {
         headers: { Authorization: `Bearer ${Auth.getToken()}` }
       });
-
       const data = await res.json();
 
       resultsDiv.innerHTML = "";
 
-      if (!data.users.length) {
-        resultsDiv.innerHTML = `<p>No results found</p>`;
-      } else {
+      if (!data.users.length) { resultsDiv.innerHTML = `<p>No results found</p>`; } 
+      else {
         data.users
           .filter(u => u._id !== currentUserId)
+          .filter(u => !u.blockedBy?.includes(currentUserId)) // user blocked us cannot see us
           .forEach(user => {
             resultsDiv.appendChild(createCard(user, getRelationship(user._id)));
           });
@@ -700,9 +642,9 @@ function initSocket() {
 
   // ========================= INIT =========================
   await loadUser();
-await loadFriends();
-initSocket(); 
-setActiveTab("friends");
+  await loadFriends();
+  initSocket(); 
+  setActiveTab("friends");
 
   UI.setupCloseOnOutside(profileModal);
   UI.setupImageModal(imagePreview, previewImg);
