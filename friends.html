@@ -554,7 +554,10 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (type === "blocked") {
       card.querySelector(".unblock-btn").onclick = async () => {
         try {
-          const res = await fetch(`${API}/friends/request/${user._id}/unblock`, { method: "POST", headers: { Authorization: `Bearer ${Auth.getToken()}` } });
+             const res = await fetch(`${API}/friends/unblock/${user._id}`, { 
+  method: "POST", 
+  headers: { Authorization: `Bearer ${Auth.getToken()}` } 
+});
           if (!res.ok) throw new Error();
           UI.showToast("User unblocked", "success");
           loadFriends();
