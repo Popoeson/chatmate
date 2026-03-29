@@ -4,12 +4,19 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta charset="UTF-8" />
 <title>Chat</title>
-
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
 <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
-<script src="https://kit.fontawesome.com/your-kit.js"></script>
+
 
 <style>
+
+/* ========================= GLOBAL FIX ========================= */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
 
 /* ========================= THEME ========================= */
 :root {
@@ -32,21 +39,29 @@ body.dark {
 
 /* ========================= BODY ========================= */
 body {
-  margin: 0;
   font-family: 'Poppins', sans-serif;
   background: var(--bg);
   color: var(--text);
 
+  height: 100dvh;
+  display: flex;
+  justify-content: center;
+}
+
+/* ========================= WRAPPER ========================= */
+.chat-wrapper {
+  width: 100%;
+  max-width: 500px; /* ✅ nice on desktop */
+
+  display: flex;
+  flex-direction: column;
   height: 100dvh;
   overflow: hidden;
 }
 
 /* ========================= HEADER ========================= */
 .chat-header {
-  position: fixed;
-  top: 0;
-  width: 100%;
-  z-index: 10;
+  flex-shrink: 0;
 
   display: flex;
   align-items: center;
@@ -79,12 +94,11 @@ body.dark .chat-header {
 
 /* ========================= MESSAGES ========================= */
 .messages {
-  position: absolute;
-  top: 65px;
-  bottom: 70px;
-  width: 100%;
+  flex: 1;
 
   overflow-y: auto;
+  overflow-x: hidden;
+
   padding: 12px;
 
   display: flex;
@@ -96,9 +110,12 @@ body.dark .chat-header {
 .msg {
   max-width: 75%;
   padding: 10px 14px;
+
   border-radius: 16px;
   font-size: 14px;
   line-height: 1.4;
+
+  word-wrap: break-word;
 
   box-shadow: 0 2px 6px rgba(0,0,0,0.05);
 }
@@ -118,17 +135,13 @@ body.dark .chat-header {
   border-bottom-left-radius: 4px;
 }
 
-/* Dark mode tweak */
 body.dark .them {
   background: #2C2C2E;
 }
 
 /* ========================= INPUT ========================= */
 .chat-input {
-  position: fixed;
-  bottom: 0;
-  width: 100%;
-  z-index: 10;
+  flex-shrink: 0;
 
   display: flex;
   align-items: center;
@@ -148,8 +161,8 @@ body.dark .chat-input {
 /* Input field */
 .chat-input input {
   flex: 1;
-  padding: 10px 12px;
 
+  padding: 10px 12px;
   border-radius: 20px;
   border: 1px solid var(--input-border);
 
@@ -177,9 +190,10 @@ body.dark .chat-input {
   cursor: pointer;
 }
 
-/* Icon fix */
+/* Ensure icon shows */
 .chat-input button i {
   font-size: 16px;
+  color: inherit;
 }
 
 /* ========================= THEME TOGGLE ========================= */
@@ -188,8 +202,34 @@ body.dark .chat-input {
   cursor: pointer;
 }
 
+/* ========================= SCROLLBAR CLEAN ========================= */
+.messages::-webkit-scrollbar {
+  width: 4px;
+}
+
+.messages::-webkit-scrollbar-thumb {
+  background: rgba(0,0,0,0.2);
+  border-radius: 10px;
+}
+
+body.dark .messages::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,0.2);
+}
+
 /* ========================= MOBILE ========================= */
 @media (max-width: 480px) {
+  .chat-wrapper {
+    max-width: 100%;
+  }
+
+  .chat-header {
+    padding: 10px;
+  }
+
+  .chat-header span {
+    font-size: 14px;
+  }
+
   .messages {
     padding: 10px;
     gap: 8px;
@@ -198,6 +238,21 @@ body.dark .chat-input {
   .msg {
     max-width: 85%;
     font-size: 13px;
+    padding: 8px 10px;
+  }
+
+  .chat-input {
+    padding: 8px 10px;
+  }
+
+  .chat-input input {
+    font-size: 13px;
+    padding: 8px 10px;
+  }
+
+  .chat-input button {
+    width: 38px;
+    height: 38px;
   }
 }
 </style>
@@ -206,6 +261,7 @@ body.dark .chat-input {
 
 <body>
 
+<div class="chat-wrapper>
 <!-- HEADER -->
 <div class="chat-header">
   <img id="chatAvatar" />
@@ -220,6 +276,8 @@ body.dark .chat-input {
 <div class="chat-input">
   <input id="messageInput" placeholder="Type message..." />
   <button id="sendBtn"><i class="fa-solid fa-paper-plane"></i></button>
+</div>
+
 </div>
 
 <script type="module">
