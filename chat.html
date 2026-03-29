@@ -103,7 +103,7 @@ body.dark .chat-header {
   overflow-x: hidden;
 
   padding: 12px;
-  padding-bottom: 70px;  /* ← reserve space for input */
+  padding-bottom: 90px; /* reserve space for input */
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -118,15 +118,17 @@ body.dark .chat-header {
   font-size: 14px;
   line-height: 1.4;
 
-  word-wrap: break-word;
+  word-wrap: break-word; /* prevents horizontal scroll */
 }
 
+/* My message */
 .me {
   align-self: flex-end;
   background: var(--primary);
   color: var(--bg);
 }
 
+/* Their message */
 .them {
   align-self: flex-start;
   background: var(--white);
@@ -138,18 +140,18 @@ body.dark .them {
 
 /* ========================= INPUT ========================= */
 .chat-input {
-  position: fixed;   /* ← make it stick at bottom */
+  position: fixed;   /* stick at bottom */
   bottom: 0;
   left: 0;
   width: 100%;
-  max-width: 500px;  /* match wrapper width */
+  max-width: 500px; /* match wrapper width */
   z-index: 10;
 
   display: flex;
-  align-items: center;
+  align-items: flex-end; /* align text at bottom */
   gap: 10px;
 
-  padding: 10px 12px;
+  padding: 8px 12px;
 
   backdrop-filter: blur(15px);
   background: rgba(255,255,255,0.15);
@@ -160,6 +162,7 @@ body.dark .chat-input {
   background: rgba(0,0,0,0.3);
 }
 
+/* ========================= INPUT FIELD ========================= */
 .chat-input input {
   flex: 1;
 
@@ -172,8 +175,18 @@ body.dark .chat-input {
 
   font-size: 14px;
   outline: none;
+
+  max-height: 70px;       /* allow max 2 lines approx */
+  min-height: 38px;       /* original height */
+  line-height: 1.4;
+
+  overflow-y: auto;       /* scroll after max-height */
+  resize: none;           /* prevent manual resize */
+  white-space: pre-wrap;  /* wrap text */
+  word-wrap: break-word;  /* prevent horizontal scroll */
 }
 
+/* ========================= SEND BUTTON ========================= */
 .chat-input button {
   width: 42px;
   height: 42px;
@@ -186,10 +199,12 @@ body.dark .chat-input {
   display: flex;
   align-items: center;
   justify-content: center;
+  cursor: pointer;
 }
 
 .chat-input button i {
   font-size: 16px;
+  color: inherit;
 }
 
 /* ========================= MOBILE ========================= */
