@@ -466,12 +466,23 @@ router.get('/users/search', authenticateJWT, async (req, res) => {
       ]
     }).lean();
 
+    const blockedByCurrentUser = blockedRelations
+      .filter(r => r.requester.toString() === currentUserId.toString())
+      .map(r => r.recipient.toString());
+
     const blockedByOthers = blockedRelations
       .filter(r => r.recipient.toString() === currentUserId.toString())
       .map(r => r.requester.toString());
 
-    // Filter out users who blocked current user
-    users = users.filter(u => !blockedByOthers.includes(u._id.toString()));
+    // Mark blocked info on each user
+    users = users
+      .map(u => ({
+        ...u,
+        blocked: blockedByCurrentUser.includes(u._id.toString()),   // we blocked them
+        blockedBy: blockedByOthers.includes(u._id.toString()) ? [currentUserId] : [] // they blocked us
+      }))
+      // Remove users who blocked current user (optional)
+      .filter(u => !blockedByOthers.includes(u._id.toString()));
 
     res.json({ users });
 
@@ -480,7 +491,6 @@ router.get('/users/search', authenticateJWT, async (req, res) => {
     res.status(500).json({ message: 'Server error' });
   }
 });
-
 
 /* =========================
    FRIEND REQUEST
