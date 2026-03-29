@@ -82,25 +82,10 @@ body {
 
 /* ========================= MESSAGE ========================= */
 .msg {
-  max-width: 70%;
-  padding: 10px 14px;
-  border-radius: 12px;
-  word-wrap: break-word;
-}
-
-.me {
-  align-self: flex-end;
-  background: var(--btn-bg);
-  color: var(--btn-text);
-}
-
-.them {
-  align-self: flex-start;
-  background: rgba(0,0,0,0.08);
-}
-
-body.dark .them {
-  background: rgba(255,255,255,0.1);
+  max-width: 80%;
+  padding: 8px 10px;
+  border-radius: 10px;
+  font-size: 14px;
 }
 
 /* ========================= INPUT (GLASS + FIXED) ========================= */
@@ -111,18 +96,11 @@ body.dark .them {
   z-index: 10;
 
   display: flex;
-  gap: 10px;
-  padding: 12px;
+  gap: 8px;
+  padding: 8px 10px;
 
-  backdrop-filter: blur(15px);
-  -webkit-backdrop-filter: blur(15px);
-
+  backdrop-filter: blur(12px);
   background: rgba(255,255,255,0.2);
-  border-top: 1px solid rgba(255,255,255,0.2);
-}
-
-body.dark .chat-input {
-  background: rgba(0,0,0,0.3);
 }
 
 /* ========================= INPUT FIELD ========================= */
