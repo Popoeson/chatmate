@@ -470,8 +470,13 @@ document.addEventListener("DOMContentLoaded", async () => {
   // ========================= RELATIONSHIP =========================
   function getRelationship(user) {
     const uid = user._id.toString();
+
+    // --- CHECK BLOCKED FLAGS FROM SEARCH ---
+    if (user.blocked) return "blocked";       // we blocked them (from search)
+    if (user.blockedBy?.includes(currentUserId)) return "blockedBy";  // they blocked us (from search)
+
+    // --- FALLBACK TO FRIENDS DATA ---
     if (blockedData.some(u => u._id === uid)) return "blocked";       // we blocked them
-    if (user.blockedBy?.includes(currentUserId)) return "blockedBy";  // they blocked us
     if (friendsData.some(u => u._id === uid)) return "friend";
     if (sentData.some(u => u._id === uid)) return "sent";
     if (receivedData.some(u => u._id === uid)) return "received";
@@ -490,40 +495,25 @@ document.addEventListener("DOMContentLoaded", async () => {
     let actionsHTML = "";
 
     if (type === "friend") {
-      actionsHTML = `
-        <span style="color:green;">Friend</span>
-        <button class="block-btn">Block</button>
-      `;
+      actionsHTML = `<span style="color:green;">Friend</span><button class="block-btn">Block</button>`;
     } else if (type === "sent") {
-      actionsHTML = `
-        <button class="delete-btn">Delete</button>
-        <span style="color:orange;"><i class="fa-solid fa-spinner fa-spin"></i> Pending</span>
-      `;
+      actionsHTML = `<button class="delete-btn">Delete</button><span style="color:orange;"><i class="fa-solid fa-spinner fa-spin"></i> Pending</span>`;
     } else if (type === "received") {
       actionsHTML = `<button class="accept-btn">Accept</button><button class="reject-btn">Reject</button>`;
     } else if (type === "blocked") {
-      actionsHTML = `
-        <span style="color:red;">Blocked</span>
-        <button class="unblock-btn">Unblock</button>
-      `;
+      actionsHTML = `<span style="color:red;">Blocked</span><button class="unblock-btn">Unblock</button>`;
     } else if (type === "blockedBy") {
-      actionsHTML = `<span style="color:red;">Blocked You</span>`; // cannot add or unblock
+      actionsHTML = `<span style="color:red;">Blocked You</span>`;
     } else if (type === "none") {
       actionsHTML = `<button class="add-btn">Add</button>`;
     }
 
     card.innerHTML = `
-      <div class="card-left">
-        ${avatarHTML}
-        <span>${user.username}</span>
-      </div>
-      <div class="actions">
-        <button class="view-btn">View</button>
-        ${actionsHTML}
-      </div>
+      <div class="card-left">${avatarHTML}<span>${user.username}</span></div>
+      <div class="actions"><button class="view-btn">View</button>${actionsHTML}</div>
     `;
 
-    // VIEW PROFILE
+    // --- VIEW PROFILE ---
     card.querySelector(".view-btn").onclick = () => {
       viewAvatar.src = user.avatarUrl || "";
       viewUsername.textContent = user.username;
@@ -531,7 +521,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       profileModal.classList.add("show");
     };
 
-    // ACTIONS
+    // --- ACTIONS ---
     if (type === "sent") {
       card.querySelector(".delete-btn").onclick = async () => {
         await fetch(`${API}/friends/request/${user._id}`, { method: "DELETE", headers: { Authorization: `Bearer ${Auth.getToken()}` } });
@@ -539,7 +529,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         loadFriends();
       };
     }
-
     if (type === "received") {
       card.querySelector(".accept-btn").onclick = async () => {
         await fetch(`${API}/friends/request/${user._id}/accept`, { method: "POST", headers: { Authorization: `Bearer ${Auth.getToken()}` } });
@@ -552,7 +541,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         loadFriends();
       };
     }
-
     if (type === "friend") {
       card.querySelector(".block-btn").onclick = async () => {
         try {
@@ -563,7 +551,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         } catch { UI.showToast("Failed to block user", "error"); }
       };
     }
-
     if (type === "blocked") {
       card.querySelector(".unblock-btn").onclick = async () => {
         try {
@@ -574,7 +561,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         } catch { UI.showToast("Failed to unblock user", "error"); }
       };
     }
-
     if (type === "none") {
       card.querySelector(".add-btn").onclick = async () => {
         try {
