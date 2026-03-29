@@ -160,6 +160,38 @@ body.dark .chat-input {
   background: rgba(0,0,0,0.3);
 }
 
+.chat-input input {
+  flex: 1;
+
+  padding: 10px 12px;
+  border-radius: 20px;
+  border: 1px solid var(--input-border);
+
+  background: transparent;
+  color: var(--text);
+
+  font-size: 14px;
+  outline: none;
+}
+
+.chat-input button {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+
+  border: none;
+  background: var(--primary);
+  color: var(--bg);
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.chat-input button i {
+  font-size: 16px;
+}
+
 /* ========================= MOBILE ========================= */
 @media (max-width: 480px) {
   .msg {
