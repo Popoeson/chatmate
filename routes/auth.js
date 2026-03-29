@@ -684,6 +684,76 @@ router.get("/pending", authenticateJWT, async (req, res) => {
 });
 
 /* =========================
+   BLOCK USER
+========================= */
+router.post('/friends/block/:userId', authenticateJWT, async (req, res) => {
+  try {
+    const currentUserId = req.userId;
+    const targetUserId = req.params.userId;
+
+    if (currentUserId === targetUserId) 
+      return res.status(400).json({ message: "Cannot block yourself" });
+
+    const request = await FriendRequest.findOne({
+      $or: [
+        { requester: currentUserId, recipient: targetUserId },
+        { requester: targetUserId, recipient: currentUserId }
+      ]
+    });
+
+    if (request) {
+      request.status = "blocked"; // mark as blocked
+      await request.save();
+    } else {
+      // If no friend request exists, create a blocked record
+      await FriendRequest.create({
+        requester: currentUserId,
+        recipient: targetUserId,
+        status: "blocked"
+      });
+    }
+
+    // 🔔 SOCKET: optional notification
+    const targetSocketId = onlineUsers.get(targetUserId);
+    if (targetSocketId) {
+      io.to(targetSocketId).emit("user_blocked", { by: currentUserId });
+    }
+
+    res.json({ message: "User blocked" });
+
+  } catch (err) {
+    console.error("BLOCK ERROR:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+/* =========================
+   UNBLOCK USER
+========================= */
+router.post('/friends/unblock/:userId', authenticateJWT, async (req, res) => {
+  try {
+    const currentUserId = req.userId;
+    const targetUserId = req.params.userId;
+
+    const request = await FriendRequest.findOne({
+      requester: currentUserId,
+      recipient: targetUserId,
+      status: "blocked"
+    });
+
+    if (!request) return res.status(404).json({ message: "No blocked user found" });
+
+    await request.deleteOne(); // remove the blocked record
+
+    res.json({ message: "User unblocked" });
+
+  } catch (err) {
+    console.error("UNBLOCK ERROR:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+/* =========================
    HEALTH CHECK
 ========================= */
 router.get("/api/health", (req, res) => {
