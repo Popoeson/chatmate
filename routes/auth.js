@@ -445,22 +445,41 @@ router.post("/reset-password", async (req, res) => {
 ========================= */
 router.get('/users/search', authenticateJWT, async (req, res) => {
   try {
+    const currentUserId = req.userId;
     const query = req.query.username || '';
     if (!query) return res.json({ users: [] });
 
-    const users = await User.find({
-      username: { $regex: query, $options: 'i' }
+    // Find users matching the query
+    let users = await User.find({
+      username: { $regex: query, $options: 'i' },
+      _id: { $ne: currentUserId } // exclude self
     })
-      .select('_id username avatarUrl bio') // only return necessary fields
-      .limit(10);
+    .select('_id username avatarUrl bio')
+    .limit(10)
+    .lean();
+
+    // Fetch blocked relationships involving current user
+    const blockedRelations = await FriendRequest.find({
+      $or: [
+        { requester: currentUserId, status: "blocked" }, // users currentUser blocked
+        { recipient: currentUserId, status: "blocked" }  // users who blocked currentUser
+      ]
+    }).lean();
+
+    const blockedByOthers = blockedRelations
+      .filter(r => r.recipient.toString() === currentUserId.toString())
+      .map(r => r.requester.toString());
+
+    // Filter out users who blocked current user
+    users = users.filter(u => !blockedByOthers.includes(u._id.toString()));
 
     res.json({ users });
+
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Server error' });
   }
 });
-
 
 
 /* =========================
