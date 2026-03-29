@@ -2,27 +2,48 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Chat</title>
   <link rel="stylesheet" href="style.css" />
   <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
-  <script src="https://kit.fontawesome.com/your-kit.js"></script>
+  <script src="https://kit.fontawesome.com/your-kit.js" crossorigin="anonymous"></script>
 
   <style>
-    body {
-      margin: 0;
-      font-family: Arial, sans-serif;
-      display: flex;
-      flex-direction: column;
-      height: 100vh;
-      background: var(--bg);
+    :root {
+      --bg: #F8F7F4;
+      --text: #1C1C1E;
+      --input-border: #ccc;
+      --btn-bg: #1C1C1E;
+      --btn-text: #fff;
     }
 
+    body.dark {
+      --bg: #1C1C1E;
+      --text: #fff;
+      --input-bg: #2C2C2E;
+      --btn-bg: #fff;
+      --btn-text: #1C1C1E;
+    }
+
+    body {
+      margin: 0;
+      font-family: 'Poppins', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      height: 100vh;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ========================= HEADER ========================= */
     .chat-header {
-      padding: 12px;
+      flex-shrink: 0;
+      padding: 12px 15px;
       display: flex;
       align-items: center;
       gap: 10px;
-      border-bottom: 1px solid #ccc;
+      border-bottom: 1px solid var(--input-border);
     }
 
     .chat-header img {
@@ -31,62 +52,79 @@
       border-radius: 50%;
     }
 
+    /* ========================= MESSAGES ========================= */
     .messages {
       flex: 1;
       overflow-y: auto;
-      padding: 10px;
+      padding: 15px;
       display: flex;
       flex-direction: column;
-      gap: 8px;
+      gap: 10px;
     }
 
     .msg {
-      max-width: 70%;
-      padding: 10px;
-      border-radius: 10px;
+      max-width: 75%;
+      padding: 10px 14px;
+      border-radius: 16px;
+      font-size: 14px;
+      word-wrap: break-word;
     }
 
     .me {
       align-self: flex-end;
-      background: #4caf50;
-      color: white;
+      background: var(--btn-bg);
+      color: var(--btn-text);
     }
 
     .them {
       align-self: flex-start;
-      background: #ddd;
+      background: rgba(0,0,0,0.08);
     }
 
+    body.dark .them {
+      background: rgba(255,255,255,0.1);
+    }
+
+    /* ========================= INPUT ========================= */
     .chat-input {
+      flex-shrink: 0;
       display: flex;
+      align-items: center;
       padding: 10px;
-      border-top: 1px solid #ccc;
+      border-top: 1px solid var(--input-border);
       gap: 10px;
+      background: var(--bg);
     }
 
     .chat-input input {
       flex: 1;
-      padding: 10px;
-      border-radius: 8px;
-      border: 1px solid #ccc;
+      padding: 12px;
+      border: none;
+      border-bottom: 1.5px solid var(--input-border);
+      background: transparent;
+      color: var(--text);
+      outline: none;
     }
 
     .chat-input button {
-      padding: 10px 15px;
+      width: 45px;
+      height: 45px;
+      border-radius: 50%;
       border: none;
-      border-radius: 8px;
-      background: #4caf50;
-      color: white;
+      background: var(--btn-bg);
+      color: var(--btn-text);
       cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
   </style>
 </head>
 
 <body>
-
   <!-- HEADER -->
   <div class="chat-header">
-    <img id="chatAvatar" />
+    <img id="chatAvatar" alt="User Avatar"/>
     <span id="chatUsername">Loading...</span>
   </div>
 
@@ -174,7 +212,7 @@ sendBtn.onclick = () => {
   input.value = "";
 };
 
-// ========================= RECEIVE =========================
+// ========================= RECEIVE MESSAGE =========================
 socket.on("receive_message", (data) => {
   if (data.from === receiverId) {
     addMessage(data.message, "them");
@@ -187,13 +225,18 @@ function addMessage(text, type) {
   div.className = `msg ${type}`;
   div.textContent = text;
   messagesDiv.appendChild(div);
-  messagesDiv.scrollTop = messagesDiv.scrollHeight;
+
+  // Smooth scroll
+  messagesDiv.scrollTo({
+    top: messagesDiv.scrollHeight,
+    behavior: "smooth"
+  });
 }
 
 // ========================= INIT =========================
 await loadUser();
 await loadReceiver();
-
+input.focus();
 </script>
 
 </body>
