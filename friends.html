@@ -301,9 +301,20 @@ body:not(.dark) .toast { background: #f0f0f0; color: #111; }
 
 <!-- TAB BUTTONS -->
 <div class="tabs">
-  <div id="tabFriends" class="tab-btn active"><i class="fa-solid fa-user-group"></i> Friends</div>
-  <div id="tabSent" class="tab-btn"><i class="fa-solid fa-paper-plane"></i> Sent</div>
-  <div id="tabReceived" class="tab-btn"><i class="fa-solid fa-inbox"></i> Received</div>
+  <div id="tabFriends" class="tab-btn active">
+    <i class="fa-solid fa-user-group"></i> Friends
+    <span class="tab-badge" id="friendsBadge"></span>
+  </div>
+
+  <div id="tabSent" class="tab-btn">
+    <i class="fa-solid fa-paper-plane"></i> Sent
+    <span class="tab-badge" id="sentBadge"></span>
+  </div>
+
+  <div id="tabReceived" class="tab-btn">
+    <i class="fa-solid fa-inbox"></i> Received
+    <span class="tab-badge" id="receivedBadge"></span>
+  </div>
 </div>
 
 <!-- FRIENDS LIST -->
