@@ -335,9 +335,11 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
 
     socket.on("connect", () => {
-      logDebug("Socket connected for user: " + currentUserId);
-      socket.emit("join", currentUserId);
-    });
+  logDebug("Socket connected for user: " + currentUserId);
+
+  // ✅ FIXED HERE
+  socket.emit("register", currentUserId);
+});
 
     // NEW FRIEND REQUEST RECEIVED
 socket.on("friend_request_received", () => {
