@@ -340,7 +340,7 @@ body:not(.dark) .toast { background: #f0f0f0; color: #111; }
   <img id="previewImg">
 </div>
 
-
+<script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
 <script type="module">
 import { Auth } from "./session.js";
 import UI from "./utils/ui.js";
@@ -366,6 +366,9 @@ document.addEventListener("DOMContentLoaded", async () => {
   const tabFriends = document.getElementById("tabFriends");
   const tabSent = document.getElementById("tabSent");
   const tabReceived = document.getElementById("tabReceived");
+
+
+let socket = null;
 
   // ✅ BADGE ELEMENTS
   const friendsCountEl = document.getElementById("friendsBadge");
@@ -484,6 +487,48 @@ document.addEventListener("DOMContentLoaded", async () => {
       UI.showToast("Failed to load friends", "error");
     }
   }
+
+// ========================= SOCKET INTEGRATION =========================
+
+function initSocket() {
+  socket = io("https://chatmate-kbwz.onrender.com", {
+    auth: { token: Auth.getToken() }
+  });
+
+  socket.on("connect", () => {
+    // Register user for targeting
+    socket.emit("register", currentUserId);
+  });
+
+  // ================= REALTIME EVENTS =================
+
+  socket.on("friend_request_received", () => {
+    UI.showToast("New friend request", "info");
+    loadFriends();
+  });
+
+  socket.on("friend_request_accepted", () => {
+    UI.showToast("Friend request accepted", "success");
+    loadFriends();
+  });
+
+  socket.on("friend_request_rejected", () => {
+    UI.showToast("Friend request rejected", "error");
+    loadFriends();
+  });
+
+  socket.on("friend_request_deleted", () => {
+    loadFriends();
+  });
+
+  socket.on("disconnect", () => {
+    // optional: silent reconnect
+  });
+
+  socket.on("connect_error", () => {
+    // optional: handle error silently
+  });
+}
 
   // ========================= RELATIONSHIP =========================
   function getRelationship(userId) {
@@ -650,8 +695,9 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   // ========================= INIT =========================
   await loadUser();
-  await loadFriends();
-  setActiveTab("friends");
+await loadFriends();
+initSocket(); 
+setActiveTab("friends");
 
   UI.setupCloseOnOutside(profileModal);
   UI.setupImageModal(imagePreview, previewImg);
