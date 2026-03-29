@@ -388,7 +388,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   let friendsData = [];
   let sentData = [];
   let receivedData = [];
-  let blockedData = []; // NEW: track users blocked by current user
+  let blockedData = []; // users current user blocked
 
   const DEFAULT_AVATAR = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="#888"><path d="M12 12c2.7 0 5-2.3 5-5s-2.3-5-5-5-5 2.3-5 5 2.3 5 5 5zm0 2c-3.3 0-10 1.7-10 5v3h20v-3c0-3.3-6.7-5-10-5z"/></svg>`;
 
@@ -433,7 +433,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
       updateTabBadges();
 
-      // CLEAR
+      // CLEAR LISTS
       friendsList.innerHTML = "";
       sentList.innerHTML = "";
       receivedList.innerHTML = "";
@@ -468,9 +468,10 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   // ========================= RELATIONSHIP =========================
-  function getRelationship(userId) {
-    const uid = userId.toString();
-    if (blockedData.some(u => u._id === uid)) return "blocked";
+  function getRelationship(user) {
+    const uid = user._id.toString();
+    if (blockedData.some(u => u._id === uid)) return "blocked";       // we blocked them
+    if (user.blockedBy?.includes(currentUserId)) return "blockedBy";  // they blocked us
     if (friendsData.some(u => u._id === uid)) return "friend";
     if (sentData.some(u => u._id === uid)) return "sent";
     if (receivedData.some(u => u._id === uid)) return "received";
@@ -479,150 +480,124 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   // ========================= CREATE CARD =========================
   function createCard(user, type) {
-  const card = document.createElement("div");
-  card.className = "card";
+    const card = document.createElement("div");
+    card.className = "card";
 
-  const avatarHTML = user.avatarUrl
-    ? `<img src="${user.avatarUrl}">`
-    : `<span style="width:45px;height:45px;">${DEFAULT_AVATAR}</span>`;
+    const avatarHTML = user.avatarUrl
+      ? `<img src="${user.avatarUrl}">`
+      : `<span style="width:45px;height:45px;">${DEFAULT_AVATAR}</span>`;
 
-  let actionsHTML = "";
+    let actionsHTML = "";
 
-  if (type === "friend") {
-    // Add "Block" button for friends
-    actionsHTML = `
-      <span style="color:green;">Friend</span>
-      <button class="block-btn">Block</button>
+    if (type === "friend") {
+      actionsHTML = `
+        <span style="color:green;">Friend</span>
+        <button class="block-btn">Block</button>
+      `;
+    } else if (type === "sent") {
+      actionsHTML = `
+        <button class="delete-btn">Delete</button>
+        <span style="color:orange;"><i class="fa-solid fa-spinner fa-spin"></i> Pending</span>
+      `;
+    } else if (type === "received") {
+      actionsHTML = `<button class="accept-btn">Accept</button><button class="reject-btn">Reject</button>`;
+    } else if (type === "blocked") {
+      actionsHTML = `
+        <span style="color:red;">Blocked</span>
+        <button class="unblock-btn">Unblock</button>
+      `;
+    } else if (type === "blockedBy") {
+      actionsHTML = `<span style="color:red;">Blocked You</span>`; // cannot add or unblock
+    } else if (type === "none") {
+      actionsHTML = `<button class="add-btn">Add</button>`;
+    }
+
+    card.innerHTML = `
+      <div class="card-left">
+        ${avatarHTML}
+        <span>${user.username}</span>
+      </div>
+      <div class="actions">
+        <button class="view-btn">View</button>
+        ${actionsHTML}
+      </div>
     `;
-  } else if (type === "sent") {
-    actionsHTML = `
-      <button class="delete-btn">Delete</button>
-      <span style="color:orange;"><i class="fa-solid fa-spinner fa-spin"></i> Pending</span>
-    `;
-  } else if (type === "received") {
-    actionsHTML = `<button class="accept-btn">Accept</button><button class="reject-btn">Reject</button>`;
-  } else if (type === "blocked") {
-    // Custom blocked state
-    actionsHTML = `
-      <span style="color:red;">Blocked</span>
-      <button class="unblock-btn">Unblock</button>
-    `;
-  } else if (type === "none") {
-    actionsHTML = `<button class="add-btn">Add</button>`;
-  }
 
-  card.innerHTML = `
-    <div class="card-left">
-      ${avatarHTML}
-      <span>${user.username}</span>
-    </div>
-    <div class="actions">
-      <button class="view-btn">View</button>
-      ${actionsHTML}
-    </div>
-  `;
-
-  // VIEW PROFILE
-  card.querySelector(".view-btn").onclick = () => {
-    viewAvatar.src = user.avatarUrl || "";
-    viewUsername.textContent = user.username;
-    viewBio.textContent = user.bio || "";
-    profileModal.classList.add("show");
-  };
-
-  // ACTIONS
-  if (type === "sent") {
-    card.querySelector(".delete-btn").onclick = async () => {
-      await fetch(`${API}/friends/request/${user._id}`, {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${Auth.getToken()}` }
-      });
-      UI.showToast("Request deleted", "info");
-      loadFriends();
-    };
-  }
-
-  if (type === "received") {
-    card.querySelector(".accept-btn").onclick = async () => {
-      await fetch(`${API}/friends/request/${user._id}/accept`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${Auth.getToken()}` }
-      });
-      UI.showToast("Friend request accepted", "success");
-      loadFriends();
+    // VIEW PROFILE
+    card.querySelector(".view-btn").onclick = () => {
+      viewAvatar.src = user.avatarUrl || "";
+      viewUsername.textContent = user.username;
+      viewBio.textContent = user.bio || "";
+      profileModal.classList.add("show");
     };
 
-    card.querySelector(".reject-btn").onclick = async () => {
-      await fetch(`${API}/friends/request/${user._id}/reject`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${Auth.getToken()}` }
-      });
-      UI.showToast("Friend request rejected", "error");
-      loadFriends();
-    };
-  }
-
-  if (type === "friend") {
-    card.querySelector(".block-btn").onclick = async () => {
-      try {
-        const res = await fetch(`${API}/friends/request/${user._id}/block`, {
-          method: "POST",
-          headers: { Authorization: `Bearer ${Auth.getToken()}` }
-        });
-        if (!res.ok) throw new Error();
-        UI.showToast("User blocked", "error");
+    // ACTIONS
+    if (type === "sent") {
+      card.querySelector(".delete-btn").onclick = async () => {
+        await fetch(`${API}/friends/request/${user._id}`, { method: "DELETE", headers: { Authorization: `Bearer ${Auth.getToken()}` } });
+        UI.showToast("Request deleted", "info");
         loadFriends();
-      } catch {
-        UI.showToast("Failed to block user", "error");
-      }
-    };
-  }
+      };
+    }
 
-  if (type === "blocked") {
-    card.querySelector(".unblock-btn").onclick = async () => {
-      try {
-        const res = await fetch(`${API}/friends/request/${user._id}/unblock`, {
-          method: "POST",
-          headers: { Authorization: `Bearer ${Auth.getToken()}` }
-        });
-        if (!res.ok) throw new Error();
-        UI.showToast("User unblocked", "success");
+    if (type === "received") {
+      card.querySelector(".accept-btn").onclick = async () => {
+        await fetch(`${API}/friends/request/${user._id}/accept`, { method: "POST", headers: { Authorization: `Bearer ${Auth.getToken()}` } });
+        UI.showToast("Friend request accepted", "success");
         loadFriends();
-      } catch {
-        UI.showToast("Failed to unblock user", "error");
-      }
-    };
-  }
-
-  if (type === "none") {
-    card.querySelector(".add-btn").onclick = async () => {
-      try {
-        const res = await fetch(`${API}/friends/request`, {
-          method: "POST",
-          headers: {
-            "Authorization": `Bearer ${Auth.getToken()}`,
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({ userId: user._id })
-        });
-        if (!res.ok) throw new Error();
-        UI.showToast("Friend request sent", "success");
+      };
+      card.querySelector(".reject-btn").onclick = async () => {
+        await fetch(`${API}/friends/request/${user._id}/reject`, { method: "POST", headers: { Authorization: `Bearer ${Auth.getToken()}` } });
+        UI.showToast("Friend request rejected", "error");
         loadFriends();
-      } catch {
-        UI.showToast("Could not send request", "error");
-      }
-    };
-  }
+      };
+    }
 
-  return card;
-}
+    if (type === "friend") {
+      card.querySelector(".block-btn").onclick = async () => {
+        try {
+          const res = await fetch(`${API}/friends/request/${user._id}/block`, { method: "POST", headers: { Authorization: `Bearer ${Auth.getToken()}` } });
+          if (!res.ok) throw new Error();
+          UI.showToast("User blocked", "error");
+          loadFriends();
+        } catch { UI.showToast("Failed to block user", "error"); }
+      };
+    }
+
+    if (type === "blocked") {
+      card.querySelector(".unblock-btn").onclick = async () => {
+        try {
+          const res = await fetch(`${API}/friends/request/${user._id}/unblock`, { method: "POST", headers: { Authorization: `Bearer ${Auth.getToken()}` } });
+          if (!res.ok) throw new Error();
+          UI.showToast("User unblocked", "success");
+          loadFriends();
+        } catch { UI.showToast("Failed to unblock user", "error"); }
+      };
+    }
+
+    if (type === "none") {
+      card.querySelector(".add-btn").onclick = async () => {
+        try {
+          const res = await fetch(`${API}/friends/request`, {
+            method: "POST",
+            headers: { "Authorization": `Bearer ${Auth.getToken()}`, "Content-Type": "application/json" },
+            body: JSON.stringify({ userId: user._id })
+          });
+          if (!res.ok) throw new Error();
+          UI.showToast("Friend request sent", "success");
+          loadFriends();
+        } catch { UI.showToast("Could not send request", "error"); }
+      };
+    }
+
+    return card;
+  }
 
   // ========================= TABS =========================
   function setActiveTab(tab) {
     tabFriends.classList.remove("active");
     tabSent.classList.remove("active");
     tabReceived.classList.remove("active");
-
     friendsList.classList.remove("active");
     sentList.classList.remove("active");
     receivedList.classList.remove("active");
@@ -655,10 +630,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       else {
         data.users
           .filter(u => u._id !== currentUserId)
-          .filter(u => !u.blockedBy?.includes(currentUserId)) // user blocked us cannot see us
-          .forEach(user => {
-            resultsDiv.appendChild(createCard(user, getRelationship(user._id)));
-          });
+          .forEach(user => resultsDiv.appendChild(createCard(user, getRelationship(user))));
       }
 
     } catch {
@@ -677,5 +649,6 @@ document.addEventListener("DOMContentLoaded", async () => {
 
 });
 </script>
+
 </body>
 </html>
