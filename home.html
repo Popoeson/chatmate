@@ -178,13 +178,12 @@ footer.hide {
   <div class="footer-item"><i class="fa-solid fa-gear"></i><span>Settings</span></div>
 </footer>
 
-<script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+<script src="https://cdn.socket.io/4.7.2/socket.io.min.js">
+</script>
 <script type="module">
 import { Auth } from "./session.js";
 
 const FRIEND_API = "https://chatmate-kbwz.onrender.com/api/auth";
-
-//const FRIEND_API = "https://chatmate-kbwz.onrender.com/api/friends";
 
 document.addEventListener("DOMContentLoaded", async () => {
 
@@ -194,26 +193,6 @@ document.addEventListener("DOMContentLoaded", async () => {
   const toggle = document.getElementById("themeToggle");
   const encryptionToggle = document.getElementById("encryptionToggle");
   const footer = document.querySelector("footer");
-
-  // ========================= DEBUG PANEL =========================
-  const debugPanel = document.createElement("div");
-  debugPanel.style.position = "fixed";
-  debugPanel.style.bottom = "60px";
-  debugPanel.style.right = "10px";
-  debugPanel.style.padding = "10px";
-  debugPanel.style.background = "rgba(0,0,0,0.7)";
-  debugPanel.style.color = "#fff";
-  debugPanel.style.fontSize = "12px";
-  debugPanel.style.zIndex = "9999";
-  debugPanel.style.maxHeight = "200px";
-  debugPanel.style.overflowY = "auto";
-  debugPanel.innerHTML = "<b>Debug Panel:</b><br>";
-  document.body.appendChild(debugPanel);
-
-  function logDebug(msg) {
-    console.log(msg);
-    debugPanel.innerHTML += msg + "<br>";
-  }
 
   // ========================= VARIABLES =========================
   let notificationCount = 0;
@@ -248,11 +227,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   // ========================= SAFE GET USER =========================
   async function safeGetUser() {
     const token = Auth.getToken();
-    if (!token) {
-      logDebug("No token found in storage.");
-      return null;
-    }
-    logDebug("Token found: " + token);
+    if (!token) return null;
 
     try {
       const res = await fetch("https://chatmate-kbwz.onrender.com/api/auth/me", {
@@ -260,48 +235,18 @@ document.addEventListener("DOMContentLoaded", async () => {
       });
 
       if (res.status === 401 || res.status === 403) {
-        logDebug("Token invalid/expired. Clearing token...");
         Auth.clearToken();
         return null;
       }
 
-      if (!res.ok) {
-        logDebug("Failed to fetch user. Status: " + res.status);
-        return null; 
-      }
+      if (!res.ok) return null;
 
       const data = await res.json();
-      logDebug("User fetched successfully: " + JSON.stringify(data.user));
       return data.user || null;
 
-    } catch (err) {
-      logDebug("Network error fetching user: " + err.message);
+    } catch {
       return null;
     }
-  }
-
-  // ========================= LOAD USER =========================
-  async function loadUser() {
-    const user = await safeGetUser();
-
-    if (!user) {
-      logDebug("Redirecting to login page...");
-      window.location.href = "login.html";
-      return;
-    }
-
-    currentUserId = user._id;
-
-    const usernameEl = document.getElementById("usernameDisplay");
-    const avatarEl = document.getElementById("avatarImg");
-    if (usernameEl) usernameEl.innerText = user.username || user.email;
-    if (avatarEl) avatarEl.src = user.avatarUrl || "https://i.pravatar.cc/50";
-
-    // ========================= FETCH PENDING FRIEND REQUESTS =========================
-    await fetchPendingCount();
-
-    // ========================= INITIALIZE SOCKET.IO =========================
-    initSocket();
   }
 
   // ========================= FETCH PENDING COUNT =========================
@@ -315,61 +260,53 @@ document.addEventListener("DOMContentLoaded", async () => {
         const data = await res.json();
         notificationCount = data.count || 0;
         updateBadge();
-        logDebug("Pending friend requests: " + notificationCount);
-      } else {
-        logDebug("Failed to fetch pending friends. Status: " + res.status);
       }
-    } catch (err) {
-      logDebug("Error fetching pending friends: " + err.message);
+    } catch {
+      // silent fail (production safe)
     }
+  }
+
+  // ========================= LOAD USER =========================
+  async function loadUser() {
+    const user = await safeGetUser();
+
+    if (!user) {
+      window.location.href = "login.html";
+      return;
+    }
+
+    currentUserId = user._id;
+
+    const usernameEl = document.getElementById("usernameDisplay");
+    const avatarEl = document.getElementById("avatarImg");
+
+    if (usernameEl) usernameEl.innerText = user.username || user.email;
+    if (avatarEl) avatarEl.src = user.avatarUrl || "https://i.pravatar.cc/50";
+
+    // Initial sync
+    await fetchPendingCount();
+
+    // Start socket
+    initSocket();
   }
 
   // ========================= SOCKET.IO =========================
   function initSocket() {
     if (!currentUserId) return;
 
-    logDebug("Initializing Socket.IO...");
-
     socket = io("https://chatmate-kbwz.onrender.com", {
       auth: { token: Auth.getToken() }
     });
 
     socket.on("connect", () => {
-  logDebug("Socket connected for user: " + currentUserId);
+      socket.emit("register", currentUserId);
+    });
 
-  // ✅ FIXED HERE
-  socket.emit("register", currentUserId);
-});
-
-    // NEW FRIEND REQUEST RECEIVED
-socket.on("friend_request_received", () => {
-  notificationCount++;
-  updateBadge();
-  logDebug("New friend request received (real-time)");
-});
-
-// REQUEST ACCEPTED
-socket.on("friend_request_accepted", () => {
-  notificationCount++;
-  updateBadge();
-  logDebug("Friend request accepted (real-time)");
-});
-
-// REQUEST REJECTED / DELETED (optional)
-socket.on("friend_request_rejected", () => {
-  notificationCount = Math.max(0, notificationCount - 1);
-  updateBadge();
-  logDebug("Friend request rejected");
-});
-
-socket.on("friend_request_deleted", () => {
-  notificationCount = Math.max(0, notificationCount - 1);
-  updateBadge();
-  logDebug("Friend request deleted");
-});
-
-    socket.on("disconnect", (reason) => logDebug("Socket disconnected: " + reason));
-    socket.on("connect_error", (err) => logDebug("Socket connect error: " + err.message));
+    // 🔥 PRODUCTION SAFE: always sync instead of incrementing
+    socket.on("friend_request_received", fetchPendingCount);
+    socket.on("friend_request_accepted", fetchPendingCount);
+    socket.on("friend_request_rejected", fetchPendingCount);
+    socket.on("friend_request_deleted", fetchPendingCount);
   }
 
   // ========================= FOOTER HIDE/SHOW =========================
