@@ -782,6 +782,27 @@ router.post('/friends/unblock/:userId', authenticateJWT, async (req, res) => {
   }
 });
 
+
+/* =========================
+   FETCH USERS FOR CHAT
+========================= */
+
+router.get('/users/:id', authenticateJWT, async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id)
+      .select('_id username avatarUrl bio');
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    res.json(user);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
 /* =========================
    HEALTH CHECK
 ========================= */
