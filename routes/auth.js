@@ -808,8 +808,6 @@ router.get('/users/:id', authenticateJWT, async (req, res) => {
 /* =========================
    GET CHAT HISTORY
 ========================= */
-import Message from "../models/Message.js";
-
 router.get("/messages/:userId", authenticateJWT, async (req, res) => {
   try {
     const currentUserId = req.userId;
