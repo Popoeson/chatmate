@@ -267,7 +267,6 @@ document.addEventListener("DOMContentLoaded", async () => {
   let friendNotifCount = 0;
   let socket           = null;
 
-  // friendId → { card, unreadCount, lastMessage, lastMsgEl, unreadEl, isMine }
   const cardMap = new Map();
 
   // ── HELPERS ───────────────────────────────────────────────
@@ -351,22 +350,20 @@ document.addEventListener("DOMContentLoaded", async () => {
     const lastMsgEl = card.querySelector(".last-msg");
 
     card.onclick = async () => {
-  const state = cardMap.get(friendId);
-  if (state && state.unreadCount > 0) {
-    // Clear badge immediately on click
-    state.unreadCount = 0;
-    unreadEl.textContent   = "0";
-    unreadEl.style.display = "none";
-    updateFooterChatBadge();
-
-    // Mark read on server in background
-    fetch(`${API}/messages/${friendId}/read`, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${Auth.getToken()}` }
-    }).catch(() => {});
-  }
-  window.location.href = `chat.html?userId=${friendId}`;
-};
+      const state = cardMap.get(friendId);
+      if (state && state.unreadCount > 0) {
+        state.unreadCount      = 0;
+        unreadEl.textContent   = "0";
+        unreadEl.style.display = "none";
+        updateFooterChatBadge();
+        // Fire and forget — chat.html will also call markAsRead on open
+        fetch(`${API}/messages/${friendId}/read`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${Auth.getToken()}` }
+        }).catch(() => {});
+      }
+      window.location.href = `chat.html?userId=${friendId}`;
+    };
 
     cardMap.set(friendId, {
       card,
@@ -385,24 +382,20 @@ document.addEventListener("DOMContentLoaded", async () => {
   function upsertCard(data, isNew = false) {
     const { friendId, lastMessage, lastTime, unreadCount } = data;
 
-    // sender's own update always comes with unreadCount: 0
-    const isMine      = isNew && unreadCount === 0;
-    const activeChatId  = getActiveChatId();
-    const isActiveChat  = activeChatId === friendId;
+    const isMine       = isNew && unreadCount === 0;
+    const activeChatId = getActiveChatId();
+    const isActiveChat = activeChatId === friendId;
 
     if (cardMap.has(friendId)) {
       const state = cardMap.get(friendId);
       const { card, lastMsgEl, unreadEl } = state;
 
-      // Update last message + tick
       state.isMine      = isMine;
-      state.delivered   = false; // reset — wait for message_delivered event
+      state.delivered   = false;
       state.lastMessage = lastMessage;
       lastMsgEl.innerHTML = buildLastMsgHTML(lastMessage, isMine, false);
-
       card.querySelector(".chat-time").textContent = formatTime(lastTime);
 
-      // Unread logic
       if (isNew && !isMine && !isActiveChat) {
         state.unreadCount += 1;
         unreadEl.textContent   = state.unreadCount;
@@ -412,11 +405,10 @@ document.addEventListener("DOMContentLoaded", async () => {
           method: "POST",
           headers: { Authorization: `Bearer ${Auth.getToken()}` }
         }).catch(() => {});
-        state.unreadCount = 0;
+        state.unreadCount      = 0;
         unreadEl.style.display = "none";
       }
 
-      // Move to top + pulse
       chatList.prepend(card);
       card.classList.remove("pulse");
       void card.offsetWidth;
@@ -596,14 +588,13 @@ document.addEventListener("DOMContentLoaded", async () => {
     lastScroll = cur;
   });
 
-// ── INIT ──────────────────────────────────────────────────
+  // ── INIT ──────────────────────────────────────────────────
   await loadUser();
   await loadConversations();
   await fetchPendingCount();
   initSocket();
 
 });
-
 </script>
 
 </body>
