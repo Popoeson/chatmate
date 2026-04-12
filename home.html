@@ -596,7 +596,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     lastScroll = cur;
   });
 
-// ── INIT ──────────────────────────────────────────────────
+/* ── INIT ──────────────────────────────────────────────────
 await loadUser();
 await loadReceiver();
 
@@ -622,7 +622,16 @@ await loadHistory();
 fetch(`${API}/messages/${receiverId}/read`, {
   method: "POST",
   headers: { Authorization: `Bearer ${token}` }
-}).catch(() => {});
+}).catch(() => {}); */
+
+// ── INIT ──────────────────────────────────────────────────
+  await loadUser();
+  await loadConversations();
+  await fetchPendingCount();
+  initSocket();
+
+});
+
 </script>
 
 </body>
