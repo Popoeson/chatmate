@@ -1,4 +1,3 @@
-models/Message.js — create this new file:
 import mongoose from "mongoose";
 
 const messageSchema = new mongoose.Schema({
