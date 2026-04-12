@@ -804,6 +804,33 @@ router.get('/users/:id', authenticateJWT, async (req, res) => {
 });
 
 /* =========================
+   GET CHAT HISTORY
+========================= */
+import Message from "../models/Message.js";
+
+router.get("/messages/:userId", authenticateJWT, async (req, res) => {
+  try {
+    const currentUserId = req.userId;
+    const otherUserId   = req.params.userId;
+
+    const messages = await Message.find({
+      $or: [
+        { sender: currentUserId, receiver: otherUserId },
+        { sender: otherUserId,   receiver: currentUserId }
+      ]
+    })
+    .sort({ createdAt: 1 })
+    .select("sender receiver text delivered createdAt");
+
+    res.json({ messages });
+
+  } catch (err) {
+    console.error("GET MESSAGES ERROR:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+/* =========================
    HEALTH CHECK
 ========================= */
 router.get("/api/health", (req, res) => {
