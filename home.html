@@ -596,34 +596,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     lastScroll = cur;
   });
 
-/* ── INIT ──────────────────────────────────────────────────
-await loadUser();
-await loadReceiver();
-
-socket.on("connect", () => {
-  if (currentUserId) socket.emit("register", currentUserId);
-});
-
-if (socket.connected) {
-  socket.emit("register", currentUserId);
-} else {
-  socket.connect();
-}
-
-sessionStorage.setItem("activeChatId", receiverId);
-
-window.addEventListener("pagehide", () => {
-  sessionStorage.removeItem("activeChatId");
-});
-
-await loadHistory();
-
-// Mark all messages from this user as read on open
-fetch(`${API}/messages/${receiverId}/read`, {
-  method: "POST",
-  headers: { Authorization: `Bearer ${token}` }
-}).catch(() => {}); */
-
 // ── INIT ──────────────────────────────────────────────────
   await loadUser();
   await loadConversations();
