@@ -1,4 +1,6 @@
 import express from "express";
+import mongoose from "mongoose";
+import Message from "../models/Message.js";
 import User from "../models/User.js";
 import OTP from "../models/OTP.js";
 import FriendRequest from "../models/FriendRequest.js";
