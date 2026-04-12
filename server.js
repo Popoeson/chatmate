@@ -68,13 +68,19 @@ io.on("connection", (socket) => {
   });
 
   // ── SEND MESSAGE ──────────────────────────────────────
-  socket.on("send_message", async ({ to, message }) => {
+  /* socket.on("send_message", async ({ to, message }) => {
   let senderId = null;
   for (const [uid, sid] of onlineUsers.entries()) {
     if (sid === socket.id) { senderId = uid; break; }
   }
 
+  if (!senderId || !to || !message?.trim()) return; */
+
+socket.on("send_message", async ({ to, message }) => {
+  const senderId = socket.userId; // ← direct, no loop needed
+
   if (!senderId || !to || !message?.trim()) return;
+ 
 
   try {
     const recipientSocketId = onlineUsers.get(to);
