@@ -87,68 +87,84 @@ io.on("connection", (socket) => {
   });
 
   // ── SEND MESSAGE ────────────────────────────────────────
+  
   socket.on("send_message", async ({ to, message, replyTo }) => {
-    const senderId = socket.userId;
-    if (!senderId || !to || !message?.trim()) return;
+  const senderId = socket.userId;
+  if (!senderId || !to || !message?.trim()) return;
 
-    try {
-      const recipientSocketId = onlineUsers.get(to);
-      const isOnline = !!recipientSocketId;
+  try {
+    const recipientSocketId = onlineUsers.get(to);
+    const isOnline = !!recipientSocketId;
 
-      const msgData = {
-        sender:    senderId,
-        receiver:  to,
-        text:      message.trim(),
-        delivered: isOnline,
-        read:      false
+    const msgData = {
+      sender:    senderId,
+      receiver:  to,
+      text:      message.trim(),
+      delivered: isOnline,
+      read:      false
+    };
+
+    if (replyTo?.messageId) {
+      msgData.replyTo = {
+        messageId: replyTo.messageId,
+        text:      replyTo.text,
+        sender:    replyTo.sender
       };
+    }
 
-      if (replyTo?.messageId) {
-        msgData.replyTo = {
-          messageId: replyTo.messageId,
-          text:      replyTo.text,
-          sender:    replyTo.sender
-        };
-      }
+    const saved = await Message.create(msgData);
+    const senderUser = await User.findById(senderId).select("username avatarUrl");
+    const receiverUser = await User.findById(to).select("username avatarUrl");
 
-      const saved = await Message.create(msgData);
-      const senderUser = await User.findById(senderId).select("username avatarUrl");
-
-      if (isOnline) {
-        io.to(recipientSocketId).emit("receive_message", {
-          from:      senderId,
-          message:   saved.text,
-          messageId: saved._id.toString(),
-          timestamp: saved.createdAt,
-          replyTo:   replyTo || null
-        });
-
-        io.to(recipientSocketId).emit("new_conversation_message", {
-          friendId:    senderId,
-          username:    senderUser.username,
-          avatarUrl:   senderUser.avatarUrl || "",
-          lastMessage: saved.text,
-          lastTime:    saved.createdAt,
-          unreadCount: 1
-        });
-      }
-
-    //notify sender's homepage that message was delivered
-  io.to(socket.id).emit("message_delivered", {
-    friendId:  to,
-    messageId: saved._id.toString()
-  });
-}
-
-      socket.emit("message_sent", {
+    // ── Notify recipient ──────────────────────────────────
+    if (isOnline) {
+      io.to(recipientSocketId).emit("receive_message", {
+        from:      senderId,
+        message:   saved.text,
         messageId: saved._id.toString(),
-        timestamp: saved.createdAt
+        timestamp: saved.createdAt,
+        replyTo:   replyTo || null
       });
 
-    } catch (err) {
-      console.error("send_message error:", err);
+      io.to(recipientSocketId).emit("new_conversation_message", {
+        friendId:    senderId,
+        username:    senderUser.username,
+        avatarUrl:   senderUser.avatarUrl || "",
+        lastMessage: saved.text,
+        lastTime:    saved.createdAt,
+        unreadCount: 1
+      });
     }
-  });
+
+    // ── Notify sender's homepage ──────────────────────────
+    // Update sender's own chat card with the new last message
+    socket.emit("new_conversation_message", {
+      friendId:    to,
+      username:    receiverUser.username,
+      avatarUrl:   receiverUser.avatarUrl || "",
+      lastMessage: saved.text,
+      lastTime:    saved.createdAt,
+      unreadCount: 0  // sender never has unread on their own sent message
+    });
+
+    // Delivery tick
+    if (isOnline) {
+      socket.emit("message_delivered", {
+        friendId:  to,
+        messageId: saved._id.toString()
+      });
+    }
+
+    // Confirm save to chat.html
+    socket.emit("message_sent", {
+      messageId: saved._id.toString(),
+      timestamp: saved.createdAt
+    });
+
+  } catch (err) {
+    console.error("send_message error:", err);
+  }
+});
 
   // ── DISCONNECT ──────────────────────────────────────────
   socket.on("disconnect", () => {
