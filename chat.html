@@ -511,13 +511,14 @@ async function loadHistory() {
 }
 
 // ── MARK AS READ ──────────────────────────────────────────
-function markAsRead() {
-  fetch(`${API}/messages/${receiverId}/read`, {
-    method: "POST",
-    headers: { Authorization: `Bearer ${token}` }
-  }).catch(() => {});
+async function markAsRead() {
+  try {
+    await fetch(`${API}/messages/${receiverId}/read`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` }
+    });
+  } catch {}
 }
-
 // ── SOCKET ────────────────────────────────────────────────
 const socket = io("https://chatmate-kbwz.onrender.com", { auth: { token } });
 
