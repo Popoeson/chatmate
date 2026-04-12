@@ -831,6 +831,104 @@ router.get("/messages/:userId", authenticateJWT, async (req, res) => {
 });
 
 /* =========================
+   GET CONVERSATIONS
+========================= */
+router.get("/conversations", authenticateJWT, async (req, res) => {
+  try {
+    const currentUserId = new mongoose.Types.ObjectId(req.userId);
+
+    const conversations = await Message.aggregate([
+      {
+        $match: {
+          $or: [
+            { sender: currentUserId },
+            { receiver: currentUserId }
+          ]
+        }
+      },
+      { $sort: { createdAt: -1 } },
+      {
+        $group: {
+          _id: {
+            $cond: [
+              { $eq: ["$sender", currentUserId] },
+              "$receiver",
+              "$sender"
+            ]
+          },
+          lastMessage:   { $first: "$$ROOT" },
+          unreadCount: {
+            $sum: {
+              $cond: [
+                {
+                  $and: [
+                    { $eq: ["$receiver", currentUserId] },
+                    { $eq: ["$read", false] }
+                  ]
+                },
+                1, 0
+              ]
+            }
+          }
+        }
+      },
+      { $sort: { "lastMessage.createdAt": -1 } },
+      {
+        $lookup: {
+          from: "users",
+          localField: "_id",
+          foreignField: "_id",
+          as: "friend"
+        }
+      },
+      { $unwind: "$friend" },
+      {
+        $project: {
+          _id: 0,
+          friendId:    "$_id",
+          username:    "$friend.username",
+          avatarUrl:   "$friend.avatarUrl",
+          lastMessage: "$lastMessage.text",
+          lastTime:    "$lastMessage.createdAt",
+          unreadCount: 1
+        }
+      }
+    ]);
+
+    res.json({ conversations });
+
+  } catch (err) {
+    console.error("GET CONVERSATIONS ERROR:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+/* =========================
+   MARK MESSAGES AS READ
+========================= */
+router.post("/messages/:userId/read", authenticateJWT, async (req, res) => {
+  try {
+    const currentUserId = req.userId;
+    const otherUserId   = req.params.userId;
+
+    await Message.updateMany(
+      {
+        sender:   otherUserId,
+        receiver: currentUserId,
+        read:     false
+      },
+      { $set: { read: true } }
+    );
+
+    res.json({ message: "Messages marked as read" });
+
+  } catch (err) {
+    console.error("MARK READ ERROR:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+/* =========================
    HEALTH CHECK
 ========================= */
 router.get("/api/health", (req, res) => {
