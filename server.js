@@ -5,7 +5,7 @@ import cors from "cors";
 import http from "http";
 import { Server } from "socket.io";
 import Message from "./models/Message.js";
-
+import User from "./models/User.js";
 import authRoutes from "./routes/auth.js";
 
 dotenv.config();
@@ -40,11 +40,11 @@ io.on("connection", (socket) => {
 
   // ── REGISTER ──────────────────────────────────────────
   socket.on("register", async (userId) => {
-    onlineUsers.set(userId, socket.id);
-    socket.userId = userId;
-    console.log("✅ Registered:", userId);
-
-    // Flush any queued (undelivered) messages for this user
+  if (!userId || userId === "null") return; // ← guard
+  onlineUsers.set(userId, socket.id);
+  socket.userId = userId;
+  console.log("✅ Registered:", userId);
+    
     try {
       const pending = await Message.find({
         receiver: userId,
