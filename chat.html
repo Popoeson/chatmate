@@ -425,6 +425,7 @@ body.dark .context-item:hover { background: rgba(255,255,255,0.05); }
 </div>
 
 </div>
+
 <script type="module">
 import { Auth } from "./session.js";
 
@@ -519,6 +520,7 @@ async function markAsRead() {
     });
   } catch {}
 }
+
 // ── SOCKET ────────────────────────────────────────────────
 const socket = io("https://chatmate-kbwz.onrender.com", { auth: { token } });
 
@@ -533,8 +535,7 @@ socket.on("receive_message", (data) => {
       timestamp: data.timestamp,
       replyTo:   data.replyTo || null
     });
-
-    // Mark as read immediately — we're in this chat
+    // Mark as read immediately since we are in this chat
     markAsRead();
   }
 });
@@ -755,16 +756,13 @@ if (socket.connected) {
   socket.connect();
 }
 
-// Register this chat as active for homepage badge logic
 sessionStorage.setItem("activeChatId", receiverId);
 window.addEventListener("pagehide", () => {
   sessionStorage.removeItem("activeChatId");
 });
 
 await loadHistory();
-
-// Mark as read on open
-markAsRead();
+await markAsRead();
 
 </script>
 
