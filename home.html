@@ -253,28 +253,39 @@ const API = "https://chatmate-kbwz.onrender.com/api/auth";
 document.addEventListener("DOMContentLoaded", async () => {
 
   // ── ELEMENTS ──────────────────────────────────────────────
-  const chatList        = document.getElementById("chatList");
-  const emptyState      = document.getElementById("emptyState");
-  const addFriendBtn    = document.getElementById("addFriendBtn");
-  const friendBadge     = document.getElementById("friendBadge");
-  const toggle          = document.getElementById("themeToggle");
+  const chatList         = document.getElementById("chatList");
+  const emptyState       = document.getElementById("emptyState");
+  const addFriendBtn     = document.getElementById("addFriendBtn");
+  const friendBadge      = document.getElementById("friendBadge");
+  const toggle           = document.getElementById("themeToggle");
   const encryptionToggle = document.getElementById("encryptionToggle");
-  const footer          = document.querySelector("footer");
-  const chatFooterBadge = document.getElementById("chatFooterBadge");
+  const footer           = document.querySelector("footer");
+  const chatFooterBadge  = document.getElementById("chatFooterBadge");
 
   // ── STATE ─────────────────────────────────────────────────
   let currentUserId    = null;
   let friendNotifCount = 0;
   let socket           = null;
 
-  // friendId → { card, unreadCount, lastMessage }
+  // friendId → { card, unreadCount, lastMessage, lastMsgEl, unreadEl, isMine }
   const cardMap = new Map();
 
   // ── HELPERS ───────────────────────────────────────────────
   function getActiveChatId() {
-    // Returns the friendId if user currently has chat.html open for that friend
-    // We store it in sessionStorage from chat.html
     return sessionStorage.getItem("activeChatId") || null;
+  }
+
+  function escapeHTML(str) {
+    if (!str) return "";
+    return str.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+  }
+
+  function formatTime(dateStr) {
+    const d = new Date(dateStr);
+    const now = new Date();
+    const isToday = d.toDateString() === now.toDateString();
+    if (isToday) return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    return d.toLocaleDateString([], { month: "short", day: "numeric" });
   }
 
   function updateFriendBadge(count) {
@@ -291,12 +302,11 @@ document.addEventListener("DOMContentLoaded", async () => {
     chatFooterBadge.textContent   = usersWithUnread || "";
   }
 
-  function formatTime(dateStr) {
-    const d = new Date(dateStr);
-    const now = new Date();
-    const isToday = d.toDateString() === now.toDateString();
-    if (isToday) return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-    return d.toLocaleDateString([], { month: "short", day: "numeric" });
+  function buildLastMsgHTML(text, isMine, delivered) {
+    if (!isMine) return escapeHTML(text);
+    const tickClass = delivered ? "delivered" : "sent";
+    const tickChar  = delivered ? "✓✓" : "✓";
+    return `<span class="msg-tick ${tickClass}">${tickChar}</span>${escapeHTML(text)}`;
   }
 
   // ── THEME ─────────────────────────────────────────────────
@@ -320,21 +330,16 @@ document.addEventListener("DOMContentLoaded", async () => {
   };
 
   // ── CREATE CARD ───────────────────────────────────────────
-  function createCard({ friendId, username, avatarUrl, lastMessage, lastTime, unreadCount, delivered }) {
+  function createCard({ friendId, username, avatarUrl, lastMessage, lastTime, unreadCount, isMine, delivered }) {
     const card = document.createElement("div");
     card.className = "chat-card";
     card.dataset.friendId = friendId;
 
-    // Tick HTML — only show for sender's own messages
-    const tickHTML = `<span class="msg-tick ${delivered ? "delivered" : "sent"}">
-      ${delivered ? "✓✓" : "✓"}
-    </span>`;
-
     card.innerHTML = `
-      <img src="${avatarUrl || "https://i.pravatar.cc/50"}" alt="${username}">
+      <img src="${avatarUrl || "https://i.pravatar.cc/50"}" alt="${escapeHTML(username)}">
       <div class="chat-card-body">
-        <b>${username}</b>
-        <p class="last-msg">${lastMessage || ""}</p>
+        <b>${escapeHTML(username)}</b>
+        <p class="last-msg">${buildLastMsgHTML(lastMessage, isMine, delivered)}</p>
       </div>
       <div class="card-meta">
         <span class="chat-time">${formatTime(lastTime)}</span>
@@ -364,7 +369,9 @@ document.addEventListener("DOMContentLoaded", async () => {
       unreadCount,
       lastMessage,
       lastMsgEl,
-      unreadEl
+      unreadEl,
+      isMine:    isMine    || false,
+      delivered: delivered || false
     });
 
     return card;
@@ -374,26 +381,29 @@ document.addEventListener("DOMContentLoaded", async () => {
   function upsertCard(data, isNew = false) {
     const { friendId, lastMessage, lastTime, unreadCount } = data;
 
-    // Fix 1: if receiver already has this chat open, mark as read immediately
-    const activeChatId = getActiveChatId();
-    const isActiveChat = activeChatId === friendId;
+    // sender's own update always comes with unreadCount: 0
+    const isMine      = isNew && unreadCount === 0;
+    const activeChatId  = getActiveChatId();
+    const isActiveChat  = activeChatId === friendId;
 
     if (cardMap.has(friendId)) {
       const state = cardMap.get(friendId);
       const { card, lastMsgEl, unreadEl } = state;
 
-      // Restore last message (clears typing indicator if showing)
-      lastMsgEl.innerHTML = escapeHTML(lastMessage);
+      // Update last message + tick
+      state.isMine      = isMine;
+      state.delivered   = false; // reset — wait for message_delivered event
+      state.lastMessage = lastMessage;
+      lastMsgEl.innerHTML = buildLastMsgHTML(lastMessage, isMine, false);
 
       card.querySelector(".chat-time").textContent = formatTime(lastTime);
 
-      if (isNew && !isActiveChat) {
-        // Increment unread only if chat not currently open
+      // Unread logic
+      if (isNew && !isMine && !isActiveChat) {
         state.unreadCount += 1;
         unreadEl.textContent   = state.unreadCount;
         unreadEl.style.display = "inline-block";
-      } else if (isNew && isActiveChat) {
-        // Chat is open — mark as read on server silently
+      } else if (isNew && !isMine && isActiveChat) {
         fetch(`${API}/messages/${friendId}/read`, {
           method: "POST",
           headers: { Authorization: `Bearer ${Auth.getToken()}` }
@@ -402,24 +412,25 @@ document.addEventListener("DOMContentLoaded", async () => {
         unreadEl.style.display = "none";
       }
 
-      state.lastMessage = lastMessage;
-
-      // Move to top
+      // Move to top + pulse
       chatList.prepend(card);
-
-      // Pulse
       card.classList.remove("pulse");
       void card.offsetWidth;
       card.classList.add("pulse");
       setTimeout(() => card.classList.remove("pulse"), 900);
 
     } else {
-      const effectiveUnread = (isNew && !isActiveChat) ? 1 : 0;
-      const card = createCard({ ...data, unreadCount: effectiveUnread });
+      const effectiveUnread = (isNew && !isMine && !isActiveChat) ? 1 : 0;
+      const card = createCard({
+        ...data,
+        unreadCount: effectiveUnread,
+        isMine,
+        delivered: false
+      });
       chatList.prepend(card);
       emptyState.style.display = "none";
 
-      if (isNew && isActiveChat) {
+      if (isNew && !isMine && isActiveChat) {
         fetch(`${API}/messages/${friendId}/read`, {
           method: "POST",
           headers: { Authorization: `Bearer ${Auth.getToken()}` }
@@ -449,14 +460,19 @@ document.addEventListener("DOMContentLoaded", async () => {
   function hideCardTyping(friendId) {
     const state = cardMap.get(friendId);
     if (!state) return;
-    state.lastMsgEl.innerHTML = escapeHTML(state.lastMessage || "");
+    state.lastMsgEl.innerHTML = buildLastMsgHTML(
+      state.lastMessage || "",
+      state.isMine,
+      state.delivered
+    );
   }
 
-  // ── TICK UPDATE ───────────────────────────────────────────
+  // ── TICK: MARK DELIVERED ──────────────────────────────────
   function setCardDelivered(friendId) {
     const state = cardMap.get(friendId);
-    if (!state) return;
-    const tick = state.card.querySelector(".msg-tick");
+    if (!state || !state.isMine) return;
+    state.delivered = true;
+    const tick = state.lastMsgEl.querySelector(".msg-tick");
     if (tick) {
       tick.textContent = "✓✓";
       tick.classList.remove("sent");
@@ -485,7 +501,12 @@ document.addEventListener("DOMContentLoaded", async () => {
 
       emptyState.style.display = "none";
       conversations.forEach(c => {
-        const card = createCard(c);
+        const isMine = c.lastSender?.toString() === currentUserId?.toString();
+        const card = createCard({
+          ...c,
+          isMine,
+          delivered: isMine ? c.delivered : false
+        });
         chatList.appendChild(card);
       });
 
@@ -541,12 +562,10 @@ document.addEventListener("DOMContentLoaded", async () => {
       socket.emit("register", currentUserId);
     });
 
-    // New message → update card
     socket.on("new_conversation_message", (data) => {
       upsertCard(data, true);
     });
 
-    // Typing indicators on card
     socket.on("typing_start", ({ from }) => {
       showCardTyping(from);
     });
@@ -555,12 +574,10 @@ document.addEventListener("DOMContentLoaded", async () => {
       hideCardTyping(from);
     });
 
-    // Delivery tick update
     socket.on("message_delivered", ({ friendId }) => {
       setCardDelivered(friendId);
     });
 
-    // Friend request notifications
     socket.on("friend_request_received", fetchPendingCount);
     socket.on("friend_request_accepted", fetchPendingCount);
     socket.on("friend_request_rejected", fetchPendingCount);
@@ -574,12 +591,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     footer.classList.toggle("hide", cur > lastScroll && cur > 50);
     lastScroll = cur;
   });
-
-  // ── SAFETY ────────────────────────────────────────────────
-  function escapeHTML(str) {
-    if (!str) return "";
-    return str.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
-  }
 
   // ── INIT ──────────────────────────────────────────────────
   await loadUser();
