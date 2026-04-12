@@ -759,6 +759,13 @@ if (socket.connected) {
   socket.connect();
 }
 
+// Tell homepage this chat is currently open
+sessionStorage.setItem("activeChatId", receiverId);
+
+window.addEventListener("pagehide", () => {
+  sessionStorage.removeItem("activeChatId");
+});
+
 await loadHistory();
 
 </script>
