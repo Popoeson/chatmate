@@ -133,6 +133,13 @@ io.on("connection", (socket) => {
         });
       }
 
+    //notify sender's homepage that message was delivered
+  io.to(socket.id).emit("message_delivered", {
+    friendId:  to,
+    messageId: saved._id.toString()
+  });
+}
+
       socket.emit("message_sent", {
         messageId: saved._id.toString(),
         timestamp: saved.createdAt
