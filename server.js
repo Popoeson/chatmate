@@ -38,13 +38,13 @@ export const onlineUsers = new Map();
 io.on("connection", (socket) => {
   console.log("⚡ User connected:", socket.id);
 
-  // ── REGISTER ──────────────────────────────────────────
+  // ── REGISTER ────────────────────────────────────────────
   socket.on("register", async (userId) => {
-  if (!userId || userId === "null") return; // ← guard
-  onlineUsers.set(userId, socket.id);
-  socket.userId = userId;
-  console.log("✅ Registered:", userId);
-    
+    if (!userId || userId === "null") return;
+    onlineUsers.set(userId, socket.id);
+    socket.userId = userId;
+    console.log("✅ Registered:", userId);
+
     try {
       const pending = await Message.find({
         receiver: userId,
@@ -56,9 +56,13 @@ io.on("connection", (socket) => {
           from:      msg.sender.toString(),
           message:   msg.text,
           messageId: msg._id.toString(),
-          timestamp: msg.createdAt
+          timestamp: msg.createdAt,
+          replyTo:   msg.replyTo?.messageId ? {
+            messageId: msg.replyTo.messageId.toString(),
+            text:      msg.replyTo.text,
+            sender:    msg.replyTo.sender.toString()
+          } : null
         });
-
         msg.delivered = true;
         await msg.save();
       }
@@ -67,66 +71,79 @@ io.on("connection", (socket) => {
     }
   });
 
-  // ── SEND MESSAGE ──────────────────────────────────────
-  /* socket.on("send_message", async ({ to, message }) => {
-  let senderId = null;
-  for (const [uid, sid] of onlineUsers.entries()) {
-    if (sid === socket.id) { senderId = uid; break; }
-  }
-
-  if (!senderId || !to || !message?.trim()) return; */
-
-socket.on("send_message", async ({ to, message }) => {
-  const senderId = socket.userId; // ← direct, no loop needed
-
-  if (!senderId || !to || !message?.trim()) return;
- 
-
-  try {
+  // ── TYPING ──────────────────────────────────────────────
+  socket.on("typing_start", ({ to }) => {
     const recipientSocketId = onlineUsers.get(to);
-    const isOnline = !!recipientSocketId;
+    if (recipientSocketId) {
+      io.to(recipientSocketId).emit("typing_start", { from: socket.userId });
+    }
+  });
 
-    const saved = await Message.create({
-      sender:    senderId,
-      receiver:  to,
-      text:      message.trim(),
-      delivered: isOnline,
-      read:      false
-    });
+  socket.on("typing_stop", ({ to }) => {
+    const recipientSocketId = onlineUsers.get(to);
+    if (recipientSocketId) {
+      io.to(recipientSocketId).emit("typing_stop", { from: socket.userId });
+    }
+  });
 
-    const senderUser = await User.findById(senderId).select("username avatarUrl");
+  // ── SEND MESSAGE ────────────────────────────────────────
+  socket.on("send_message", async ({ to, message, replyTo }) => {
+    const senderId = socket.userId;
+    if (!senderId || !to || !message?.trim()) return;
 
-    if (isOnline) {
-      // Deliver message to chat room
-      io.to(recipientSocketId).emit("receive_message", {
-        from:      senderId,
-        message:   saved.text,
+    try {
+      const recipientSocketId = onlineUsers.get(to);
+      const isOnline = !!recipientSocketId;
+
+      const msgData = {
+        sender:    senderId,
+        receiver:  to,
+        text:      message.trim(),
+        delivered: isOnline,
+        read:      false
+      };
+
+      if (replyTo?.messageId) {
+        msgData.replyTo = {
+          messageId: replyTo.messageId,
+          text:      replyTo.text,
+          sender:    replyTo.sender
+        };
+      }
+
+      const saved = await Message.create(msgData);
+      const senderUser = await User.findById(senderId).select("username avatarUrl");
+
+      if (isOnline) {
+        io.to(recipientSocketId).emit("receive_message", {
+          from:      senderId,
+          message:   saved.text,
+          messageId: saved._id.toString(),
+          timestamp: saved.createdAt,
+          replyTo:   replyTo || null
+        });
+
+        io.to(recipientSocketId).emit("new_conversation_message", {
+          friendId:    senderId,
+          username:    senderUser.username,
+          avatarUrl:   senderUser.avatarUrl || "",
+          lastMessage: saved.text,
+          lastTime:    saved.createdAt,
+          unreadCount: 1
+        });
+      }
+
+      socket.emit("message_sent", {
         messageId: saved._id.toString(),
         timestamp: saved.createdAt
       });
 
-      // Notify recipient's homepage
-      io.to(recipientSocketId).emit("new_conversation_message", {
-        friendId:    senderId,
-        username:    senderUser.username,
-        avatarUrl:   senderUser.avatarUrl || "",
-        lastMessage: saved.text,
-        lastTime:    saved.createdAt,
-        unreadCount: 1
-      });
+    } catch (err) {
+      console.error("send_message error:", err);
     }
+  });
 
-    socket.emit("message_sent", {
-      messageId: saved._id.toString(),
-      timestamp: saved.createdAt
-    });
-
-  } catch (err) {
-    console.error("send_message error:", err);
-  }
-});
-
-  // ── DISCONNECT ────────────────────────────────────────
+  // ── DISCONNECT ──────────────────────────────────────────
   socket.on("disconnect", () => {
     for (const [uid, sid] of onlineUsers.entries()) {
       if (sid === socket.id) { onlineUsers.delete(uid); break; }
@@ -134,8 +151,6 @@ socket.on("send_message", async ({ to, message }) => {
     console.log("❌ Disconnected:", socket.id);
   });
 });
-
-
 
 /* =========================
    MIDDLEWARE
