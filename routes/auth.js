@@ -820,7 +820,7 @@ router.get("/messages/:userId", authenticateJWT, async (req, res) => {
       ]
     })
     .sort({ createdAt: 1 })
-    .select("sender receiver text delivered createdAt");
+    .select("sender receiver text delivered createdAt replyTo");
 
     res.json({ messages });
 
