@@ -250,135 +250,146 @@ body.dark .chat-input {
   </div>
 
 </div>
+
 <script type="module">
 import { Auth } from "./session.js";
 
 const API = "https://chatmate-kbwz.onrender.com/api/auth";
 
-// ================= TOKEN =================
 const token = Auth.getToken();
-if (!token) {
-  alert("Please login first");
-  window.location.href = "login.html";
-}
+if (!token) { window.location.href = "login.html"; }
 
-// ================= GET RECEIVER =================
-const params = new URLSearchParams(window.location.search);
+const params     = new URLSearchParams(window.location.search);
 const receiverId = params.get("userId");
+if (!receiverId) { window.location.href = "friends.html"; }
 
-if (!receiverId) {
-  alert("No user selected");
-  window.location.href = "friends.html";
-}
-
-// ================= ELEMENTS =================
-const messagesDiv = document.getElementById("messages");
-const input = document.getElementById("messageInput");
-const sendBtn = document.getElementById("sendBtn");
-const chatAvatar = document.getElementById("chatAvatar");
+// ── ELEMENTS ──────────────────────────────────────────────
+const messagesDiv  = document.getElementById("messages");
+const input        = document.getElementById("messageInput");
+const sendBtn      = document.getElementById("sendBtn");
+const chatAvatar   = document.getElementById("chatAvatar");
 const chatUsername = document.getElementById("chatUsername");
+const toggle       = document.getElementById("themeToggle");
 
-// ================= THEME =================
-const toggle = document.getElementById("themeToggle");
+// ── THEME ─────────────────────────────────────────────────
 toggle.onclick = () => {
   document.body.classList.toggle("dark");
   toggle.classList.toggle("fa-sun");
   toggle.classList.toggle("fa-moon");
 };
 
-// ================= CURRENT USER =================
+// ── STATE ─────────────────────────────────────────────────
 let currentUserId = null;
 
+// ── LOAD CURRENT USER ─────────────────────────────────────
 async function loadUser() {
   const res = await fetch(`${API}/me`, {
     headers: { Authorization: `Bearer ${token}` }
   });
-
-  if (!res.ok) {
-    Auth.clearToken();
-    window.location.href = "login.html";
-    return;
-  }
-
+  if (!res.ok) { Auth.clearToken(); window.location.href = "login.html"; return; }
   const data = await res.json();
   currentUserId = data.user._id;
 }
 
-// ================= LOAD RECEIVER =================
+// ── LOAD RECEIVER ─────────────────────────────────────────
 async function loadReceiver() {
   const res = await fetch(`${API}/users/${receiverId}`, {
     headers: { Authorization: `Bearer ${token}` }
   });
-
-  if (!res.ok) {
-    alert("Failed to load user");
-    return;
-  }
-
+  if (!res.ok) return;
   const user = await res.json();
-
   chatUsername.textContent = user.username;
   chatAvatar.src = user.avatarUrl || "";
 }
 
-// ================= SOCKET =================
-const socket = io("https://chatmate-kbwz.onrender.com", {
-  auth: { token }
-});
+// ── LOAD CHAT HISTORY ─────────────────────────────────────
+async function loadHistory() {
+  try {
+    const res = await fetch(`${API}/messages/${receiverId}`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    if (!res.ok) return;
+
+    const { messages } = await res.json();
+    messages.forEach(msg => {
+      const type = msg.sender === currentUserId ? "me" : "them";
+      addMessage(msg.text, type, msg.createdAt);
+    });
+
+  } catch (err) {
+    console.error("History load error:", err);
+  }
+}
+
+// ── SOCKET ────────────────────────────────────────────────
+const socket = io("https://chatmate-kbwz.onrender.com", { auth: { token } });
 
 socket.on("connect", () => {
-  if (currentUserId) {
-    socket.emit("register", currentUserId);
-    socket.emit("join_chat", { receiverId });
+  socket.emit("register", currentUserId);
+});
+
+// Incoming message
+socket.on("receive_message", (data) => {
+  if (data.from === receiverId) {
+    addMessage(data.message, "them", data.timestamp);
   }
 });
 
-// ================= GROW TEXT AREA=================
-const textarea = document.getElementById("messageInput");
-
-textarea.addEventListener("input", () => {
-  textarea.style.height = "auto"; // reset
-  textarea.style.height = Math.min(textarea.scrollHeight, 120) + "px"; // cap at 4 lines
-});
-
-// ================= SEND =================
-sendBtn.onclick = () => {
+// ── SEND ──────────────────────────────────────────────────
+function sendMessage() {
   const text = input.value.trim();
   if (!text) return;
 
-  socket.emit("send_message", {
-    to: receiverId,
-    message: text
-  });
+  socket.emit("send_message", { to: receiverId, message: text });
+  addMessage(text, "me", new Date());
 
-  addMessage(text, "me");
   input.value = "";
-};
+  input.style.height = "auto";
+}
 
-// ================= RECEIVE =================
-socket.on("receive_message", (data) => {
-  if (data.from === receiverId) {
-    addMessage(data.message, "them");
+sendBtn.onclick = sendMessage;
+
+input.addEventListener("keydown", (e) => {
+  if (e.key === "Enter" && !e.shiftKey) {
+    e.preventDefault();
+    sendMessage();
   }
 });
 
-// ================= UI =================
-function addMessage(text, type) {
+// ── AUTO-GROW TEXTAREA ────────────────────────────────────
+input.addEventListener("input", () => {
+  input.style.height = "auto";
+  input.style.height = Math.min(input.scrollHeight, 120) + "px";
+});
+
+// ── RENDER MESSAGE ────────────────────────────────────────
+function addMessage(text, type, timestamp) {
   const div = document.createElement("div");
   div.className = `msg ${type}`;
-  div.textContent = text;
+
+  const time = timestamp
+    ? new Date(timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+    : "";
+
+  div.innerHTML = `
+    <span class="msg-text">${escapeHTML(text)}</span>
+    <span class="msg-time">${time}</span>
+  `;
+
   messagesDiv.appendChild(div);
   messagesDiv.scrollTop = messagesDiv.scrollHeight;
 }
 
-// ================= INIT =================
+// ── SAFETY ────────────────────────────────────────────────
+function escapeHTML(str) {
+  return str.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+}
+
+// ── INIT ──────────────────────────────────────────────────
 await loadUser();
 await loadReceiver();
-
-// Ensure socket registers AFTER user loads
+await loadHistory();
 socket.emit("register", currentUserId);
-socket.emit("join_chat", { receiverId });
-
 </script>
 
 </body>
