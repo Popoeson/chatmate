@@ -120,6 +120,45 @@ body.dark .chat-card:active { background: #333; }
 }
 .pulse { animation: pulse-card 0.8s ease-out; }
 
+/* ── CARD META (time + badge stacked) ── */
+.card-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.chat-time {
+  font-size: 11px;
+  color: #aaa;
+}
+
+/* ── TICK ── */
+.msg-tick {
+  font-size: 11px;
+  font-weight: bold;
+}
+.msg-tick.sent      { color: #aaa; }
+.msg-tick.delivered { color: #4caf50; }
+
+/* ── CARD TYPING INDICATOR ── */
+.card-typing {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.card-typing span {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #888;
+  animation: typingBounce 1.2s infinite ease-in-out;
+}
+.card-typing span:nth-child(2) { animation-delay: 0.2s; }
+.card-typing span:nth-child(3) { animation-delay: 0.4s; }
+
 /* FOOTER */
 footer {
   position: fixed;
@@ -204,7 +243,6 @@ footer.hide { transform: translateY(100%); }
   <div class="footer-item"><i class="fa-solid fa-gear"></i><span>Settings</span></div>
 </footer>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
 <script type="module">
 import { Auth } from "./session.js";
 
@@ -213,13 +251,13 @@ const API = "https://chatmate-kbwz.onrender.com/api/auth";
 document.addEventListener("DOMContentLoaded", async () => {
 
   // ── ELEMENTS ──────────────────────────────────────────────
-  const chatList       = document.getElementById("chatList");
-  const emptyState     = document.getElementById("emptyState");
-  const addFriendBtn   = document.getElementById("addFriendBtn");
-  const friendBadge    = document.getElementById("friendBadge");
-  const toggle         = document.getElementById("themeToggle");
+  const chatList        = document.getElementById("chatList");
+  const emptyState      = document.getElementById("emptyState");
+  const addFriendBtn    = document.getElementById("addFriendBtn");
+  const friendBadge     = document.getElementById("friendBadge");
+  const toggle          = document.getElementById("themeToggle");
   const encryptionToggle = document.getElementById("encryptionToggle");
-  const footer         = document.querySelector("footer");
+  const footer          = document.querySelector("footer");
   const chatFooterBadge = document.getElementById("chatFooterBadge");
 
   // ── STATE ─────────────────────────────────────────────────
@@ -227,23 +265,36 @@ document.addEventListener("DOMContentLoaded", async () => {
   let friendNotifCount = 0;
   let socket           = null;
 
-  // friendId → { card, unreadCount }
+  // friendId → { card, unreadCount, lastMessage }
   const cardMap = new Map();
 
-  // ── FRIEND BADGE ──────────────────────────────────────────
+  // ── HELPERS ───────────────────────────────────────────────
+  function getActiveChatId() {
+    // Returns the friendId if user currently has chat.html open for that friend
+    // We store it in sessionStorage from chat.html
+    return sessionStorage.getItem("activeChatId") || null;
+  }
+
   function updateFriendBadge(count) {
     friendBadge.style.display = count > 0 ? "inline-block" : "none";
     friendBadge.textContent   = count || "";
   }
 
-  // ── FOOTER CHAT BADGE ─────────────────────────────────────
   function updateFooterChatBadge() {
     let usersWithUnread = 0;
-    for (const [, { unreadCount }] of cardMap) {
-      if (unreadCount > 0) usersWithUnread++;
+    for (const [, state] of cardMap) {
+      if (state.unreadCount > 0) usersWithUnread++;
     }
     chatFooterBadge.style.display = usersWithUnread > 0 ? "inline-block" : "none";
     chatFooterBadge.textContent   = usersWithUnread || "";
+  }
+
+  function formatTime(dateStr) {
+    const d = new Date(dateStr);
+    const now = new Date();
+    const isToday = d.toDateString() === now.toDateString();
+    if (isToday) return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    return d.toLocaleDateString([], { month: "short", day: "numeric" });
   }
 
   // ── THEME ─────────────────────────────────────────────────
@@ -266,20 +317,16 @@ document.addEventListener("DOMContentLoaded", async () => {
     window.location.href = "friends.html";
   };
 
-  // ── FORMAT TIME ───────────────────────────────────────────
-  function formatTime(dateStr) {
-    const d = new Date(dateStr);
-    const now = new Date();
-    const isToday = d.toDateString() === now.toDateString();
-    if (isToday) return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-    return d.toLocaleDateString([], { month: "short", day: "numeric" });
-  }
-
   // ── CREATE CARD ───────────────────────────────────────────
-  function createCard({ friendId, username, avatarUrl, lastMessage, lastTime, unreadCount }) {
+  function createCard({ friendId, username, avatarUrl, lastMessage, lastTime, unreadCount, delivered }) {
     const card = document.createElement("div");
     card.className = "chat-card";
     card.dataset.friendId = friendId;
+
+    // Tick HTML — only show for sender's own messages
+    const tickHTML = `<span class="msg-tick ${delivered ? "delivered" : "sent"}">
+      ${delivered ? "✓✓" : "✓"}
+    </span>`;
 
     card.innerHTML = `
       <img src="${avatarUrl || "https://i.pravatar.cc/50"}" alt="${username}">
@@ -287,23 +334,22 @@ document.addEventListener("DOMContentLoaded", async () => {
         <b>${username}</b>
         <p class="last-msg">${lastMessage || ""}</p>
       </div>
-      <span class="chat-time">${formatTime(lastTime)}</span>
-      <span class="unread-badge">${unreadCount}</span>
+      <div class="card-meta">
+        <span class="chat-time">${formatTime(lastTime)}</span>
+        <span class="unread-badge" style="display:${unreadCount > 0 ? "inline-block" : "none"}">${unreadCount}</span>
+      </div>
     `;
 
-    const unreadEl = card.querySelector(".unread-badge");
-    if (unreadCount > 0) unreadEl.style.display = "inline-block";
+    const unreadEl  = card.querySelector(".unread-badge");
+    const lastMsgEl = card.querySelector(".last-msg");
 
-    // Click → mark read → open chat
     card.onclick = async () => {
       const state = cardMap.get(friendId);
       if (state && state.unreadCount > 0) {
-        // Mark read on server
         await fetch(`${API}/messages/${friendId}/read`, {
           method: "POST",
           headers: { Authorization: `Bearer ${Auth.getToken()}` }
         });
-        // Clear card badge
         state.unreadCount = 0;
         unreadEl.style.display = "none";
         updateFooterChatBadge();
@@ -311,41 +357,72 @@ document.addEventListener("DOMContentLoaded", async () => {
       window.location.href = `chat.html?userId=${friendId}`;
     };
 
-    cardMap.set(friendId, { card, unreadCount });
+    cardMap.set(friendId, {
+      card,
+      unreadCount,
+      lastMessage,
+      lastMsgEl,
+      unreadEl
+    });
+
     return card;
   }
 
-  // ── UPDATE OR CREATE CARD (real-time) ─────────────────────
+  // ── UPSERT CARD ───────────────────────────────────────────
   function upsertCard(data, isNew = false) {
     const { friendId, lastMessage, lastTime, unreadCount } = data;
 
-    if (cardMap.has(friendId)) {
-      // Update existing card
-      const { card, unreadCount: oldCount } = cardMap.get(friendId);
+    // Fix 1: if receiver already has this chat open, mark as read immediately
+    const activeChatId = getActiveChatId();
+    const isActiveChat = activeChatId === friendId;
 
-      card.querySelector(".last-msg").textContent  = lastMessage;
+    if (cardMap.has(friendId)) {
+      const state = cardMap.get(friendId);
+      const { card, lastMsgEl, unreadEl } = state;
+
+      // Restore last message (clears typing indicator if showing)
+      lastMsgEl.innerHTML = escapeHTML(lastMessage);
+
       card.querySelector(".chat-time").textContent = formatTime(lastTime);
 
-      const unreadEl = card.querySelector(".unread-badge");
-      const newCount = isNew ? oldCount + 1 : unreadCount;
-      unreadEl.textContent    = newCount;
-      unreadEl.style.display  = newCount > 0 ? "inline-block" : "none";
-      cardMap.get(friendId).unreadCount = newCount;
+      if (isNew && !isActiveChat) {
+        // Increment unread only if chat not currently open
+        state.unreadCount += 1;
+        unreadEl.textContent   = state.unreadCount;
+        unreadEl.style.display = "inline-block";
+      } else if (isNew && isActiveChat) {
+        // Chat is open — mark as read on server silently
+        fetch(`${API}/messages/${friendId}/read`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${Auth.getToken()}` }
+        }).catch(() => {});
+        state.unreadCount = 0;
+        unreadEl.style.display = "none";
+      }
+
+      state.lastMessage = lastMessage;
 
       // Move to top
       chatList.prepend(card);
 
       // Pulse
       card.classList.remove("pulse");
-      void card.offsetWidth; // reflow to restart animation
+      void card.offsetWidth;
       card.classList.add("pulse");
       setTimeout(() => card.classList.remove("pulse"), 900);
 
     } else {
-      // New conversation card
-      const card = createCard({ ...data, unreadCount: isNew ? 1 : unreadCount });
+      const effectiveUnread = (isNew && !isActiveChat) ? 1 : 0;
+      const card = createCard({ ...data, unreadCount: effectiveUnread });
       chatList.prepend(card);
       emptyState.style.display = "none";
+
+      if (isNew && isActiveChat) {
+        fetch(`${API}/messages/${friendId}/read`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${Auth.getToken()}` }
+        }).catch(() => {});
+      }
 
       if (isNew) {
         card.classList.add("pulse");
@@ -354,6 +431,35 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     updateFooterChatBadge();
+  }
+
+  // ── TYPING ON CARD ────────────────────────────────────────
+  function showCardTyping(friendId) {
+    const state = cardMap.get(friendId);
+    if (!state) return;
+    state.lastMsgEl.innerHTML = `
+      <span class="card-typing">
+        <span></span><span></span><span></span>
+      </span>
+    `;
+  }
+
+  function hideCardTyping(friendId) {
+    const state = cardMap.get(friendId);
+    if (!state) return;
+    state.lastMsgEl.innerHTML = escapeHTML(state.lastMessage || "");
+  }
+
+  // ── TICK UPDATE ───────────────────────────────────────────
+  function setCardDelivered(friendId) {
+    const state = cardMap.get(friendId);
+    if (!state) return;
+    const tick = state.card.querySelector(".msg-tick");
+    if (tick) {
+      tick.textContent = "✓✓";
+      tick.classList.remove("sent");
+      tick.classList.add("delivered");
+    }
   }
 
   // ── LOAD CONVERSATIONS ────────────────────────────────────
@@ -410,7 +516,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
   }
 
-  // ── FETCH PENDING FRIEND COUNT ─────────────────────────────
+  // ── FETCH PENDING FRIEND COUNT ────────────────────────────
   async function fetchPendingCount() {
     try {
       const res = await fetch(`${API}/friends`, {
@@ -433,9 +539,23 @@ document.addEventListener("DOMContentLoaded", async () => {
       socket.emit("register", currentUserId);
     });
 
-    // New message → update homepage card in real-time
+    // New message → update card
     socket.on("new_conversation_message", (data) => {
       upsertCard(data, true);
+    });
+
+    // Typing indicators on card
+    socket.on("typing_start", ({ from }) => {
+      showCardTyping(from);
+    });
+
+    socket.on("typing_stop", ({ from }) => {
+      hideCardTyping(from);
+    });
+
+    // Delivery tick update
+    socket.on("message_delivered", ({ friendId }) => {
+      setCardDelivered(friendId);
     });
 
     // Friend request notifications
@@ -452,6 +572,12 @@ document.addEventListener("DOMContentLoaded", async () => {
     footer.classList.toggle("hide", cur > lastScroll && cur > 50);
     lastScroll = cur;
   });
+
+  // ── SAFETY ────────────────────────────────────────────────
+  function escapeHTML(str) {
+    if (!str) return "";
+    return str.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+  }
 
   // ── INIT ──────────────────────────────────────────────────
   await loadUser();
