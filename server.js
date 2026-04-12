@@ -4,6 +4,7 @@ import dotenv from "dotenv";
 import cors from "cors";
 import http from "http";
 import { Server } from "socket.io";
+import Message from "./models/Message.js";
 
 import authRoutes from "./routes/auth.js";
 
@@ -37,24 +38,88 @@ export const onlineUsers = new Map();
 io.on("connection", (socket) => {
   console.log("⚡ User connected:", socket.id);
 
-  // When frontend sends userId after login
-  socket.on("register", (userId) => {
+  // ── REGISTER ──────────────────────────────────────────
+  socket.on("register", async (userId) => {
     onlineUsers.set(userId, socket.id);
-    console.log("✅ Registered user:", userId);
-  });
+    console.log("✅ Registered:", userId);
 
-  socket.on("disconnect", () => {
-    console.log("❌ User disconnected:", socket.id);
+    // Flush any queued (undelivered) messages for this user
+    try {
+      const pending = await Message.find({
+        receiver: userId,
+        delivered: false
+      }).sort({ createdAt: 1 });
 
-    // remove user from map
-    for (let [userId, sId] of onlineUsers.entries()) {
-      if (sId === socket.id) {
-        onlineUsers.delete(userId);
-        break;
+      for (const msg of pending) {
+        socket.emit("receive_message", {
+          from:      msg.sender.toString(),
+          message:   msg.text,
+          messageId: msg._id.toString(),
+          timestamp: msg.createdAt
+        });
+
+        msg.delivered = true;
+        await msg.save();
       }
+    } catch (err) {
+      console.error("Queue flush error:", err);
     }
   });
+
+  // ── SEND MESSAGE ──────────────────────────────────────
+  socket.on("send_message", async ({ to, message }) => {
+    // find who sent this
+    let senderId = null;
+    for (const [uid, sid] of onlineUsers.entries()) {
+      if (sid === socket.id) { senderId = uid; break; }
+    }
+
+    if (!senderId || !to || !message?.trim()) return;
+
+    try {
+      const recipientSocketId = onlineUsers.get(to);
+      const isOnline = !!recipientSocketId;
+
+      // Save to DB
+      const saved = await Message.create({
+        sender:    senderId,
+        receiver:  to,
+        text:      message.trim(),
+        delivered: isOnline
+      });
+
+      if (isOnline) {
+        // Deliver instantly
+        io.to(recipientSocketId).emit("receive_message", {
+          from:      senderId,
+          message:   saved.text,
+          messageId: saved._id.toString(),
+          timestamp: saved.createdAt
+        });
+      }
+      // If offline → stays in DB with delivered: false, flushed on reconnect
+
+      // Confirm back to sender
+      socket.emit("message_sent", {
+        messageId: saved._id.toString(),
+        timestamp: saved.createdAt
+      });
+
+    } catch (err) {
+      console.error("send_message error:", err);
+    }
+  });
+
+  // ── DISCONNECT ────────────────────────────────────────
+  socket.on("disconnect", () => {
+    for (const [uid, sid] of onlineUsers.entries()) {
+      if (sid === socket.id) { onlineUsers.delete(uid); break; }
+    }
+    console.log("❌ Disconnected:", socket.id);
+  });
 });
+
+
 
 /* =========================
    MIDDLEWARE
