@@ -196,6 +196,151 @@ body.dark .chat-input {
   word-wrap: break-word;
 }
 
+/* ========================= TYPING INDICATOR ========================= */
+.typing-indicator {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 10px 14px;
+  background: var(--white);
+  border-radius: 16px;
+  border-bottom-left-radius: 4px;
+  width: fit-content;
+  margin-bottom: 4px;
+}
+
+body.dark .typing-indicator { background: #2C2C2E; }
+
+.typing-indicator span {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #888;
+  animation: typingBounce 1.2s infinite ease-in-out;
+}
+.typing-indicator span:nth-child(2) { animation-delay: 0.2s; }
+.typing-indicator span:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes typingBounce {
+  0%, 60%, 100% { transform: translateY(0); }
+  30%           { transform: translateY(-6px); }
+}
+
+/* ========================= REPLY QUOTE (IN BUBBLE) ========================= */
+.reply-quote {
+  display: flex;
+  flex-direction: column;
+  padding: 6px 10px;
+  margin-bottom: 6px;
+  border-left: 3px solid #4caf50;
+  border-radius: 6px;
+  background: rgba(0,0,0,0.08);
+  cursor: pointer;
+  gap: 2px;
+}
+
+body.dark .reply-quote { background: rgba(255,255,255,0.08); }
+
+.reply-quote-sender {
+  font-size: 11px;
+  font-weight: 600;
+  color: #4caf50;
+}
+
+.reply-quote-text {
+  font-size: 12px;
+  opacity: 0.75;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ========================= REPLY PREVIEW (INPUT AREA) ========================= */
+.reply-preview {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 8px 12px;
+  border-left: 3px solid #4caf50;
+  background: rgba(76,175,80,0.08);
+  border-radius: 8px;
+  margin-bottom: 6px;
+  gap: 8px;
+}
+
+.reply-preview-inner {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  flex: 1;
+}
+
+.reply-preview-sender {
+  font-size: 12px;
+  font-weight: 600;
+  color: #4caf50;
+}
+
+.reply-preview-text {
+  font-size: 12px;
+  opacity: 0.7;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+#cancelReply {
+  cursor: pointer;
+  opacity: 0.6;
+  font-size: 14px;
+  flex-shrink: 0;
+}
+#cancelReply:hover { opacity: 1; }
+
+/* ========================= CONTEXT MENU ========================= */
+.context-menu {
+  position: fixed;
+  background: var(--white);
+  border-radius: 10px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+  z-index: 999;
+  overflow: hidden;
+  min-width: 130px;
+}
+
+body.dark .context-menu { background: #2C2C2E; }
+
+.context-item {
+  padding: 12px 16px;
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.context-item:hover { background: rgba(0,0,0,0.05); }
+body.dark .context-item:hover { background: rgba(255,255,255,0.05); }
+
+/* ========================= HIGHLIGHT ORIGINAL ========================= */
+@keyframes highlightPulse {
+  0%   { background: rgba(76,175,80,0.3); }
+  100% { background: transparent; }
+}
+.highlight { animation: highlightPulse 1.5s ease-out forwards; }
+
+/* ========================= CHAT INPUT FLEX FIX ========================= */
+.chat-input {
+  flex-direction: column;  /* stack reply preview above textarea row */
+}
+
+.chat-input-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  width: 100%;
+}
+
 /* ========================= SEND BUTTON ========================= */
 .chat-input button {
   width: 42px;
@@ -291,6 +436,10 @@ const sendBtn      = document.getElementById("sendBtn");
 const chatAvatar   = document.getElementById("chatAvatar");
 const chatUsername = document.getElementById("chatUsername");
 const toggle       = document.getElementById("themeToggle");
+const replyPreview = document.getElementById("replyPreview");
+const replyText    = document.getElementById("replyText");
+const replySender  = document.getElementById("replySender");
+const cancelReply  = document.getElementById("cancelReply");
 
 // ── THEME ─────────────────────────────────────────────────
 toggle.onclick = () => {
@@ -300,7 +449,11 @@ toggle.onclick = () => {
 };
 
 // ── STATE ─────────────────────────────────────────────────
-let currentUserId = null;
+let currentUserId    = null;
+let currentUsername  = null;
+let replyingTo       = null; // { messageId, text, sender }
+let typingTimeout    = null;
+let isTyping         = false;
 
 // ── LOAD CURRENT USER ─────────────────────────────────────
 async function loadUser() {
@@ -309,7 +462,8 @@ async function loadUser() {
   });
   if (!res.ok) { Auth.clearToken(); window.location.href = "login.html"; return; }
   const data = await res.json();
-  currentUserId = data.user._id;
+  currentUserId   = data.user._id;
+  currentUsername = data.user.username;
 }
 
 // ── LOAD RECEIVER ─────────────────────────────────────────
@@ -334,7 +488,13 @@ async function loadHistory() {
     const { messages } = await res.json();
     messages.forEach(msg => {
       const type = msg.sender.toString() === currentUserId.toString() ? "me" : "them";
-      addMessage(msg.text, type, msg.createdAt);
+      addMessage({
+        id:      msg._id,
+        text:    msg.text,
+        type,
+        timestamp: msg.createdAt,
+        replyTo: msg.replyTo?.messageId ? msg.replyTo : null
+      });
     });
 
   } catch (err) {
@@ -348,18 +508,165 @@ const socket = io("https://chatmate-kbwz.onrender.com", { auth: { token } });
 // ── INCOMING MESSAGE ──────────────────────────────────────
 socket.on("receive_message", (data) => {
   if (data.from?.toString() === receiverId?.toString()) {
-    addMessage(data.message, "them", data.timestamp);
+    hideTypingIndicator();
+    addMessage({
+      id:        data.messageId,
+      text:      data.message,
+      type:      "them",
+      timestamp: data.timestamp,
+      replyTo:   data.replyTo || null
+    });
   }
 });
+
+// ── TYPING INDICATORS ─────────────────────────────────────
+socket.on("typing_start", ({ from }) => {
+  if (from?.toString() === receiverId?.toString()) showTypingIndicator();
+});
+
+socket.on("typing_stop", ({ from }) => {
+  if (from?.toString() === receiverId?.toString()) hideTypingIndicator();
+});
+
+function showTypingIndicator() {
+  let indicator = document.getElementById("typingIndicator");
+  if (indicator) return;
+
+  indicator = document.createElement("div");
+  indicator.id = "typingIndicator";
+  indicator.className = "typing-indicator";
+  indicator.innerHTML = `<span></span><span></span><span></span>`;
+  messagesDiv.appendChild(indicator);
+  messagesDiv.scrollTop = messagesDiv.scrollHeight;
+}
+
+function hideTypingIndicator() {
+  const indicator = document.getElementById("typingIndicator");
+  if (indicator) indicator.remove();
+}
+
+// ── TYPING EMIT ───────────────────────────────────────────
+input.addEventListener("input", () => {
+  // Auto-grow
+  input.style.height = "auto";
+  input.style.height = Math.min(input.scrollHeight, 120) + "px";
+
+  // Typing state
+  if (!isTyping) {
+    isTyping = true;
+    socket.emit("typing_start", { to: receiverId });
+  }
+  clearTimeout(typingTimeout);
+  typingTimeout = setTimeout(() => {
+    isTyping = false;
+    socket.emit("typing_stop", { to: receiverId });
+  }, 1500);
+});
+
+// ── REPLY SYSTEM ──────────────────────────────────────────
+function setReply(messageId, text, sender) {
+  replyingTo = { messageId, text, sender };
+  replySender.textContent = sender === currentUserId ? "You" : chatUsername.textContent;
+  replyText.textContent   = text.length > 60 ? text.slice(0, 60) + "…" : text;
+  replyPreview.style.display = "flex";
+  input.focus();
+}
+
+function clearReply() {
+  replyingTo = null;
+  replyPreview.style.display = "none";
+  replyText.textContent   = "";
+  replySender.textContent = "";
+}
+
+cancelReply.onclick = clearReply;
+
+// ── SWIPE TO REPLY (MOBILE) ───────────────────────────────
+function addSwipeListener(el, messageId, text, sender) {
+  let startX = 0;
+  let moved  = false;
+
+  el.addEventListener("touchstart", (e) => {
+    startX = e.touches[0].clientX;
+    moved  = false;
+  }, { passive: true });
+
+  el.addEventListener("touchmove", (e) => {
+    const dx = e.touches[0].clientX - startX;
+    if (dx > 0 && dx < 80) {
+      el.style.transform = `translateX(${dx}px)`;
+      el.style.transition = "none";
+      moved = true;
+    }
+  }, { passive: true });
+
+  el.addEventListener("touchend", (e) => {
+    const dx = e.changedTouches[0].clientX - startX;
+    el.style.transition = "transform 0.2s ease";
+    el.style.transform  = "translateX(0)";
+
+    if (dx > 50) {
+      setReply(messageId, text, sender);
+    }
+  });
+}
+
+// ── RIGHT-CLICK / DOUBLE-CLICK TO REPLY (DESKTOP) ────────
+function addDesktopReplyListener(el, messageId, text, sender) {
+  // Double-click
+  el.addEventListener("dblclick", () => setReply(messageId, text, sender));
+
+  // Right-click context menu
+  el.addEventListener("contextmenu", (e) => {
+    e.preventDefault();
+    removeContextMenu();
+
+    const menu = document.createElement("div");
+    menu.id = "contextMenu";
+    menu.className = "context-menu";
+    menu.innerHTML = `<div class="context-item"><i class="fa-solid fa-reply"></i> Reply</div>`;
+    menu.style.top  = `${e.clientY}px`;
+    menu.style.left = `${e.clientX}px`;
+    document.body.appendChild(menu);
+
+    menu.querySelector(".context-item").onclick = () => {
+      setReply(messageId, text, sender);
+      removeContextMenu();
+    };
+
+    setTimeout(() => document.addEventListener("click", removeContextMenu, { once: true }), 0);
+  });
+}
+
+function removeContextMenu() {
+  const menu = document.getElementById("contextMenu");
+  if (menu) menu.remove();
+}
 
 // ── SEND ──────────────────────────────────────────────────
 function sendMessage() {
   const text = input.value.trim();
   if (!text) return;
 
-  socket.emit("send_message", { to: receiverId, message: text });
-  addMessage(text, "me", new Date());
+  // Stop typing indicator
+  isTyping = false;
+  clearTimeout(typingTimeout);
+  socket.emit("typing_stop", { to: receiverId });
 
+  const payload = { to: receiverId, message: text };
+  if (replyingTo) payload.replyTo = replyingTo;
+
+  socket.emit("send_message", payload);
+
+  addMessage({
+    id:        null,
+    text,
+    type:      "me",
+    timestamp: new Date(),
+    replyTo:   replyingTo
+  });
+
+  clearReply();
   input.value = "";
   input.style.height = "auto";
 }
@@ -373,25 +680,51 @@ input.addEventListener("keydown", (e) => {
   }
 });
 
-// ── AUTO-GROW TEXTAREA ────────────────────────────────────
-input.addEventListener("input", () => {
-  input.style.height = "auto";
-  input.style.height = Math.min(input.scrollHeight, 120) + "px";
-});
-
 // ── RENDER MESSAGE ────────────────────────────────────────
-function addMessage(text, type, timestamp) {
+function addMessage({ id, text, type, timestamp, replyTo }) {
   const div = document.createElement("div");
   div.className = `msg ${type}`;
+  if (id) div.dataset.messageId = id;
 
   const time = timestamp
     ? new Date(timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
     : "";
 
+  // Reply quote block
+  let replyHTML = "";
+  if (replyTo?.messageId || replyTo?.text) {
+    const replyLabel = replyTo.sender?.toString() === currentUserId?.toString()
+      ? "You"
+      : chatUsername.textContent;
+    replyHTML = `
+      <div class="reply-quote" data-target="${replyTo.messageId || ""}">
+        <span class="reply-quote-sender">${escapeHTML(replyLabel)}</span>
+        <span class="reply-quote-text">${escapeHTML(replyTo.text?.slice(0, 60) || "")}${(replyTo.text?.length > 60) ? "…" : ""}</span>
+      </div>
+    `;
+  }
+
   div.innerHTML = `
+    ${replyHTML}
     <span class="msg-text">${escapeHTML(text)}</span>
     <span class="msg-time">${time}</span>
   `;
+
+  // Scroll to original on quote tap
+  if (replyTo?.messageId) {
+    div.querySelector(".reply-quote")?.addEventListener("click", () => {
+      const target = messagesDiv.querySelector(`[data-message-id="${replyTo.messageId}"]`);
+      if (target) {
+        target.scrollIntoView({ behavior: "smooth", block: "center" });
+        target.classList.add("highlight");
+        setTimeout(() => target.classList.remove("highlight"), 1500);
+      }
+    });
+  }
+
+  // Swipe (mobile) and desktop reply
+  addSwipeListener(div, id, text, type === "me" ? currentUserId : receiverId);
+  addDesktopReplyListener(div, id, text, type === "me" ? currentUserId : receiverId);
 
   messagesDiv.appendChild(div);
   messagesDiv.scrollTop = messagesDiv.scrollHeight;
@@ -399,6 +732,7 @@ function addMessage(text, type, timestamp) {
 
 // ── SAFETY ────────────────────────────────────────────────
 function escapeHTML(str) {
+  if (!str) return "";
   return str.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
 }
 
@@ -406,7 +740,6 @@ function escapeHTML(str) {
 await loadUser();
 await loadReceiver();
 
-// Register only after userId is known
 socket.on("connect", () => {
   if (currentUserId) socket.emit("register", currentUserId);
 });
