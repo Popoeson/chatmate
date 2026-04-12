@@ -351,18 +351,22 @@ document.addEventListener("DOMContentLoaded", async () => {
     const lastMsgEl = card.querySelector(".last-msg");
 
     card.onclick = async () => {
-      const state = cardMap.get(friendId);
-      if (state && state.unreadCount > 0) {
-        await fetch(`${API}/messages/${friendId}/read`, {
-          method: "POST",
-          headers: { Authorization: `Bearer ${Auth.getToken()}` }
-        });
-        state.unreadCount = 0;
-        unreadEl.style.display = "none";
-        updateFooterChatBadge();
-      }
-      window.location.href = `chat.html?userId=${friendId}`;
-    };
+  const state = cardMap.get(friendId);
+  if (state && state.unreadCount > 0) {
+    // Clear badge immediately on click
+    state.unreadCount = 0;
+    unreadEl.textContent   = "0";
+    unreadEl.style.display = "none";
+    updateFooterChatBadge();
+
+    // Mark read on server in background
+    fetch(`${API}/messages/${friendId}/read`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${Auth.getToken()}` }
+    }).catch(() => {});
+  }
+  window.location.href = `chat.html?userId=${friendId}`;
+};
 
     cardMap.set(friendId, {
       card,
