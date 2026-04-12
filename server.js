@@ -41,6 +41,7 @@ io.on("connection", (socket) => {
   // ── REGISTER ──────────────────────────────────────────
   socket.on("register", async (userId) => {
     onlineUsers.set(userId, socket.id);
+    socket.userId = userId;
     console.log("✅ Registered:", userId);
 
     // Flush any queued (undelivered) messages for this user
