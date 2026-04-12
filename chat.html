@@ -321,7 +321,7 @@ async function loadHistory() {
 
     const { messages } = await res.json();
     messages.forEach(msg => {
-      const type = msg.sender === currentUserId ? "me" : "them";
+      const type = msg.sender.toString() === currentUserId.toString() ? "me" : "them";
       addMessage(msg.text, type, msg.createdAt);
     });
 
@@ -333,13 +333,9 @@ async function loadHistory() {
 // ── SOCKET ────────────────────────────────────────────────
 const socket = io("https://chatmate-kbwz.onrender.com", { auth: { token } });
 
-socket.on("connect", () => {
-  socket.emit("register", currentUserId);
-});
-
-// Incoming message
+// ── INCOMING MESSAGE ──────────────────────────────────────
 socket.on("receive_message", (data) => {
-  if (data.from === receiverId) {
+  if (data.from?.toString() === receiverId?.toString()) {
     addMessage(data.message, "them", data.timestamp);
   }
 });
@@ -398,12 +394,11 @@ function escapeHTML(str) {
 await loadUser();
 await loadReceiver();
 
-// Register AFTER userId is known, then load history
+// Register only after userId is known
 socket.on("connect", () => {
   if (currentUserId) socket.emit("register", currentUserId);
 });
 
-// If socket already connected by the time we get here, register now
 if (socket.connected) {
   socket.emit("register", currentUserId);
 } else {
