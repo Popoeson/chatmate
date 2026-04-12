@@ -856,7 +856,7 @@ router.get("/conversations", authenticateJWT, async (req, res) => {
               "$sender"
             ]
           },
-          lastMessage:   { $first: "$$ROOT" },
+          lastMessage: { $first: "$$ROOT" },
           unreadCount: {
             $sum: {
               $cond: [
@@ -890,6 +890,8 @@ router.get("/conversations", authenticateJWT, async (req, res) => {
           avatarUrl:   "$friend.avatarUrl",
           lastMessage: "$lastMessage.text",
           lastTime:    "$lastMessage.createdAt",
+          lastSender:  "$lastMessage.sender",
+          delivered:   "$lastMessage.delivered",
           unreadCount: 1
         }
       }
@@ -899,31 +901,6 @@ router.get("/conversations", authenticateJWT, async (req, res) => {
 
   } catch (err) {
     console.error("GET CONVERSATIONS ERROR:", err);
-    res.status(500).json({ message: "Server error" });
-  }
-});
-
-/* =========================
-   MARK MESSAGES AS READ
-========================= */
-router.post("/messages/:userId/read", authenticateJWT, async (req, res) => {
-  try {
-    const currentUserId = req.userId;
-    const otherUserId   = req.params.userId;
-
-    await Message.updateMany(
-      {
-        sender:   otherUserId,
-        receiver: currentUserId,
-        read:     false
-      },
-      { $set: { read: true } }
-    );
-
-    res.json({ message: "Messages marked as read" });
-
-  } catch (err) {
-    console.error("MARK READ ERROR:", err);
     res.status(500).json({ message: "Server error" });
   }
 });
