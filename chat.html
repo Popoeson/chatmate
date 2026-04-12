@@ -425,7 +425,6 @@ body.dark .context-item:hover { background: rgba(255,255,255,0.05); }
 </div>
 
 </div>
-
 <script type="module">
 import { Auth } from "./session.js";
 
@@ -458,11 +457,11 @@ toggle.onclick = () => {
 };
 
 // ── STATE ─────────────────────────────────────────────────
-let currentUserId    = null;
-let currentUsername  = null;
-let replyingTo       = null; // { messageId, text, sender }
-let typingTimeout    = null;
-let isTyping         = false;
+let currentUserId   = null;
+let currentUsername = null;
+let replyingTo      = null;
+let typingTimeout   = null;
+let isTyping        = false;
 
 // ── LOAD CURRENT USER ─────────────────────────────────────
 async function loadUser() {
@@ -498,17 +497,25 @@ async function loadHistory() {
     messages.forEach(msg => {
       const type = msg.sender.toString() === currentUserId.toString() ? "me" : "them";
       addMessage({
-        id:      msg._id,
-        text:    msg.text,
+        id:        msg._id,
+        text:      msg.text,
         type,
         timestamp: msg.createdAt,
-        replyTo: msg.replyTo?.messageId ? msg.replyTo : null
+        replyTo:   msg.replyTo?.messageId ? msg.replyTo : null
       });
     });
 
   } catch (err) {
     console.error("History load error:", err);
   }
+}
+
+// ── MARK AS READ ──────────────────────────────────────────
+function markAsRead() {
+  fetch(`${API}/messages/${receiverId}/read`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` }
+  }).catch(() => {});
 }
 
 // ── SOCKET ────────────────────────────────────────────────
@@ -525,6 +532,9 @@ socket.on("receive_message", (data) => {
       timestamp: data.timestamp,
       replyTo:   data.replyTo || null
     });
+
+    // Mark as read immediately — we're in this chat
+    markAsRead();
   }
 });
 
@@ -540,7 +550,6 @@ socket.on("typing_stop", ({ from }) => {
 function showTypingIndicator() {
   let indicator = document.getElementById("typingIndicator");
   if (indicator) return;
-
   indicator = document.createElement("div");
   indicator.id = "typingIndicator";
   indicator.className = "typing-indicator";
@@ -556,11 +565,9 @@ function hideTypingIndicator() {
 
 // ── TYPING EMIT ───────────────────────────────────────────
 input.addEventListener("input", () => {
-  // Auto-grow
   input.style.height = "auto";
   input.style.height = Math.min(input.scrollHeight, 120) + "px";
 
-  // Typing state
   if (!isTyping) {
     isTyping = true;
     socket.emit("typing_start", { to: receiverId });
@@ -575,8 +582,8 @@ input.addEventListener("input", () => {
 // ── REPLY SYSTEM ──────────────────────────────────────────
 function setReply(messageId, text, sender) {
   replyingTo = { messageId, text, sender };
-  replySender.textContent = sender === currentUserId ? "You" : chatUsername.textContent;
-  replyText.textContent   = text.length > 60 ? text.slice(0, 60) + "…" : text;
+  replySender.textContent    = sender === currentUserId ? "You" : chatUsername.textContent;
+  replyText.textContent      = text.length > 60 ? text.slice(0, 60) + "…" : text;
   replyPreview.style.display = "flex";
   input.focus();
 }
@@ -584,8 +591,8 @@ function setReply(messageId, text, sender) {
 function clearReply() {
   replyingTo = null;
   replyPreview.style.display = "none";
-  replyText.textContent   = "";
-  replySender.textContent = "";
+  replyText.textContent      = "";
+  replySender.textContent    = "";
 }
 
 cancelReply.onclick = clearReply;
@@ -593,19 +600,16 @@ cancelReply.onclick = clearReply;
 // ── SWIPE TO REPLY (MOBILE) ───────────────────────────────
 function addSwipeListener(el, messageId, text, sender) {
   let startX = 0;
-  let moved  = false;
 
   el.addEventListener("touchstart", (e) => {
     startX = e.touches[0].clientX;
-    moved  = false;
   }, { passive: true });
 
   el.addEventListener("touchmove", (e) => {
     const dx = e.touches[0].clientX - startX;
     if (dx > 0 && dx < 80) {
-      el.style.transform = `translateX(${dx}px)`;
+      el.style.transform  = `translateX(${dx}px)`;
       el.style.transition = "none";
-      moved = true;
     }
   }, { passive: true });
 
@@ -613,19 +617,14 @@ function addSwipeListener(el, messageId, text, sender) {
     const dx = e.changedTouches[0].clientX - startX;
     el.style.transition = "transform 0.2s ease";
     el.style.transform  = "translateX(0)";
-
-    if (dx > 50) {
-      setReply(messageId, text, sender);
-    }
+    if (dx > 50) setReply(messageId, text, sender);
   });
 }
 
 // ── RIGHT-CLICK / DOUBLE-CLICK TO REPLY (DESKTOP) ────────
 function addDesktopReplyListener(el, messageId, text, sender) {
-  // Double-click
   el.addEventListener("dblclick", () => setReply(messageId, text, sender));
 
-  // Right-click context menu
   el.addEventListener("contextmenu", (e) => {
     e.preventDefault();
     removeContextMenu();
@@ -657,7 +656,6 @@ function sendMessage() {
   const text = input.value.trim();
   if (!text) return;
 
-  // Stop typing indicator
   isTyping = false;
   clearTimeout(typingTimeout);
   socket.emit("typing_stop", { to: receiverId });
@@ -699,7 +697,6 @@ function addMessage({ id, text, type, timestamp, replyTo }) {
     ? new Date(timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
     : "";
 
-  // Reply quote block
   let replyHTML = "";
   if (replyTo?.messageId || replyTo?.text) {
     const replyLabel = replyTo.sender?.toString() === currentUserId?.toString()
@@ -708,7 +705,7 @@ function addMessage({ id, text, type, timestamp, replyTo }) {
     replyHTML = `
       <div class="reply-quote" data-target="${replyTo.messageId || ""}">
         <span class="reply-quote-sender">${escapeHTML(replyLabel)}</span>
-        <span class="reply-quote-text">${escapeHTML(replyTo.text?.slice(0, 60) || "")}${(replyTo.text?.length > 60) ? "…" : ""}</span>
+        <span class="reply-quote-text">${escapeHTML(replyTo.text?.slice(0, 60) || "")}${replyTo.text?.length > 60 ? "…" : ""}</span>
       </div>
     `;
   }
@@ -719,7 +716,6 @@ function addMessage({ id, text, type, timestamp, replyTo }) {
     <span class="msg-time">${time}</span>
   `;
 
-  // Scroll to original on quote tap
   if (replyTo?.messageId) {
     div.querySelector(".reply-quote")?.addEventListener("click", () => {
       const target = messagesDiv.querySelector(`[data-message-id="${replyTo.messageId}"]`);
@@ -731,7 +727,6 @@ function addMessage({ id, text, type, timestamp, replyTo }) {
     });
   }
 
-  // Swipe (mobile) and desktop reply
   addSwipeListener(div, id, text, type === "me" ? currentUserId : receiverId);
   addDesktopReplyListener(div, id, text, type === "me" ? currentUserId : receiverId);
 
@@ -759,14 +754,16 @@ if (socket.connected) {
   socket.connect();
 }
 
-// Tell homepage this chat is currently open
+// Register this chat as active for homepage badge logic
 sessionStorage.setItem("activeChatId", receiverId);
-
 window.addEventListener("pagehide", () => {
   sessionStorage.removeItem("activeChatId");
 });
 
 await loadHistory();
+
+// Mark as read on open
+markAsRead();
 
 </script>
 
