@@ -68,47 +68,56 @@ io.on("connection", (socket) => {
 
   // ── SEND MESSAGE ──────────────────────────────────────
   socket.on("send_message", async ({ to, message }) => {
-    // find who sent this
-    let senderId = null;
-    for (const [uid, sid] of onlineUsers.entries()) {
-      if (sid === socket.id) { senderId = uid; break; }
-    }
+  let senderId = null;
+  for (const [uid, sid] of onlineUsers.entries()) {
+    if (sid === socket.id) { senderId = uid; break; }
+  }
 
-    if (!senderId || !to || !message?.trim()) return;
+  if (!senderId || !to || !message?.trim()) return;
 
-    try {
-      const recipientSocketId = onlineUsers.get(to);
-      const isOnline = !!recipientSocketId;
+  try {
+    const recipientSocketId = onlineUsers.get(to);
+    const isOnline = !!recipientSocketId;
 
-      // Save to DB
-      const saved = await Message.create({
-        sender:    senderId,
-        receiver:  to,
-        text:      message.trim(),
-        delivered: isOnline
-      });
+    const saved = await Message.create({
+      sender:    senderId,
+      receiver:  to,
+      text:      message.trim(),
+      delivered: isOnline,
+      read:      false
+    });
 
-      if (isOnline) {
-        // Deliver instantly
-        io.to(recipientSocketId).emit("receive_message", {
-          from:      senderId,
-          message:   saved.text,
-          messageId: saved._id.toString(),
-          timestamp: saved.createdAt
-        });
-      }
-      // If offline → stays in DB with delivered: false, flushed on reconnect
+    const senderUser = await User.findById(senderId).select("username avatarUrl");
 
-      // Confirm back to sender
-      socket.emit("message_sent", {
+    if (isOnline) {
+      // Deliver message to chat room
+      io.to(recipientSocketId).emit("receive_message", {
+        from:      senderId,
+        message:   saved.text,
         messageId: saved._id.toString(),
         timestamp: saved.createdAt
       });
 
-    } catch (err) {
-      console.error("send_message error:", err);
+      // Notify recipient's homepage
+      io.to(recipientSocketId).emit("new_conversation_message", {
+        friendId:    senderId,
+        username:    senderUser.username,
+        avatarUrl:   senderUser.avatarUrl || "",
+        lastMessage: saved.text,
+        lastTime:    saved.createdAt,
+        unreadCount: 1
+      });
     }
-  });
+
+    socket.emit("message_sent", {
+      messageId: saved._id.toString(),
+      timestamp: saved.createdAt
+    });
+
+  } catch (err) {
+    console.error("send_message error:", err);
+  }
+});
 
   // ── DISCONNECT ────────────────────────────────────────
   socket.on("disconnect", () => {
