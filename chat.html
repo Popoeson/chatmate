@@ -397,8 +397,21 @@ function escapeHTML(str) {
 // ── INIT ──────────────────────────────────────────────────
 await loadUser();
 await loadReceiver();
+
+// Register AFTER userId is known, then load history
+socket.on("connect", () => {
+  if (currentUserId) socket.emit("register", currentUserId);
+});
+
+// If socket already connected by the time we get here, register now
+if (socket.connected) {
+  socket.emit("register", currentUserId);
+} else {
+  socket.connect();
+}
+
 await loadHistory();
-socket.emit("register", currentUserId);
+
 </script>
 
 </body>
