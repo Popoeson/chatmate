@@ -247,40 +247,6 @@ app.use(express.urlencoded({ extended: true }));
 ========================= */
 app.use("/api/auth", authRoutes);
 
-/* =========================
-   READ ROUTE (FIXED)
-========================= */
-import { onlineUsers } from "./server.js";
-
-app.post("/api/auth/messages/:userId/read", async (req, res) => {
-  try {
-    const currentUserId = req.body.userId || req.userId;
-    const otherUserId = req.params.userId;
-
-    await Message.updateMany(
-      {
-        sender: otherUserId,
-        receiver: currentUserId,
-        read: false
-      },
-      { $set: { read: true } }
-    );
-
-    const senderSocket = onlineUsers.get(otherUserId);
-
-    if (senderSocket) {
-      io.to(senderSocket).emit("chat_read", {
-        friendId: currentUserId
-      });
-    }
-
-    res.json({ success: true });
-
-  } catch (err) {
-    console.error("READ ERROR:", err);
-    res.status(500).json({ message: "Server error" });
-  }
-});
 
 /* =========================
    DB CONNECT
