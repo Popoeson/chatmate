@@ -945,7 +945,7 @@ router.post("/messages/:userId/delivered", authenticateJWT, async (req, res) => 
    READ ROUTE (FIXED)
 ========================= */
 
-app.post("/api/auth/messages/:userId/read", async (req, res) => {
+router.post("/api/auth/messages/:userId/read", async (req, res) => {
   try {
     const currentUserId = req.body.userId || req.userId;
     const otherUserId = req.params.userId;
