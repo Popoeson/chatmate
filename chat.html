@@ -101,15 +101,17 @@ body.dark .chat-header {
 }
 
 /* ========================= MESSAGES ========================= */
+
 .messages {
   flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
   padding: 12px;
-  padding-bottom: 30px;
+  padding-bottom: 110px;
   display: flex;
   flex-direction: column;
   gap: 10px;
+
   -webkit-overflow-scrolling: touch;
   overscroll-behavior: contain;
 }
@@ -493,9 +495,12 @@ let currentUsername = null;
 let replyingTo = null;
 let typingTimeout = null;
 let isTyping = false;
-let loadingHistory = false;
 
-/* ── SCROLL BUTTON ───────────────────────── */
+let loadingHistory = false;
+let page = 1;
+let hasMore = true;
+
+/* ── SCROLL EVENTS ───────────────────────── */
 messagesDiv.addEventListener("scroll", () => {
 
   const distance =
@@ -509,12 +514,16 @@ messagesDiv.addEventListener("scroll", () => {
     scrollDownBtn.classList.remove("visible");
   }
 
+  if (messagesDiv.scrollTop < 50) {
+    loadHistory();
+  }
+
 });
 
 scrollDownBtn.onclick = () => {
 
   messagesDiv.scrollTo({
-    top: messagesDiv.scrollHeight + 500,
+    top: messagesDiv.scrollHeight,
     behavior: "smooth"
   });
 
@@ -537,6 +546,7 @@ async function loadUser() {
 
   currentUserId = data.user._id;
   currentUsername = data.user.username;
+
 }
 
 /* ── LOAD RECEIVER ───────────────────────── */
@@ -552,16 +562,19 @@ async function loadReceiver() {
 
   chatUsername.textContent = user.username;
   chatAvatar.src = user.avatarUrl || "";
+
 }
 
-/* ── LOAD CHAT HISTORY ───────────────────────── */
-async function loadHistory() {
+/* ── LOAD CHAT HISTORY (PAGINATION) ───────────────────────── */
+async function loadHistory(initial = false) {
+
+  if (loadingHistory || !hasMore) return;
+
+  loadingHistory = true;
 
   try {
 
-    loadingHistory = true;
-
-    const res = await fetch(`${API}/messages/${receiverId}`, {
+    const res = await fetch(`${API}/messages/${receiverId}?page=${page}`, {
       headers: { Authorization: `Bearer ${token}` }
     });
 
@@ -569,16 +582,21 @@ async function loadHistory() {
 
     const { messages } = await res.json();
 
-    messagesDiv.innerHTML = "";
+    if (messages.length === 0) {
+      hasMore = false;
+      return;
+    }
 
-    messages.forEach(msg => {
+    const previousHeight = messagesDiv.scrollHeight;
+
+    messages.reverse().forEach(msg => {
 
       const type =
         msg.sender.toString() === currentUserId.toString()
           ? "me"
           : "them";
 
-      addMessage({
+      const el = createMessageElement({
         id: msg._id,
         text: msg.text,
         type,
@@ -586,17 +604,30 @@ async function loadHistory() {
         replyTo: msg.replyTo?.messageId ? msg.replyTo : null
       });
 
+      messagesDiv.prepend(el);
+
     });
 
-    loadingHistory = false;
+    if (initial) {
 
-    requestAnimationFrame(() => {
       messagesDiv.scrollTop = messagesDiv.scrollHeight;
-    });
+
+    } else {
+
+      const newHeight = messagesDiv.scrollHeight;
+      messagesDiv.scrollTop = newHeight - previousHeight;
+
+    }
+
+    page++;
 
   } catch (err) {
+
     console.error("History error:", err);
+
   }
+
+  loadingHistory = false;
 
 }
 
@@ -612,7 +643,7 @@ async function markAsRead() {
 
 }
 
-/* ── SOCKET ───────────────────────── */
+/* ── SOCKET CONNECTION ───────────────────────── */
 const socket = io("https://chatmate-kbwz.onrender.com", {
   auth: { token }
 });
@@ -657,16 +688,7 @@ function showTypingIndicator() {
 
   messagesDiv.appendChild(indicator);
 
-  const nearBottom =
-    messagesDiv.scrollHeight -
-    messagesDiv.scrollTop -
-    messagesDiv.clientHeight < 120;
-
-  if (nearBottom) {
-    requestAnimationFrame(() => {
-      messagesDiv.scrollTop = messagesDiv.scrollHeight;
-    });
-  }
+  scrollToBottom();
 
 }
 
@@ -717,6 +739,7 @@ function setReply(messageId, text, sender) {
   replyPreview.style.display = "flex";
 
   input.focus();
+
 }
 
 function clearReply() {
@@ -726,6 +749,7 @@ function clearReply() {
   replyPreview.style.display = "none";
   replyText.textContent = "";
   replySender.textContent = "";
+
 }
 
 cancelReply.onclick = clearReply;
@@ -759,6 +783,7 @@ function sendMessage() {
 
   input.value = "";
   input.style.height = "auto";
+
 }
 
 sendBtn.onclick = sendMessage;
@@ -772,8 +797,8 @@ input.addEventListener("keydown", e => {
 
 });
 
-/* ── RENDER MESSAGE ───────────────────────── */
-function addMessage({ id, text, type, timestamp, replyTo }) {
+/* ── CREATE MESSAGE ELEMENT ───────────────────────── */
+function createMessageElement({ id, text, type, timestamp }) {
 
   const div = document.createElement("div");
   div.className = `msg ${type}`;
@@ -787,48 +812,32 @@ function addMessage({ id, text, type, timestamp, replyTo }) {
       })
     : "";
 
-  let replyHTML = "";
-
-  if (replyTo?.messageId || replyTo?.text) {
-
-    const replyLabel =
-      replyTo.sender?.toString() === currentUserId?.toString()
-        ? "You"
-        : chatUsername.textContent;
-
-    replyHTML = `
-      <div class="reply-quote" data-target="${replyTo.messageId || ""}">
-        <span class="reply-quote-sender">${escapeHTML(replyLabel)}</span>
-        <span class="reply-quote-text">
-        ${escapeHTML(replyTo.text?.slice(0,60) || "")}
-        ${replyTo.text?.length > 60 ? "…" : ""}
-        </span>
-      </div>
-    `;
-  }
-
   div.innerHTML = `
-    ${replyHTML}
     <span class="msg-text">${escapeHTML(text)}</span>
     <span class="msg-time">${time}</span>
   `;
 
-  messagesDiv.appendChild(div);
+  return div;
 
-  if (loadingHistory) return;
+}
 
-  const nearBottom =
-    messagesDiv.scrollHeight -
-    messagesDiv.scrollTop -
-    messagesDiv.clientHeight < 120;
+/* ── ADD MESSAGE ───────────────────────── */
+function addMessage(msg) {
 
-  if (nearBottom) {
+  const el = createMessageElement(msg);
 
-    requestAnimationFrame(() => {
-      messagesDiv.scrollTop = messagesDiv.scrollHeight;
-    });
+  messagesDiv.appendChild(el);
 
-  }
+  scrollToBottom();
+
+}
+
+/* ── SCROLL HELPER ───────────────────────── */
+function scrollToBottom() {
+
+  requestAnimationFrame(() => {
+    messagesDiv.scrollTop = messagesDiv.scrollHeight + 300;
+  });
 
 }
 
@@ -866,7 +875,7 @@ window.addEventListener("pagehide", () => {
   sessionStorage.removeItem("activeChatId");
 });
 
-await loadHistory();
+await loadHistory(true);
 await markAsRead();
 
 </script>
