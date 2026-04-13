@@ -915,6 +915,32 @@ router.get("/conversations", authenticateJWT, async (req, res) => {
   }
 });
 
+/* ======== DELIVERED MESSAGE ======*/
+router.post("/messages/:userId/delivered", authenticateJWT, async (req, res) => {
+  try {
+    const currentUserId = req.userId;
+    const otherUserId = req.params.userId;
+
+    await Message.updateMany(
+      {
+        sender: otherUserId,
+        receiver: currentUserId,
+        delivered: false
+      },
+      {
+        $set: { delivered: true }
+      }
+    );
+
+    res.json({ success: true });
+
+  } catch (err) {
+    console.error("MARK DELIVERED ERROR:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+
 /* =========================
    MARK MESSAGES AS READ
 ========================= */
