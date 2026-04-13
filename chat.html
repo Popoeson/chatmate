@@ -861,8 +861,12 @@ function createMessageElement({ id, text, type, timestamp }) {
     <span class="msg-time">${time}</span>
   `;
 
-  return div;
+  const sender = type === "me" ? currentUserId : receiverId;
 
+  addSwipeListener(div, id, text, sender);
+  addDesktopReplyListener(div, id, text, sender);
+
+  return div;
 }
 
 /* ── ADD MESSAGE ───────────────────────── */
