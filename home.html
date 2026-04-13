@@ -519,8 +519,17 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
 
     socket.on("new_conversation_message", (data) => {
-      upsertCard(data, true);
-    });
+  upsertCard(data, true);
+});
+
+socket.on("receive_message", (data) => {
+  upsertCard({
+    friendId: data.from,
+    lastMessage: data.message,
+    lastTime: data.timestamp,
+    lastSender: data.from
+  }, true);
+});
 
     socket.on("typing_start", ({ from }) => {
       const state = cardMap.get(from);
