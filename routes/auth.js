@@ -942,11 +942,12 @@ router.post("/messages/:userId/delivered", authenticateJWT, async (req, res) => 
 
 
 /* =========================
-   MARK MESSAGES AS READ
+   READ ROUTE (FIXED)
 ========================= */
-router.post("/messages/:userId/read", authenticateJWT, async (req, res) => {
+
+app.post("/api/auth/messages/:userId/read", async (req, res) => {
   try {
-    const currentUserId = req.userId;
+    const currentUserId = req.body.userId || req.userId;
     const otherUserId = req.params.userId;
 
     await Message.updateMany(
@@ -955,16 +956,13 @@ router.post("/messages/:userId/read", authenticateJWT, async (req, res) => {
         receiver: currentUserId,
         read: false
       },
-      {
-        $set: { read: true }
-      }
+      { $set: { read: true } }
     );
 
-    // 🔥 REAL-TIME UPDATE TO SENDER
-    const senderSocketId = onlineUsers.get(otherUserId);
+    const senderSocket = onlineUsers.get(otherUserId);
 
-    if (senderSocketId) {
-      io.to(senderSocketId).emit("chat_read", {
+    if (senderSocket) {
+      io.to(senderSocket).emit("chat_read", {
         friendId: currentUserId
       });
     }
@@ -972,7 +970,7 @@ router.post("/messages/:userId/read", authenticateJWT, async (req, res) => {
     res.json({ success: true });
 
   } catch (err) {
-    console.error("MARK AS READ ERROR:", err);
+    console.error("READ ERROR:", err);
     res.status(500).json({ message: "Server error" });
   }
 });
