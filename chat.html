@@ -605,7 +605,12 @@ function showTypingIndicator() {
   indicator.className = "typing-indicator";
   indicator.innerHTML = `<span></span><span></span><span></span>`;
   messagesDiv.appendChild(indicator);
+  const nearBottom =
+  messagesDiv.scrollHeight - messagesDiv.scrollTop - messagesDiv.clientHeight < 120;
+
+if (nearBottom) {
   messagesDiv.scrollTop = messagesDiv.scrollHeight;
+}
 }
 
 function hideTypingIndicator() {
