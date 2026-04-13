@@ -50,7 +50,6 @@ body {
   height: 100dvh;
   display: flex;
   justify-content: center;
-  overflow: hidden;
   background-image: linear-gradient(to right, #e8e8e8 0%, var(--bg) 20%, var(--bg) 80%, #e8e8e8 100%);
 }
 
@@ -111,8 +110,8 @@ body.dark .chat-header {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  /* Fix 1: messages scroll independently, input stays fixed */
   -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
 }
 
 /* ========================= MESSAGE BUBBLE ========================= */
