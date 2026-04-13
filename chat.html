@@ -416,28 +416,27 @@ body.dark .scroll-down-btn {
   <!-- MESSAGES -->
   <div id="messages" class="messages"></div>
 
-  <!-- INPUT -->
+  <!-- SCROLL TO BOTTOM — inside wrapper -->
+  <button class="scroll-down-btn" id="scrollDownBtn">
+    <i class="fa-solid fa-chevron-down"></i>
+  </button>
+
+  <!-- INPUT — inside wrapper -->
   <div class="chat-input">
-  <div id="replyPreview" class="reply-preview" style="display:none;">
-    <div class="reply-preview-inner">
-      <span id="replySender" class="reply-preview-sender"></span>
-      <span id="replyText" class="reply-preview-text"></span>
+    <div id="replyPreview" class="reply-preview" style="display:none;">
+      <div class="reply-preview-inner">
+        <span id="replySender" class="reply-preview-sender"></span>
+        <span id="replyText" class="reply-preview-text"></span>
+      </div>
+      <i id="cancelReply" class="fa-solid fa-xmark"></i>
     </div>
-    <i id="cancelReply" class="fa-solid fa-xmark"></i>
+    <div class="chat-input-row">
+      <textarea id="messageInput" placeholder="Type message..."></textarea>
+      <button id="sendBtn">
+        <i class="fa-solid fa-paper-plane"></i>
+      </button>
+    </div>
   </div>
-  <div class="chat-input-row">
-    <textarea id="messageInput" placeholder="Type message..."></textarea>
-    <button id="sendBtn">
-      <i class="fa-solid fa-paper-plane"></i>
-    </button>
-  </div>
-</div>
-
-
-<!-- SCROLL TO BOTTOM -->
-<button class="scroll-down-btn" id="scrollDownBtn">
-  <i class="fa-solid fa-chevron-down"></i>
-</button>
 
 </div>
 
@@ -537,8 +536,10 @@ async function loadHistory() {
       });
     });
 
-    // Fix 2: scroll to bottom after history loads
-    messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    // Defer scroll until DOM has painted
+    setTimeout(() => {
+      messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    }, 50);
 
   } catch (err) {
     console.error("History load error:", err);
