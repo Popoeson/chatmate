@@ -946,7 +946,6 @@ router.post("/messages/:userId/delivered", authenticateJWT, async (req, res) => 
 ========================= */
 router.post("/messages/:userId/read", authenticateJWT, async (req, res) => {
   try {
-
     const currentUserId = req.userId;
     const otherUserId = req.params.userId;
 
@@ -960,6 +959,15 @@ router.post("/messages/:userId/read", authenticateJWT, async (req, res) => {
         $set: { read: true }
       }
     );
+
+    // 🔥 REAL-TIME UPDATE TO SENDER
+    const senderSocketId = onlineUsers.get(otherUserId);
+
+    if (senderSocketId) {
+      io.to(senderSocketId).emit("chat_read", {
+        friendId: currentUserId
+      });
+    }
 
     res.json({ success: true });
 
