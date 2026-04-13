@@ -430,6 +430,11 @@ body.dark .scroll-down-btn {
       <i class="fa-solid fa-paper-plane"></i>
     </button>
   </div>
+
+<!-- SCROLL TO BOTTOM -->
+<button class="scroll-down-btn" id="scrollDownBtn">
+  <i class="fa-solid fa-chevron-down"></i>
+</button>
 </div>
 
 </div>
@@ -447,16 +452,17 @@ const receiverId = params.get("userId");
 if (!receiverId) { window.location.href = "friends.html"; }
 
 // ── ELEMENTS ──────────────────────────────────────────────
-const messagesDiv  = document.getElementById("messages");
-const input        = document.getElementById("messageInput");
-const sendBtn      = document.getElementById("sendBtn");
-const chatAvatar   = document.getElementById("chatAvatar");
-const chatUsername = document.getElementById("chatUsername");
-const toggle       = document.getElementById("themeToggle");
-const replyPreview = document.getElementById("replyPreview");
-const replyText    = document.getElementById("replyText");
-const replySender  = document.getElementById("replySender");
-const cancelReply  = document.getElementById("cancelReply");
+const messagesDiv   = document.getElementById("messages");
+const input         = document.getElementById("messageInput");
+const sendBtn       = document.getElementById("sendBtn");
+const chatAvatar    = document.getElementById("chatAvatar");
+const chatUsername  = document.getElementById("chatUsername");
+const toggle        = document.getElementById("themeToggle");
+const replyPreview  = document.getElementById("replyPreview");
+const replyText     = document.getElementById("replyText");
+const replySender   = document.getElementById("replySender");
+const cancelReply   = document.getElementById("cancelReply");
+const scrollDownBtn = document.getElementById("scrollDownBtn");
 
 // ── THEME ─────────────────────────────────────────────────
 toggle.onclick = () => {
@@ -471,6 +477,21 @@ let currentUsername = null;
 let replyingTo      = null;
 let typingTimeout   = null;
 let isTyping        = false;
+
+// ── SCROLL TO BOTTOM BUTTON ───────────────────────────────
+// Fix 4: show arrow when scrolled up, hide when at bottom
+messagesDiv.addEventListener("scroll", () => {
+  const distFromBottom = messagesDiv.scrollHeight - messagesDiv.scrollTop - messagesDiv.clientHeight;
+  if (distFromBottom > 120) {
+    scrollDownBtn.classList.add("visible");
+  } else {
+    scrollDownBtn.classList.remove("visible");
+  }
+});
+
+scrollDownBtn.onclick = () => {
+  messagesDiv.scrollTo({ top: messagesDiv.scrollHeight, behavior: "smooth" });
+};
 
 // ── LOAD CURRENT USER ─────────────────────────────────────
 async function loadUser() {
@@ -514,6 +535,9 @@ async function loadHistory() {
       });
     });
 
+    // Fix 2: scroll to bottom after history loads
+    messagesDiv.scrollTop = messagesDiv.scrollHeight;
+
   } catch (err) {
     console.error("History load error:", err);
   }
@@ -543,7 +567,6 @@ socket.on("receive_message", (data) => {
       timestamp: data.timestamp,
       replyTo:   data.replyTo || null
     });
-    // Mark as read immediately since we are in this chat
     markAsRead();
   }
 });
@@ -773,6 +796,5 @@ await loadHistory();
 await markAsRead();
 
 </script>
-
 </body>
 </html>
