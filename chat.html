@@ -842,7 +842,7 @@ input.addEventListener("keydown", e => {
 });
 
 /* ── CREATE MESSAGE ELEMENT ───────────────────────── */
-function createMessageElement({ id, text, type, timestamp }) {
+function createMessageElement({ id, text, type, timestamp, replyTo }) {
 
   const div = document.createElement("div");
   div.className = `msg ${type}`;
@@ -856,7 +856,28 @@ function createMessageElement({ id, text, type, timestamp }) {
       })
     : "";
 
+  let replyHTML = "";
+
+  // 🔥 THIS WAS MISSING (MAIN BUG)
+  if (replyTo && replyTo.messageId) {
+    replyHTML = `
+      <div class="reply-quote" data-target="${replyTo.messageId}">
+        <span class="reply-quote-sender">
+          ${escapeHTML(
+            replyTo.sender?.toString() === currentUserId?.toString()
+              ? "You"
+              : chatUsername.textContent
+          )}
+        </span>
+        <span class="reply-quote-text">
+          ${escapeHTML(replyTo.text)}
+        </span>
+      </div>
+    `;
+  }
+
   div.innerHTML = `
+    ${replyHTML}
     <span class="msg-text">${escapeHTML(text)}</span>
     <span class="msg-time">${time}</span>
   `;
