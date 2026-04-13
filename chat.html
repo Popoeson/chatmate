@@ -482,13 +482,6 @@ const replySender = document.getElementById("replySender");
 const cancelReply = document.getElementById("cancelReply");
 const scrollDownBtn = document.getElementById("scrollDownBtn");
 
-/* ── THEME ───────────────────────── */
-toggle.onclick = () => {
-  document.body.classList.toggle("dark");
-  toggle.classList.toggle("fa-sun");
-  toggle.classList.toggle("fa-moon");
-};
-
 /* ── STATE ───────────────────────── */
 let currentUserId = null;
 let currentUsername = null;
@@ -500,38 +493,20 @@ let loadingHistory = false;
 let page = 1;
 let hasMore = true;
 
-/* ── SCROLL EVENTS ───────────────────────── */
-messagesDiv.addEventListener("scroll", () => {
-
-  const distance =
-    messagesDiv.scrollHeight -
-    messagesDiv.scrollTop -
-    messagesDiv.clientHeight;
-
-  if (distance > 150) {
-    scrollDownBtn.classList.add("visible");
-  } else {
-    scrollDownBtn.classList.remove("visible");
-  }
-
-  if (messagesDiv.scrollTop < 50) {
-    loadHistory();
-  }
-
+/* ── SOCKET ───────────────────────── */
+const socket = io("https://chatmate-kbwz.onrender.com", {
+  auth: { token }
 });
 
-scrollDownBtn.onclick = () => {
-
-  messagesDiv.scrollTo({
-    top: messagesDiv.scrollHeight,
-    behavior: "smooth"
-  });
-
+/* ── THEME ───────────────────────── */
+toggle.onclick = () => {
+  document.body.classList.toggle("dark");
+  toggle.classList.toggle("fa-sun");
+  toggle.classList.toggle("fa-moon");
 };
 
-/* ── LOAD CURRENT USER ───────────────────────── */
+/* ── LOAD USER ───────────────────────── */
 async function loadUser() {
-
   const res = await fetch(`${API}/me`, {
     headers: { Authorization: `Bearer ${token}` }
   });
@@ -543,15 +518,12 @@ async function loadUser() {
   }
 
   const data = await res.json();
-
   currentUserId = data.user._id;
   currentUsername = data.user.username;
-
 }
 
 /* ── LOAD RECEIVER ───────────────────────── */
 async function loadReceiver() {
-
   const res = await fetch(`${API}/users/${receiverId}`, {
     headers: { Authorization: `Bearer ${token}` }
   });
@@ -562,35 +534,29 @@ async function loadReceiver() {
 
   chatUsername.textContent = user.username;
   chatAvatar.src = user.avatarUrl || "";
-
 }
 
-/* ── LOAD CHAT HISTORY (PAGINATION) ───────────────────────── */
+/* ── LOAD HISTORY ───────────────────────── */
 async function loadHistory(initial = false) {
-
   if (loadingHistory || !hasMore) return;
 
   loadingHistory = true;
 
   try {
-
     const res = await fetch(`${API}/messages/${receiverId}?page=${page}`, {
       headers: { Authorization: `Bearer ${token}` }
     });
 
-    if (!res.ok) return;
-
     const { messages } = await res.json();
 
-    if (messages.length === 0) {
+    if (!messages.length) {
       hasMore = false;
       return;
     }
 
-    const previousHeight = messagesDiv.scrollHeight;
+    const prevHeight = messagesDiv.scrollHeight;
 
     messages.reverse().forEach(msg => {
-
       const type =
         msg.sender.toString() === currentUserId.toString()
           ? "me"
@@ -601,56 +567,50 @@ async function loadHistory(initial = false) {
         text: msg.text,
         type,
         timestamp: msg.createdAt,
-        replyTo: msg.replyTo?.messageId ? msg.replyTo : null
+        replyTo: msg.replyTo
       });
 
       messagesDiv.prepend(el);
-
     });
 
     if (initial) {
-
       messagesDiv.scrollTop = messagesDiv.scrollHeight;
-
     } else {
-
       const newHeight = messagesDiv.scrollHeight;
-      messagesDiv.scrollTop = newHeight - previousHeight;
-
+      messagesDiv.scrollTop = newHeight - prevHeight;
     }
 
     page++;
-
   } catch (err) {
-
-    console.error("History error:", err);
-
+    console.error(err);
   }
 
   loadingHistory = false;
-
 }
 
-/* ── MARK AS READ ───────────────────────── */
-async function markAsRead() {
+/* ── MARK AS READ (SAFE VERSION) ───────────────────────── */
+let readTimeout = null;
 
-  try {
-    await fetch(`${API}/messages/${receiverId}/read`, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${token}` }
-    });
-  } catch {}
+function markAsRead() {
+  clearTimeout(readTimeout);
 
+  readTimeout = setTimeout(async () => {
+    try {
+      await fetch(`${API}/messages/${receiverId}/read`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      socket.emit("chat_opened", { from: receiverId });
+
+    } catch {}
+  }, 300);
 }
 
-/* ── SOCKET CONNECTION ───────────────────────── */
-const socket = io("https://chatmate-kbwz.onrender.com", {
-  auth: { token }
-});
+/* ── SOCKET EVENTS ───────────────────────── */
 
-/* ── RECEIVE MESSAGE ───────────────────────── */
+/* RECEIVE MESSAGE */
 socket.on("receive_message", (data) => {
-
   if (data.from?.toString() !== receiverId?.toString()) return;
 
   hideTypingIndicator();
@@ -664,44 +624,46 @@ socket.on("receive_message", (data) => {
   });
 
   markAsRead();
-
 });
 
-/* ── TYPING INDICATOR ───────────────────────── */
+/* TYPING */
 socket.on("typing_start", ({ from }) => {
-  if (from?.toString() === receiverId?.toString()) showTypingIndicator();
+  if (from === receiverId) showTypingIndicator();
 });
 
 socket.on("typing_stop", ({ from }) => {
-  if (from?.toString() === receiverId?.toString()) hideTypingIndicator();
+  if (from === receiverId) hideTypingIndicator();
 });
 
-function showTypingIndicator() {
+/* ── SOCKET CONNECT SAFE REGISTER ───────────────────────── */
+socket.on("connect", () => {
+  if (currentUserId) {
+    socket.emit("register", currentUserId);
 
+    // IMPORTANT: ensures delivery sync when coming online
+    socket.emit("chat_opened", { from: receiverId });
+  }
+});
+
+/* ── TYPING UI ───────────────────────── */
+function showTypingIndicator() {
   if (document.getElementById("typingIndicator")) return;
 
-  const indicator = document.createElement("div");
+  const div = document.createElement("div");
+  div.id = "typingIndicator";
+  div.className = "typing-indicator";
+  div.innerHTML = `<span></span><span></span><span></span>`;
 
-  indicator.id = "typingIndicator";
-  indicator.className = "typing-indicator";
-  indicator.innerHTML = `<span></span><span></span><span></span>`;
-
-  messagesDiv.appendChild(indicator);
-
+  messagesDiv.appendChild(div);
   scrollToBottom();
-
 }
 
 function hideTypingIndicator() {
-
-  const indicator = document.getElementById("typingIndicator");
-  if (indicator) indicator.remove();
-
+  document.getElementById("typingIndicator")?.remove();
 }
 
-/* ── TEXTAREA AUTO EXPAND ───────────────────────── */
+/* ── INPUT TYPING ───────────────────────── */
 input.addEventListener("input", () => {
-
   input.style.height = "auto";
   input.style.height = Math.min(input.scrollHeight, 120) + "px";
 
@@ -713,107 +675,24 @@ input.addEventListener("input", () => {
   clearTimeout(typingTimeout);
 
   typingTimeout = setTimeout(() => {
-
     isTyping = false;
     socket.emit("typing_stop", { to: receiverId });
-
   }, 1500);
-
 });
-
-/* ── REPLY SYSTEM ───────────────────────── */
-function setReply(messageId, text, sender) {
-
-  replyingTo = { messageId, text, sender };
-
-  replySender.textContent =
-    sender === currentUserId
-      ? "You"
-      : chatUsername.textContent;
-
-  replyText.textContent =
-    text.length > 60
-      ? text.slice(0, 60) + "…"
-      : text;
-
-  replyPreview.style.display = "flex";
-
-  input.focus();
-
-}
-
-function clearReply() {
-
-  replyingTo = null;
-
-  replyPreview.style.display = "none";
-  replyText.textContent = "";
-  replySender.textContent = "";
-
-}
-
-cancelReply.onclick = clearReply;
-
-/* ========= SWIPE TO REPLY ===========*/
-function addSwipeListener(el, messageId, text, sender) {
-
-  let startX = 0;
-
-  el.addEventListener("touchstart", (e) => {
-    startX = e.touches[0].clientX;
-  }, { passive: true });
-
-  el.addEventListener("touchmove", (e) => {
-
-    const dx = e.touches[0].clientX - startX;
-
-    if (dx > 0 && dx < 80) {
-      el.style.transform = `translateX(${dx}px)`;
-      el.style.transition = "none";
-    }
-
-  }, { passive: true });
-
-  el.addEventListener("touchend", (e) => {
-
-    const dx = e.changedTouches[0].clientX - startX;
-
-    el.style.transition = "transform 0.2s ease";
-    el.style.transform = "translateX(0)";
-
-    if (dx > 50) {
-      setReply(messageId, text, sender);
-    }
-
-  });
-
-}
-
-/* ============== DOUBLE TAP TO REPLY ==========*/
-function addDesktopReplyListener(el, messageId, text, sender) {
-
-  el.addEventListener("dblclick", () => {
-    setReply(messageId, text, sender);
-  });
-
-}
 
 /* ── SEND MESSAGE ───────────────────────── */
 function sendMessage() {
-
   const text = input.value.trim();
   if (!text) return;
 
   isTyping = false;
-  clearTimeout(typingTimeout);
-
   socket.emit("typing_stop", { to: receiverId });
 
-  const payload = { to: receiverId, message: text };
-
-  if (replyingTo) payload.replyTo = replyingTo;
-
-  socket.emit("send_message", payload);
+  socket.emit("send_message", {
+    to: receiverId,
+    message: text,
+    replyTo: replyingTo || null
+  });
 
   addMessage({
     id: null,
@@ -823,55 +702,28 @@ function sendMessage() {
     replyTo: replyingTo
   });
 
-  clearReply();
-
   input.value = "";
   input.style.height = "auto";
-
+  clearReply();
 }
 
 sendBtn.onclick = sendMessage;
 
-input.addEventListener("keydown", e => {
-
-  if (e.key === "Enter" && !e.shiftKey) {
-    e.preventDefault();
-    sendMessage();
-  }
-
-});
-
-/* ── CREATE MESSAGE ELEMENT ───────────────────────── */
+/* ── MESSAGE UI ───────────────────────── */
 function createMessageElement({ id, text, type, timestamp, replyTo }) {
-
   const div = document.createElement("div");
   div.className = `msg ${type}`;
 
-  if (id) div.dataset.messageId = id;
-
   const time = timestamp
-    ? new Date(timestamp).toLocaleTimeString([], {
-        hour: "2-digit",
-        minute: "2-digit"
-      })
+    ? new Date(timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
     : "";
 
   let replyHTML = "";
 
-  // 🔥 THIS WAS MISSING (MAIN BUG)
-  if (replyTo && replyTo.messageId) {
+  if (replyTo?.messageId) {
     replyHTML = `
-      <div class="reply-quote" data-target="${replyTo.messageId}">
-        <span class="reply-quote-sender">
-          ${escapeHTML(
-            replyTo.sender?.toString() === currentUserId?.toString()
-              ? "You"
-              : chatUsername.textContent
-          )}
-        </span>
-        <span class="reply-quote-text">
-          ${escapeHTML(replyTo.text)}
-        </span>
+      <div class="reply-quote">
+        <span>${replyTo.text}</span>
       </div>
     `;
   }
@@ -882,71 +734,52 @@ function createMessageElement({ id, text, type, timestamp, replyTo }) {
     <span class="msg-time">${time}</span>
   `;
 
-  const sender = type === "me" ? currentUserId : receiverId;
-
-  addSwipeListener(div, id, text, sender);
-  addDesktopReplyListener(div, id, text, sender);
-
   return div;
 }
 
 /* ── ADD MESSAGE ───────────────────────── */
 function addMessage(msg) {
-
   const el = createMessageElement(msg);
-
   messagesDiv.appendChild(el);
-
   scrollToBottom();
-
 }
 
-/* ── SCROLL HELPER ───────────────────────── */
+/* ── SCROLL ───────────────────────── */
 function scrollToBottom() {
-
   requestAnimationFrame(() => {
-    messagesDiv.scrollTop = messagesDiv.scrollHeight + 300;
+    messagesDiv.scrollTop = messagesDiv.scrollHeight;
   });
-
 }
 
-/* ── SAFETY ───────────────────────── */
+/* ── REPLY ───────────────────────── */
+function setReply(messageId, text, sender) {
+  replyingTo = { messageId, text, sender };
+  replyPreview.style.display = "flex";
+}
+
+function clearReply() {
+  replyingTo = null;
+  replyPreview.style.display = "none";
+}
+
+cancelReply.onclick = clearReply;
+
+/* ── ESCAPE ───────────────────────── */
 function escapeHTML(str) {
-
-  if (!str) return "";
-
-  return str
-    .replace(/&/g,"&amp;")
-    .replace(/</g,"&lt;")
-    .replace(/>/g,"&gt;");
-
+  return (str || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
 }
 
 /* ── INIT ───────────────────────── */
 await loadUser();
 await loadReceiver();
 
-socket.on("connect", () => {
-
-  if (currentUserId) socket.emit("register", currentUserId);
-
-});
-
-if (socket.connected) {
-  socket.emit("register", currentUserId);
-} else {
-  socket.connect();
-}
-
 sessionStorage.setItem("activeChatId", receiverId);
-
-window.addEventListener("pagehide", () => {
-  sessionStorage.removeItem("activeChatId");
-});
 
 await loadHistory(true);
 await markAsRead();
-
 </script>
 
 </body>
