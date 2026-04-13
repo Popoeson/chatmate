@@ -554,6 +554,17 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
   }
 
+/* ========= PULSE EFFECT =========*/
+function triggerPulse(card) {
+  card.classList.remove("pulse");
+  void card.offsetWidth; // restart animation
+  card.classList.add("pulse");
+
+  setTimeout(() => {
+    card.classList.remove("pulse");
+  }, 900);
+}
+
   // ── INIT ──────────────────────────────────────────────────
   await loadUser();
   await loadConversations();
