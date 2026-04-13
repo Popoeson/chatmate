@@ -754,6 +754,50 @@ function clearReply() {
 
 cancelReply.onclick = clearReply;
 
+/* ========= SWIPE TO REPLY ===========*/
+function addSwipeListener(el, messageId, text, sender) {
+
+  let startX = 0;
+
+  el.addEventListener("touchstart", (e) => {
+    startX = e.touches[0].clientX;
+  }, { passive: true });
+
+  el.addEventListener("touchmove", (e) => {
+
+    const dx = e.touches[0].clientX - startX;
+
+    if (dx > 0 && dx < 80) {
+      el.style.transform = `translateX(${dx}px)`;
+      el.style.transition = "none";
+    }
+
+  }, { passive: true });
+
+  el.addEventListener("touchend", (e) => {
+
+    const dx = e.changedTouches[0].clientX - startX;
+
+    el.style.transition = "transform 0.2s ease";
+    el.style.transform = "translateX(0)";
+
+    if (dx > 50) {
+      setReply(messageId, text, sender);
+    }
+
+  });
+
+}
+
+/* ============== DOUBLE TAP TO REPLY ==========*/
+function addDesktopReplyListener(el, messageId, text, sender) {
+
+  el.addEventListener("dblclick", () => {
+    setReply(messageId, text, sender);
+  });
+
+}
+
 /* ── SEND MESSAGE ───────────────────────── */
 function sendMessage() {
 
