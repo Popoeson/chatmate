@@ -148,10 +148,25 @@ body.dark .them { background: #2C2C2E; }
   align-self: flex-end;
 }
 
+
+/* ========================= SCROLLABLE BAR ========================= */
+.messages::-webkit-scrollbar {
+  width: 6px;
+}
+
+.messages::-webkit-scrollbar-thumb {
+  background: rgba(0,0,0,0.2);
+  border-radius: 10px;
+}
+
+body.dark .messages::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,0.25);
+}
+
 /* ========================= INPUT ========================= */
 /* Fix 1 + Fix 3: sticky bottom + glassmorphism */
 .chat-input {
-  position: absolute;
+  position: sticky;
   bottom: 0;
   left: 0;
   right: 0;
