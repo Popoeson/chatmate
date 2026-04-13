@@ -96,66 +96,74 @@ io.on("connection", (socket) => {
     const recipientSocketId = onlineUsers.get(to);
     const isOnline = !!recipientSocketId;
 
-    const msgData = {
-      sender:    senderId,
-      receiver:  to,
-      text:      message.trim(),
-      delivered: isOnline,
-      read:      false
-    };
+    const saved = await Message.create({
+      sender: senderId,
+      receiver: to,
+      text: message.trim(),
+      delivered: false,   // ❌ always false at creation
+      read: false
+    });
 
-    if (replyTo?.messageId) {
-      msgData.replyTo = {
-        messageId: replyTo.messageId,
-        text:      replyTo.text,
-        sender:    replyTo.sender
-      };
-    }
-
-    const saved = await Message.create(msgData);
     const senderUser = await User.findById(senderId).select("username avatarUrl");
     const receiverUser = await User.findById(to).select("username avatarUrl");
 
-    // ── Notify recipient ──────────────────────────────────
-    if (isOnline) {
-      io.to(recipientSocketId).emit("receive_message", {
-        from:      senderId,
-        message:   saved.text,
-        messageId: saved._id.toString(),
-        timestamp: saved.createdAt,
-        replyTo:   replyTo || null
-      });
-
-      io.to(recipientSocketId).emit("new_conversation_message", {
-        friendId:    senderId,
-        username:    senderUser.username,
-        avatarUrl:   senderUser.avatarUrl || "",
-        lastMessage: saved.text,
-        lastTime:    saved.createdAt,
-        unreadCount: 1
-      });
+    /* ================= REPLY ================= */
+    if (replyTo?.messageId) {
+      saved.replyTo = {
+        messageId: replyTo.messageId,
+        text: replyTo.text,
+        sender: replyTo.sender
+      };
+      await saved.save();
     }
 
-    // ── Notify sender's homepage ──────────────────────────
-    // Update sender's own chat card with the new last message
-    socket.emit("new_conversation_message", {
-      friendId:    to,
-      username:    receiverUser.username,
-      avatarUrl:   receiverUser.avatarUrl || "",
-      lastMessage: saved.text,
-      lastTime:    saved.createdAt,
-      unreadCount: 0  // sender never has unread on their own sent message
-    });
-
-    // Delivery tick
+    /* ================= DELIVER TO RECIPIENT ================= */
     if (isOnline) {
+      io.to(recipientSocketId).emit("receive_message", {
+        from: senderId,
+        message: saved.text,
+        messageId: saved._id.toString(),
+        timestamp: saved.createdAt,
+        replyTo: replyTo || null
+      });
+
+      // 👉 mark as delivered in DB
+      await Message.updateOne(
+        { _id: saved._id },
+        { $set: { delivered: true } }
+      );
+
+      // notify sender
       socket.emit("message_delivered", {
-        friendId:  to,
+        friendId: to,
         messageId: saved._id.toString()
       });
     }
 
-    // Confirm save to chat.html
+    /* ================= UPDATE BOTH CHAT CARDS ================= */
+
+    io.to(senderId).emit("new_conversation_message", {
+      friendId: to,
+      username: receiverUser.username,
+      avatarUrl: receiverUser.avatarUrl || "",
+      lastMessage: saved.text,
+      lastTime: saved.createdAt,
+      lastSender: senderId,
+      delivered: isOnline ? true : false
+    });
+
+    if (isOnline) {
+      io.to(to).emit("new_conversation_message", {
+        friendId: senderId,
+        username: senderUser.username,
+        avatarUrl: senderUser.avatarUrl || "",
+        lastMessage: saved.text,
+        lastTime: saved.createdAt,
+        lastSender: senderId,
+        delivered: true
+      });
+    }
+
     socket.emit("message_sent", {
       messageId: saved._id.toString(),
       timestamp: saved.createdAt
