@@ -252,7 +252,7 @@ const API = "https://chatmate-kbwz.onrender.com/api/auth";
 
 document.addEventListener("DOMContentLoaded", async () => {
 
-  // ── ELEMENTS ──────────────────────────────────────────────
+  /* ================= ELEMENTS ================= */
   const chatList         = document.getElementById("chatList");
   const emptyState       = document.getElementById("emptyState");
   const addFriendBtn     = document.getElementById("addFriendBtn");
@@ -262,20 +262,19 @@ document.addEventListener("DOMContentLoaded", async () => {
   const footer           = document.querySelector("footer");
   const chatFooterBadge  = document.getElementById("chatFooterBadge");
 
-  // ── STATE ─────────────────────────────────────────────────
+  /* ================= STATE ================= */
   let currentUserId = null;
   let friendNotifCount = 0;
   let socket = null;
 
   const cardMap = new Map();
 
-  // ── HELPERS ───────────────────────────────────────────────
+  /* ================= HELPERS ================= */
   function getActiveChatId() {
-    return sessionStorage.getItem("activeChatId") || null;
+    return sessionStorage.getItem("activeChatId");
   }
 
-  function escapeHTML(str) {
-    if (!str) return "";
+  function escapeHTML(str = "") {
     return str.replace(/&/g,"&amp;")
               .replace(/</g,"&lt;")
               .replace(/>/g,"&gt;");
@@ -284,8 +283,9 @@ document.addEventListener("DOMContentLoaded", async () => {
   function formatTime(dateStr) {
     const d = new Date(dateStr);
     const now = new Date();
-    const isToday = d.toDateString() === now.toDateString();
-    if (isToday) return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    if (d.toDateString() === now.toDateString()) {
+      return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    }
     return d.toLocaleDateString([], { month: "short", day: "numeric" });
   }
 
@@ -295,35 +295,28 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   function updateFooterChatBadge() {
-    let usersWithUnread = 0;
-
+    let count = 0;
     for (const [, state] of cardMap) {
-      if ((state.unreadCount || 0) > 0) usersWithUnread++;
+      if ((state.unreadCount || 0) > 0) count++;
     }
 
-    chatFooterBadge.style.display = usersWithUnread > 0 ? "inline-block" : "none";
-    chatFooterBadge.textContent = usersWithUnread || "";
+    chatFooterBadge.style.display = count > 0 ? "inline-block" : "none";
+    chatFooterBadge.textContent = count || "";
   }
 
-  function buildLastMsgHTML(text, isMine, delivered) {
+  function buildLastMsgHTML(text, isMine) {
     if (!isMine) return escapeHTML(text);
-    const tickClass = delivered ? "delivered" : "sent";
-    const tickChar = delivered ? "✓✓" : "✓";
-    return `<span class="msg-tick ${tickClass}">${tickChar}</span>${escapeHTML(text)}`;
+    return escapeHTML(text);
   }
 
-  // ── PULSE EFFECT ──────────────────────────────────────────
   function triggerPulse(card) {
     card.classList.remove("pulse");
     void card.offsetWidth;
     card.classList.add("pulse");
-
-    setTimeout(() => {
-      card.classList.remove("pulse");
-    }, 900);
+    setTimeout(() => card.classList.remove("pulse"), 900);
   }
 
-  // ── THEME ─────────────────────────────────────────────────
+  /* ================= THEME ================= */
   toggle.onclick = () => {
     document.body.classList.toggle("dark");
     toggle.classList.toggle("fa-sun");
@@ -341,17 +334,16 @@ document.addEventListener("DOMContentLoaded", async () => {
     window.location.href = "friends.html";
   };
 
-  // ── CREATE CARD ───────────────────────────────────────────
-  function createCard({
-    friendId,
-    username,
-    avatarUrl,
-    lastMessage,
-    lastTime,
-    unreadCount,
-    isMine,
-    delivered
-  }) {
+  /* ================= CREATE CARD ================= */
+  function createCard(data) {
+    const {
+      friendId,
+      username,
+      avatarUrl,
+      lastMessage,
+      lastTime,
+      unreadCount = 0
+    } = data;
 
     const card = document.createElement("div");
     card.className = "chat-card";
@@ -361,11 +353,12 @@ document.addEventListener("DOMContentLoaded", async () => {
       <img src="${avatarUrl || "https://i.pravatar.cc/50"}">
       <div class="chat-card-body">
         <b>${escapeHTML(username)}</b>
-        <p class="last-msg">${buildLastMsgHTML(lastMessage, isMine, delivered)}</p>
+        <p class="last-msg">${escapeHTML(lastMessage || "")}</p>
       </div>
       <div class="card-meta">
         <span class="chat-time">${formatTime(lastTime)}</span>
-        <span class="unread-badge" style="display:${unreadCount > 0 ? "inline-block" : "none"}">
+        <span class="unread-badge"
+              style="display:${unreadCount > 0 ? "inline-block" : "none"}">
           ${unreadCount || ""}
         </span>
       </div>
@@ -375,15 +368,14 @@ document.addEventListener("DOMContentLoaded", async () => {
     const lastMsgEl = card.querySelector(".last-msg");
 
     card.onclick = async () => {
+      sessionStorage.setItem("activeChatId", friendId);
+
       const state = cardMap.get(friendId);
 
-      if (state && state.unreadCount > 0) {
+      if (state?.unreadCount > 0) {
         state.unreadCount = 0;
-
-        if (state.unreadEl) {
-          state.unreadEl.style.display = "none";
-          state.unreadEl.textContent = "";
-        }
+        unreadEl.style.display = "none";
+        unreadEl.textContent = "";
 
         updateFooterChatBadge();
 
@@ -393,26 +385,23 @@ document.addEventListener("DOMContentLoaded", async () => {
         }).catch(() => {});
       }
 
-      sessionStorage.setItem("activeChatId", friendId);
       window.location.href = `chat.html?userId=${friendId}`;
     };
 
     cardMap.set(friendId, {
       card,
-      unreadCount: unreadCount || 0,
+      unreadCount,
       lastMessage,
       lastMsgEl,
       unreadEl,
-      isMine: isMine || false,
-      delivered: delivered || false
+      isMine: false
     });
 
     return card;
   }
 
-  // ── UPSERT CARD ───────────────────────────────────────────
+  /* ================= UPSERT CARD ================= */
   function upsertCard(data, isNew = false) {
-
     const {
       friendId,
       lastMessage,
@@ -420,30 +409,27 @@ document.addEventListener("DOMContentLoaded", async () => {
       lastSender
     } = data;
 
-    const activeChatId = getActiveChatId();
-    const isActiveChat = activeChatId === friendId;
     const isMine = lastSender?.toString() === currentUserId?.toString();
+    const isActiveChat = getActiveChatId() === friendId;
 
     if (cardMap.has(friendId)) {
-
       const state = cardMap.get(friendId);
-      const { card, lastMsgEl, unreadEl } = state;
 
       state.lastMessage = lastMessage;
       state.isMine = isMine;
 
-      lastMsgEl.innerHTML = buildLastMsgHTML(lastMessage, isMine, false);
-      card.querySelector(".chat-time").textContent = formatTime(lastTime);
+      state.lastMsgEl.textContent = lastMessage;
+      state.card.querySelector(".chat-time").textContent = formatTime(lastTime);
 
       if (isNew && !isMine && !isActiveChat) {
         state.unreadCount = (state.unreadCount || 0) + 1;
-        unreadEl.textContent = state.unreadCount;
-        unreadEl.style.display = "inline-block";
+        state.unreadEl.textContent = state.unreadCount;
+        state.unreadEl.style.display = "inline-block";
       }
 
       if (isNew && !isMine && isActiveChat) {
         state.unreadCount = 0;
-        unreadEl.style.display = "none";
+        state.unreadEl.style.display = "none";
 
         fetch(`${API}/messages/${friendId}/read`, {
           method: "POST",
@@ -451,36 +437,26 @@ document.addEventListener("DOMContentLoaded", async () => {
         }).catch(() => {});
       }
 
-      chatList.prepend(card);
-      triggerPulse(card);
-
+      chatList.prepend(state.card);
+      triggerPulse(state.card);
     } else {
-
-      const unread = (!isMine && !isActiveChat) ? 1 : 0;
-
       const card = createCard({
         ...data,
-        unreadCount: unread,
-        isMine,
-        delivered: false
+        unreadCount: (!isMine && !isActiveChat) ? 1 : 0
       });
 
       chatList.prepend(card);
       emptyState.style.display = "none";
-
       triggerPulse(card);
     }
 
     updateFooterChatBadge();
   }
 
-  // ── LOAD USER ─────────────────────────────────────────────
+  /* ================= LOAD USER ================= */
   async function loadUser() {
-    const token = Auth.getToken();
-    if (!token) return window.location.href = "login.html";
-
     const res = await fetch(`${API}/me`, {
-      headers: { Authorization: `Bearer ${token}` }
+      headers: { Authorization: `Bearer ${Auth.getToken()}` }
     });
 
     const { user } = await res.json();
@@ -490,13 +466,11 @@ document.addEventListener("DOMContentLoaded", async () => {
     document.getElementById("avatarImg").src = user.avatarUrl;
   }
 
-  // ── LOAD CONVERSATIONS ────────────────────────────────────
+  /* ================= LOAD CONVERSATIONS ================= */
   async function loadConversations() {
     const res = await fetch(`${API}/conversations`, {
       headers: { Authorization: `Bearer ${Auth.getToken()}` }
     });
-
-    if (!res.ok) return;
 
     const { conversations } = await res.json();
 
@@ -515,9 +489,13 @@ document.addEventListener("DOMContentLoaded", async () => {
       const isMine = c.lastSender?.toString() === currentUserId?.toString();
 
       const card = createCard({
-        ...c,
-        isMine,
-        delivered: isMine ? c.delivered : false
+        friendId: c.friendId,
+        username: c.username,
+        avatarUrl: c.avatarUrl,
+        lastMessage: c.lastMessage,
+        lastTime: c.lastTime,
+        unreadCount: c.unreadCount,
+        isMine
       });
 
       chatList.appendChild(card);
@@ -526,9 +504,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     updateFooterChatBadge();
   }
 
-  // ── SOCKET ────────────────────────────────────────────────
+  /* ================= SOCKET ================= */
   function initSocket() {
-
     socket = io("https://chatmate-kbwz.onrender.com", {
       auth: { token: Auth.getToken() }
     });
@@ -541,20 +518,13 @@ document.addEventListener("DOMContentLoaded", async () => {
       upsertCard(data, true);
     });
 
-    socket.on("typing_start", ({ from }) => {
-      const state = cardMap.get(from);
-      if (state) state.lastMsgEl.innerHTML = "typing...";
-    });
-
-    socket.on("typing_stop", ({ from }) => {
-      const state = cardMap.get(from);
-      if (state) {
-        state.lastMsgEl.innerHTML = buildLastMsgHTML(
-          state.lastMessage,
-          state.isMine,
-          state.delivered
-        );
-      }
+    socket.on("receive_message", (data) => {
+      upsertCard({
+        friendId: data.from,
+        lastMessage: data.message,
+        lastTime: data.timestamp,
+        lastSender: data.from
+      }, true);
     });
 
     socket.on("chat_read", ({ friendId }) => {
@@ -562,17 +532,14 @@ document.addEventListener("DOMContentLoaded", async () => {
       if (!state) return;
 
       state.unreadCount = 0;
-
-      if (state.unreadEl) {
-        state.unreadEl.style.display = "none";
-        state.unreadEl.textContent = "";
-      }
+      state.unreadEl.style.display = "none";
+      state.unreadEl.textContent = "";
 
       updateFooterChatBadge();
     });
   }
 
-  // ── INIT ──────────────────────────────────────────────────
+  /* ================= INIT ================= */
   await loadUser();
   await loadConversations();
   initSocket();
