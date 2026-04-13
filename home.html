@@ -554,14 +554,21 @@ socket.on("receive_message", (data) => {
 
       state.unreadCount = 0;
 
-      if (state.unreadEl) {
-        state.unreadEl.style.display = "none";
-        state.unreadEl.textContent = "";
-      }
+      if (state && state.unreadCount > 0) {
+  state.unreadCount = 0;
 
-      updateFooterChatBadge();
-    });
+  if (state.unreadEl) {
+    state.unreadEl.style.display = "none";
+    state.unreadEl.textContent = "";
   }
+
+  updateFooterChatBadge();
+
+  fetch(`${API}/messages/${friendId}/read`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${Auth.getToken()}` }
+  }).catch(() => {});
+}
 
 /* ========= PULSE EFFECT =========*/
 function triggerPulse(card) {
