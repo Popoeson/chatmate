@@ -174,6 +174,20 @@ io.on("connection", (socket) => {
   }
 });
 
+/* ========== MESSAGE QUEUE ========*/
+socket.on("chat_opened", async ({ from }) => {
+  const userId = socket.userId;
+
+  await Message.updateMany(
+    {
+      sender: from,
+      receiver: userId,
+      delivered: false
+    },
+    { $set: { delivered: true } }
+  );
+});
+
   // ── DISCONNECT ──────────────────────────────────────────
   socket.on("disconnect", () => {
     for (const [uid, sid] of onlineUsers.entries()) {
