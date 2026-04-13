@@ -806,7 +806,7 @@ router.get('/users/:id', authenticateJWT, async (req, res) => {
 });
 
 /* =========================
-   GET CHAT HISTORY
+   GET CHAT HISTORY (PAGINATED)
 ========================= */
 router.get("/messages/:userId", authenticateJWT, async (req, res) => {
   try {
@@ -824,13 +824,13 @@ router.get("/messages/:userId", authenticateJWT, async (req, res) => {
         { sender: otherUserId, receiver: currentUserId }
       ]
     })
-    .sort({ createdAt: -1 }) // newest first for pagination
+    .sort({ createdAt: -1 })   // newest first
     .skip(skip)
     .limit(limit)
     .select("sender receiver text delivered createdAt replyTo");
 
     res.json({
-      messages: messages.reverse(), // restore correct UI order
+      messages: messages.reverse(), // UI order
       hasMore: messages.length === limit
     });
 
@@ -918,35 +918,29 @@ router.get("/conversations", authenticateJWT, async (req, res) => {
 /* =========================
    MARK MESSAGES AS READ
 ========================= */
-router.get("/messages/:userId", authenticateJWT, async (req, res) => {
-
+router.post("/messages/:userId/read", authenticateJWT, async (req, res) => {
   try {
 
     const currentUserId = req.userId;
     const otherUserId = req.params.userId;
 
-    const page = parseInt(req.query.page) || 1;
-    const limit = 30;
+    await Message.updateMany(
+      {
+        sender: otherUserId,
+        receiver: currentUserId,
+        read: false
+      },
+      {
+        $set: { read: true }
+      }
+    );
 
-    const messages = await Message.find({
-      $or: [
-        { sender: currentUserId, receiver: otherUserId },
-        { sender: otherUserId, receiver: currentUserId }
-      ]
-    })
-    .sort({ createdAt: -1 })
-    .skip((page - 1) * limit)
-    .limit(limit);
-
-    res.json({ messages });
+    res.json({ success: true });
 
   } catch (err) {
-
-    console.error(err);
+    console.error("MARK AS READ ERROR:", err);
     res.status(500).json({ message: "Server error" });
-
   }
-
 });
 
 /* =========================
