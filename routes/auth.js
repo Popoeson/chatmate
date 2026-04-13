@@ -908,26 +908,35 @@ router.get("/conversations", authenticateJWT, async (req, res) => {
 /* =========================
    MARK MESSAGES AS READ
 ========================= */
-router.post("/messages/:userId/read", authenticateJWT, async (req, res) => {
+router.get("/messages/:userId", authenticateJWT, async (req, res) => {
+
   try {
+
     const currentUserId = req.userId;
     const otherUserId = req.params.userId;
 
-    await Message.updateMany(
-      {
-        sender: otherUserId,
-        receiver: currentUserId,
-        delivered: false
-      },
-      { $set: { delivered: true } }
-    );
+    const page = parseInt(req.query.page) || 1;
+    const limit = 30;
 
-    res.json({ success: true });
+    const messages = await Message.find({
+      $or: [
+        { sender: currentUserId, receiver: otherUserId },
+        { sender: otherUserId, receiver: currentUserId }
+      ]
+    })
+    .sort({ createdAt: -1 })
+    .skip((page - 1) * limit)
+    .limit(limit);
+
+    res.json({ messages });
 
   } catch (err) {
-    console.error("READ ERROR:", err);
+
+    console.error(err);
     res.status(500).json({ message: "Server error" });
+
   }
+
 });
 
 /* =========================
