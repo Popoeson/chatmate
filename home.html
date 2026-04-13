@@ -397,53 +397,64 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   // ── UPSERT CARD ───────────────────────────────────────────
   function upsertCard(data, isNew = false) {
-    const { friendId, lastMessage, lastTime } = data;
+  const { friendId, lastMessage, lastTime } = data;
 
-    const activeChatId = getActiveChatId();
-    const isActiveChat = activeChatId === friendId;
+  const activeChatId = getActiveChatId();
+  const isActiveChat = activeChatId === friendId;
 
-    if (cardMap.has(friendId)) {
-      const state = cardMap.get(friendId);
-      const { card, lastMsgEl, unreadEl } = state;
+  const isMine = data.lastSender?.toString() === currentUserId?.toString();
 
-      state.lastMessage = lastMessage;
-      lastMsgEl.innerHTML = buildLastMsgHTML(lastMessage, state.isMine, false);
-      card.querySelector(".chat-time").textContent = formatTime(lastTime);
+  if (cardMap.has(friendId)) {
+    const state = cardMap.get(friendId);
+    const { card, lastMsgEl, unreadEl } = state;
 
-      if (isNew && !state.isMine && !isActiveChat) {
-        state.unreadCount = (state.unreadCount || 0) + 1;
-        unreadEl.textContent = state.unreadCount;
-        unreadEl.style.display = "inline-block";
-      }
+    state.lastMessage = lastMessage;
+    state.isMine = isMine;
 
-      if (isNew && !state.isMine && isActiveChat) {
-        state.unreadCount = 0;
-        unreadEl.style.display = "none";
+    lastMsgEl.innerHTML = buildLastMsgHTML(lastMessage, isMine, false);
+    card.querySelector(".chat-time").textContent = formatTime(lastTime);
 
-        fetch(`${API}/messages/${friendId}/read`, {
-          method: "POST",
-          headers: { Authorization: `Bearer ${Auth.getToken()}` }
-        }).catch(() => {});
-      }
+    // ✅ ONLY INCREASE IF NOT ACTIVE CHAT AND NOT OWN MESSAGE
+    if (isNew && !isMine && !isActiveChat) {
+      state.unreadCount = (state.unreadCount || 0) + 1;
 
-      chatList.prepend(card);
-
-    } else {
-      const effectiveUnread = (isNew && !isActiveChat) ? 1 : 0;
-
-      const card = createCard({
-        ...data,
-        unreadCount: effectiveUnread,
-        isMine: false,
-        delivered: false
-      });
-
-      chatList.prepend(card);
-      emptyState.style.display = "none";
+      unreadEl.textContent = state.unreadCount;
+      unreadEl.style.display = "inline-block";
     }
 
-    updateFooterChatBadge();
+    // ✅ AUTO READ IF ACTIVE CHAT
+    if (isNew && !isMine && isActiveChat) {
+      state.unreadCount = 0;
+      unreadEl.style.display = "none";
+
+      fetch(`${API}/messages/${friendId}/read`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${Auth.getToken()}` }
+      }).catch(() => {});
+    }
+
+    // 🔥 FIX: move card to top + pulse
+    chatList.prepend(card);
+    triggerPulse(card);
+
+  } else {
+    const unread = (!isMine && !isActiveChat) ? 1 : 0;
+
+    const card = createCard({
+      ...data,
+      unreadCount: unread,
+      isMine,
+      delivered: false
+    });
+
+    chatList.prepend(card);
+    emptyState.style.display = "none";
+
+    triggerPulse(card);
   }
+
+  updateFooterChatBadge();
+}
 
   // ── LOAD CONVERSATIONS ────────────────────────────────────
   async function loadConversations() {
