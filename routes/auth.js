@@ -810,19 +810,29 @@ router.get('/users/:id', authenticateJWT, async (req, res) => {
 ========================= */
 router.get("/messages/:userId", authenticateJWT, async (req, res) => {
   try {
+
     const currentUserId = req.userId;
-    const otherUserId   = req.params.userId;
+    const otherUserId = req.params.userId;
+
+    const page = parseInt(req.query.page) || 1;
+    const limit = 20;
+    const skip = (page - 1) * limit;
 
     const messages = await Message.find({
       $or: [
         { sender: currentUserId, receiver: otherUserId },
-        { sender: otherUserId,   receiver: currentUserId }
+        { sender: otherUserId, receiver: currentUserId }
       ]
     })
-    .sort({ createdAt: 1 })
+    .sort({ createdAt: -1 }) // newest first for pagination
+    .skip(skip)
+    .limit(limit)
     .select("sender receiver text delivered createdAt replyTo");
 
-    res.json({ messages });
+    res.json({
+      messages: messages.reverse(), // restore correct UI order
+      hasMore: messages.length === limit
+    });
 
   } catch (err) {
     console.error("GET MESSAGES ERROR:", err);
