@@ -294,11 +294,20 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   function updateFooterChatBadge() {
     let usersWithUnread = 0;
+
     for (const [, state] of cardMap) {
-      if (state.unreadCount > 0) usersWithUnread++;
+      if ((state.unreadCount || 0) > 0) {
+        usersWithUnread++;
+      }
     }
-    chatFooterBadge.style.display = usersWithUnread > 0 ? "inline-block" : "none";
-    chatFooterBadge.textContent   = usersWithUnread || "";
+
+    if (usersWithUnread > 0) {
+      chatFooterBadge.style.display = "inline-block";
+      chatFooterBadge.textContent = usersWithUnread;
+    } else {
+      chatFooterBadge.style.display = "none";
+      chatFooterBadge.textContent = "";
+    }
   }
 
   function buildLastMsgHTML(text, isMine, delivered) {
@@ -342,7 +351,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       </div>
       <div class="card-meta">
         <span class="chat-time">${formatTime(lastTime)}</span>
-        <span class="unread-badge" style="display:${unreadCount > 0 ? "inline-block" : "none"}">${unreadCount}</span>
+        <span class="unread-badge" style="display:${unreadCount > 0 ? "inline-block" : "none"}">${unreadCount || ""}</span>
       </div>
     `;
 
@@ -351,17 +360,25 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     card.onclick = async () => {
       const state = cardMap.get(friendId);
+
       if (state && state.unreadCount > 0) {
-        state.unreadCount      = 0;
-        unreadEl.textContent   = "0";
-        unreadEl.style.display = "none";
+
+        state.unreadCount = 0;
+
+        if (state.unreadEl) {
+          state.unreadEl.textContent = "";
+          state.unreadEl.style.display = "none";
+        }
+
         updateFooterChatBadge();
-        // Fire and forget — chat.html will also call markAsRead on open
+
         fetch(`${API}/messages/${friendId}/read`, {
           method: "POST",
           headers: { Authorization: `Bearer ${Auth.getToken()}` }
         }).catch(() => {});
       }
+
+      sessionStorage.setItem("activeChatId", friendId);
       window.location.href = `chat.html?userId=${friendId}`;
     };
 
@@ -371,7 +388,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       lastMessage,
       lastMsgEl,
       unreadEl,
-      isMine:    isMine    || false,
+      isMine: isMine || false,
       delivered: delivered || false
     });
 
@@ -380,9 +397,8 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   // ── UPSERT CARD ───────────────────────────────────────────
   function upsertCard(data, isNew = false) {
-    const { friendId, lastMessage, lastTime, unreadCount } = data;
+    const { friendId, lastMessage, lastTime } = data;
 
-    const isMine       = isNew && unreadCount === 0;
     const activeChatId = getActiveChatId();
     const isActiveChat = activeChatId === friendId;
 
@@ -390,162 +406,95 @@ document.addEventListener("DOMContentLoaded", async () => {
       const state = cardMap.get(friendId);
       const { card, lastMsgEl, unreadEl } = state;
 
-      state.isMine      = isMine;
-      state.delivered   = false;
       state.lastMessage = lastMessage;
-      lastMsgEl.innerHTML = buildLastMsgHTML(lastMessage, isMine, false);
+      lastMsgEl.innerHTML = buildLastMsgHTML(lastMessage, state.isMine, false);
       card.querySelector(".chat-time").textContent = formatTime(lastTime);
 
-      if (isNew && !isMine && !isActiveChat) {
-        state.unreadCount += 1;
-        unreadEl.textContent   = state.unreadCount;
+      if (isNew && !state.isMine && !isActiveChat) {
+        state.unreadCount = (state.unreadCount || 0) + 1;
+        unreadEl.textContent = state.unreadCount;
         unreadEl.style.display = "inline-block";
-      } else if (isNew && !isMine && isActiveChat) {
+      }
+
+      if (isNew && !state.isMine && isActiveChat) {
+        state.unreadCount = 0;
+        unreadEl.style.display = "none";
+
         fetch(`${API}/messages/${friendId}/read`, {
           method: "POST",
           headers: { Authorization: `Bearer ${Auth.getToken()}` }
         }).catch(() => {});
-        state.unreadCount      = 0;
-        unreadEl.style.display = "none";
       }
 
       chatList.prepend(card);
-      card.classList.remove("pulse");
-      void card.offsetWidth;
-      card.classList.add("pulse");
-      setTimeout(() => card.classList.remove("pulse"), 900);
 
     } else {
-      const effectiveUnread = (isNew && !isMine && !isActiveChat) ? 1 : 0;
+      const effectiveUnread = (isNew && !isActiveChat) ? 1 : 0;
+
       const card = createCard({
         ...data,
         unreadCount: effectiveUnread,
-        isMine,
+        isMine: false,
         delivered: false
       });
+
       chatList.prepend(card);
       emptyState.style.display = "none";
-
-      if (isNew && !isMine && isActiveChat) {
-        fetch(`${API}/messages/${friendId}/read`, {
-          method: "POST",
-          headers: { Authorization: `Bearer ${Auth.getToken()}` }
-        }).catch(() => {});
-      }
-
-      if (isNew) {
-        card.classList.add("pulse");
-        setTimeout(() => card.classList.remove("pulse"), 900);
-      }
     }
 
     updateFooterChatBadge();
   }
 
-  // ── TYPING ON CARD ────────────────────────────────────────
-  function showCardTyping(friendId) {
-    const state = cardMap.get(friendId);
-    if (!state) return;
-    state.lastMsgEl.innerHTML = `
-      <span class="card-typing">
-        <span></span><span></span><span></span>
-      </span>
-    `;
-  }
-
-  function hideCardTyping(friendId) {
-    const state = cardMap.get(friendId);
-    if (!state) return;
-    state.lastMsgEl.innerHTML = buildLastMsgHTML(
-      state.lastMessage || "",
-      state.isMine,
-      state.delivered
-    );
-  }
-
-  // ── TICK: MARK DELIVERED ──────────────────────────────────
-  function setCardDelivered(friendId) {
-    const state = cardMap.get(friendId);
-    if (!state || !state.isMine) return;
-    state.delivered = true;
-    const tick = state.lastMsgEl.querySelector(".msg-tick");
-    if (tick) {
-      tick.textContent = "✓✓";
-      tick.classList.remove("sent");
-      tick.classList.add("delivered");
-    }
-  }
-
   // ── LOAD CONVERSATIONS ────────────────────────────────────
   async function loadConversations() {
-    try {
-      const res = await fetch(`${API}/conversations`, {
-        headers: { Authorization: `Bearer ${Auth.getToken()}` }
-      });
-      if (!res.ok) return;
+    const res = await fetch(`${API}/conversations`, {
+      headers: { Authorization: `Bearer ${Auth.getToken()}` }
+    });
 
-      const { conversations } = await res.json();
+    if (!res.ok) return;
 
-      chatList.innerHTML = "";
-      chatList.appendChild(emptyState);
-      cardMap.clear();
+    const { conversations } = await res.json();
 
-      if (!conversations.length) {
-        emptyState.style.display = "block";
-        return;
-      }
+    chatList.innerHTML = "";
+    chatList.appendChild(emptyState);
+    cardMap.clear();
 
-      emptyState.style.display = "none";
-      conversations.forEach(c => {
-        const isMine = c.lastSender?.toString() === currentUserId?.toString();
-        const card = createCard({
-          ...c,
-          isMine,
-          delivered: isMine ? c.delivered : false
-        });
-        chatList.appendChild(card);
-      });
-
-      updateFooterChatBadge();
-
-    } catch (err) {
-      console.error("Load conversations error:", err);
+    if (!conversations.length) {
+      emptyState.style.display = "block";
+      return;
     }
+
+    emptyState.style.display = "none";
+
+    conversations.forEach(c => {
+      const isMine = c.lastSender?.toString() === currentUserId?.toString();
+
+      const card = createCard({
+        ...c,
+        isMine,
+        delivered: isMine ? c.delivered : false
+      });
+
+      chatList.appendChild(card);
+    });
+
+    updateFooterChatBadge();
   }
 
   // ── LOAD USER ─────────────────────────────────────────────
   async function loadUser() {
     const token = Auth.getToken();
-    if (!token) { window.location.href = "login.html"; return; }
+    if (!token) return window.location.href = "login.html";
 
-    try {
-      const res = await fetch(`${API}/me`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      if (!res.ok) { Auth.clearToken(); window.location.href = "login.html"; return; }
+    const res = await fetch(`${API}/me`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
 
-      const { user } = await res.json();
-      currentUserId = user._id;
+    const { user } = await res.json();
+    currentUserId = user._id;
 
-      document.getElementById("usernameDisplay").textContent = user.username || user.email;
-      document.getElementById("avatarImg").src = user.avatarUrl || "https://i.pravatar.cc/50";
-
-    } catch {
-      window.location.href = "login.html";
-    }
-  }
-
-  // ── FETCH PENDING FRIEND COUNT ────────────────────────────
-  async function fetchPendingCount() {
-    try {
-      const res = await fetch(`${API}/friends`, {
-        headers: { Authorization: `Bearer ${Auth.getToken()}` }
-      });
-      if (!res.ok) return;
-      const data = await res.json();
-      friendNotifCount = (data.receivedRequests || []).length;
-      updateFriendBadge(friendNotifCount);
-    } catch {}
+    document.getElementById("usernameDisplay").textContent = user.username;
+    document.getElementById("avatarImg").src = user.avatarUrl;
   }
 
   // ── SOCKET ────────────────────────────────────────────────
@@ -563,35 +512,40 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
 
     socket.on("typing_start", ({ from }) => {
-      showCardTyping(from);
+      const state = cardMap.get(from);
+      if (state) state.lastMsgEl.innerHTML = "typing...";
     });
 
     socket.on("typing_stop", ({ from }) => {
-      hideCardTyping(from);
+      const state = cardMap.get(from);
+      if (state) {
+        state.lastMsgEl.innerHTML = buildLastMsgHTML(
+          state.lastMessage,
+          state.isMine,
+          state.delivered
+        );
+      }
     });
 
-    socket.on("message_delivered", ({ friendId }) => {
-      setCardDelivered(friendId);
-    });
+    // 🔥 NEW FIX: realtime read sync
+    socket.on("chat_read", ({ friendId }) => {
+      const state = cardMap.get(friendId);
+      if (!state) return;
 
-    socket.on("friend_request_received", fetchPendingCount);
-    socket.on("friend_request_accepted", fetchPendingCount);
-    socket.on("friend_request_rejected", fetchPendingCount);
-    socket.on("friend_request_deleted",  fetchPendingCount);
+      state.unreadCount = 0;
+
+      if (state.unreadEl) {
+        state.unreadEl.style.display = "none";
+        state.unreadEl.textContent = "";
+      }
+
+      updateFooterChatBadge();
+    });
   }
-
-  // ── FOOTER HIDE ON SCROLL ─────────────────────────────────
-  let lastScroll = 0;
-  window.addEventListener("scroll", () => {
-    const cur = window.pageYOffset;
-    footer.classList.toggle("hide", cur > lastScroll && cur > 50);
-    lastScroll = cur;
-  });
 
   // ── INIT ──────────────────────────────────────────────────
   await loadUser();
   await loadConversations();
-  await fetchPendingCount();
   initSocket();
 
 });
