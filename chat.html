@@ -551,10 +551,10 @@ async function loadHistory() {
     });
 
     // Defer scroll until DOM has painted
-    setTimeout(() => {
-      messagesDiv.scrollTop = messagesDiv.scrollHeight;
-    }, 50);
-
+     requestAnimationFrame(() => {
+  messagesDiv.scrollTop = messagesDiv.scrollHeight;
+});
+   
   } catch (err) {
     console.error("History load error:", err);
   }
