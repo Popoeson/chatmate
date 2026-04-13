@@ -467,7 +467,7 @@ const params = new URLSearchParams(window.location.search);
 const receiverId = params.get("userId");
 if (!receiverId) window.location.href = "friends.html";
 
-/* ── ELEMENTS ───────────────────────────────────────── */
+/* ── ELEMENTS ───────────────────────── */
 const messagesDiv = document.getElementById("messages");
 const input = document.getElementById("messageInput");
 const sendBtn = document.getElementById("sendBtn");
@@ -480,29 +480,30 @@ const replySender = document.getElementById("replySender");
 const cancelReply = document.getElementById("cancelReply");
 const scrollDownBtn = document.getElementById("scrollDownBtn");
 
-/* ── THEME ───────────────────────────────────────── */
+/* ── THEME ───────────────────────── */
 toggle.onclick = () => {
   document.body.classList.toggle("dark");
   toggle.classList.toggle("fa-sun");
   toggle.classList.toggle("fa-moon");
 };
 
-/* ── STATE ───────────────────────────────────────── */
+/* ── STATE ───────────────────────── */
 let currentUserId = null;
 let currentUsername = null;
 let replyingTo = null;
 let typingTimeout = null;
 let isTyping = false;
+let loadingHistory = false;
 
-/* ── SCROLL BUTTON LOGIC ───────────────────────── */
+/* ── SCROLL BUTTON ───────────────────────── */
 messagesDiv.addEventListener("scroll", () => {
 
-  const distFromBottom =
+  const distance =
     messagesDiv.scrollHeight -
     messagesDiv.scrollTop -
     messagesDiv.clientHeight;
 
-  if (distFromBottom > 120) {
+  if (distance > 150) {
     scrollDownBtn.classList.add("visible");
   } else {
     scrollDownBtn.classList.remove("visible");
@@ -511,10 +512,12 @@ messagesDiv.addEventListener("scroll", () => {
 });
 
 scrollDownBtn.onclick = () => {
+
   messagesDiv.scrollTo({
-    top: messagesDiv.scrollHeight,
+    top: messagesDiv.scrollHeight + 500,
     behavior: "smooth"
   });
+
 };
 
 /* ── LOAD CURRENT USER ───────────────────────── */
@@ -549,13 +552,14 @@ async function loadReceiver() {
 
   chatUsername.textContent = user.username;
   chatAvatar.src = user.avatarUrl || "";
-
 }
 
-/* ── LOAD HISTORY ───────────────────────── */
+/* ── LOAD CHAT HISTORY ───────────────────────── */
 async function loadHistory() {
 
   try {
+
+    loadingHistory = true;
 
     const res = await fetch(`${API}/messages/${receiverId}`, {
       headers: { Authorization: `Bearer ${token}` }
@@ -584,6 +588,8 @@ async function loadHistory() {
 
     });
 
+    loadingHistory = false;
+
     requestAnimationFrame(() => {
       messagesDiv.scrollTop = messagesDiv.scrollHeight;
     });
@@ -606,7 +612,7 @@ async function markAsRead() {
 
 }
 
-/* ── SOCKET CONNECTION ───────────────────────── */
+/* ── SOCKET ───────────────────────── */
 const socket = io("https://chatmate-kbwz.onrender.com", {
   auth: { token }
 });
@@ -656,7 +662,11 @@ function showTypingIndicator() {
     messagesDiv.scrollTop -
     messagesDiv.clientHeight < 120;
 
-  if (nearBottom) messagesDiv.scrollTop = messagesDiv.scrollHeight;
+  if (nearBottom) {
+    requestAnimationFrame(() => {
+      messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    });
+  }
 
 }
 
@@ -707,7 +717,6 @@ function setReply(messageId, text, sender) {
   replyPreview.style.display = "flex";
 
   input.focus();
-
 }
 
 function clearReply() {
@@ -717,7 +726,6 @@ function clearReply() {
   replyPreview.style.display = "none";
   replyText.textContent = "";
   replySender.textContent = "";
-
 }
 
 cancelReply.onclick = clearReply;
@@ -729,7 +737,6 @@ function sendMessage() {
   if (!text) return;
 
   isTyping = false;
-
   clearTimeout(typingTimeout);
 
   socket.emit("typing_stop", { to: receiverId });
@@ -752,7 +759,6 @@ function sendMessage() {
 
   input.value = "";
   input.style.height = "auto";
-
 }
 
 sendBtn.onclick = sendMessage;
@@ -809,13 +815,19 @@ function addMessage({ id, text, type, timestamp, replyTo }) {
 
   messagesDiv.appendChild(div);
 
+  if (loadingHistory) return;
+
   const nearBottom =
     messagesDiv.scrollHeight -
     messagesDiv.scrollTop -
     messagesDiv.clientHeight < 120;
 
   if (nearBottom) {
-    messagesDiv.scrollTop = messagesDiv.scrollHeight;
+
+    requestAnimationFrame(() => {
+      messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    });
+
   }
 
 }
@@ -858,5 +870,6 @@ await loadHistory();
 await markAsRead();
 
 </script>
+
 </body>
 </html>
